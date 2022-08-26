@@ -23,7 +23,7 @@ class FitModel:
     _PARAMETERS: Dict[str, FitParameter] = {}
 
     @staticmethod
-    def func(self, x: np.array, params: Dict[str, float]) -> np.array:
+    def func(x: np.array, params: Dict[str, float]) -> np.array:
         """Returns the model function values at the points specified by `x` for the
         parameter values specified by `params`.
         """
