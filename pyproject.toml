@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "fits"
+version = "0.0.1"
+description = "Lightweight Python data fitting library with an emphasis on AMO/Quanntum Information"
+authors = ["hartytp <thomas.peter.harty@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.8, <3.11"
+numpy = "^1.22.0"
+scipy = "^1.7.3"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+poethepoet = "^0.12.1"
+flake8 = "^4.0.1"
+black = "^22.6.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poe.tasks]
+test = "pytest"
+fmt-test = "black --check ."
+fmt = "black ."
+flake = "flake8 ."
