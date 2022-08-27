@@ -10,13 +10,20 @@ class FitParameter:
         bounds: tuple of default lower, upper bounds for the parameter.
         fixed_to: optional float specifying the value (if any) that the parameter is
             fixed to by default
-        scale_func: callable that returns a scale factor for the parameter based on the
-            input dataset x and y scale factors, used to aid the optimizer numerics.
+        scale_func: callable which returns a scale factor giving the order-of-magnitude
+            size of the parameter. This is used to improve numerics by avoiding asking
+            the optimizer to work with very large or very small parameter values. The
+            callable takes three arguments: the x-axis scale factor, the y-axis scale
+            factor and a dictionary of fixed parameter values. If any scale func returns
+            a value that is 0 or not finite (e.g. `nan`) or `None` we do not rescale the
+            coordinates/parameters.
     """
 
-    bounds: tuple[float, float] = (-np.inf, np.inf)
+    bounds: Tuple[float, float] = (-np.inf, np.inf)
     fixed_to: Optional[float] = None
-    scale_func: Callable[[np.array, np.array], float] = (lambda x_scale, y_scale: 1,)
+    scale_func: Callable[
+        [np.array, np.array, Dict[str, float]], float
+    ] = lambda x_scale, y_scale, fixed_params: 1
 
 
 class FitModel:
@@ -37,7 +44,7 @@ class FitModel:
         Returns values and uncertainties for the derived parameters based on values of
         the fitted parameters and their uncertainties.
         """
-        raise NotImplementedError
+        return {}, {}
 
     @classmethod
     def get_parameters(cls) -> Dict[str, FitParameter]:
@@ -95,9 +102,9 @@ class FitBase:
             param: param_data.bounds for param, param_data in params.items()
         }
         default_fixed = {
-            param: param_data.fixed
+            param: param_data.fixed_to
             for param, param_data in params.items()
-            if param_data.fixed is not None
+            if param_data.fixed_to is not None
         }
 
         def validate_param_names(params, kind):
@@ -118,12 +125,14 @@ class FitBase:
         self._fixed_params = default_fixed
         self._initial_values = {}
 
-        self._param_bounds.update(default_bounds)
-        self._fixed_params.update(default_fixed)
+        self._param_bounds.update(param_bounds)
+        self._fixed_params.update(fixed_params)
         self._initial_values.update(initial_values)
 
         self._fixed_params = {
-            param: fixed for param, fixed in self._fixed_params if fixed is not None
+            param: fixed
+            for param, fixed in self._fixed_params.items()
+            if fixed is not None
         }
         self._initial_values = {
             param: initial
@@ -137,9 +146,11 @@ class FitBase:
         self._fitted_param_uncertainties = None
 
     def set_dataset(self, x, y, y_err=None):
-        self._x = np.asarray(x)
-        self._y = np.asarray(y)
-        self._y_err = None if y_err is None else np.asarray(y_err)
+        self._x = np.array(x, dtype=np.float64, copy=True)
+        self._y = np.array(y, dtype=np.float64, copy=True)
+        self._y_err = (
+            None if y_err is None else np.array(y_err, dtype=np.float64, copy=True)
+        )
 
         valid_pts = np.logical_and(np.isfinite(self._x), np.isfinite(self._y))
         self._x = self._x[valid_pts]
@@ -167,43 +178,64 @@ class FitBase:
         if self._x is None:
             raise ValueError("Cannot fit without first setting a dataset")
 
+        if not self._free_params:
+            raise ValueError("Attempt to fit without any floated parameters")
+
+        x = np.array(self._x, copy=True)
+        y = np.array(self._y, copy=True)
+        y_err = None if self._y_err is None else np.array(self._y_err, copy=True)
+
+        fixed_params = dict(self._fixed_params)
+        initial_values = dict(self._initial_values)
+        initial_values.update(self._fixed_params)
+        bounds = {
+            param: np.array(bounds, copy=True)
+            for param, bounds in self._param_bounds.items()
+        }
+
+        # Rescale our coordinates / parameters to avoid working with very large/small
+        # values
         x_scale = np.max(np.abs(self._x))
         y_scale = np.max(np.abs(self._y))
 
-        x = self._x / x_scale
-        y = self._y / y_scale
-        y_err = None if self._y_err is None else self._y_err / y_scale
-
         scale_funcs = {
             param: param_data.scale_func
-            for param, param_data in self.model.get_parameters
-            if param in self._free_params
+            for param, param_data in self._model.get_parameters().items()
         }
 
         assert set(scale_funcs.keys()) == set(self._param_names)
 
         scale_factors = {
-            param: scale_func(x_scale, y_scale)
+            param: scale_func(x_scale, y_scale, fixed_params)
             for param, scale_func in scale_funcs.items()
         }
 
-        fixed_values = dict(self._fixed_params)
-        initial_values = dict(self._initial_values)
-        initial_values.update(self._fixed_values)
+        valid_scale_factors = [
+            scale is not None and np.isfinite(scale) and scale != 0
+            for scale in scale_factors.values()
+        ]
+        rescale_coords = all(valid_scale_factors)
 
-        initial_values = {
-            param: value / scale_factors[param]
-            for param, value in initial_values.items()
-        }
-        fixed_values = {
-            param: value / scale_factors[param] for param, value in fixed_values.items()
-        }
-        bounds = {
-            param: np.asarray(bounds) / scale_factors[param]
-            for param, bounds in self._param_bounds.items()
-        }
+        if rescale_coords:
+            x /= x_scale
+            y /= y_scale
+            y_err = None if self._y_err is None else y_err / y_scale
 
-        initial_values = self._estimate_parameters(x, y, y_err, initial_values, bounds)
+            initial_values = {
+                param: value / scale_factors[param]
+                for param, value in initial_values.items()
+            }
+            fixed_params = {
+                param: value / scale_factors[param]
+                for param, value in fixed_params.items()
+            }
+            bounds = {
+                param: value / scale_factors[param] for param, value in bounds.items()
+            }
+
+        initial_values = self._model.estimate_parameters(
+            x, y, y_err, initial_values, bounds
+        )
 
         bounds = {
             param: bounds
@@ -216,18 +248,26 @@ class FitBase:
             if param in self._free_params
         }
 
-        def free_func(self, x, free_params):
+        def free_func(x, *free_params):
             """Call the model function with the values of the free parameters."""
-            params = dict(free_params)
-            params.update(fixed_values)
+            params = {
+                param: value
+                for param, value in zip(self._free_params, list(free_params))
+            }
+            params.update(fixed_params)
             return self._model.func(x, params)
 
-        p_fit, p_err = self._fit(initial_values, bounds, free_func)
+        p_fit, p_err = self._fit(x, y, y_err, initial_values, bounds, free_func)
 
-        p_fit = {param: value * scale_factors[param] for param, value in p_fit.items()}
-        p_err = {param: value * scale_factors[param] for param, value in p_err.items()}
+        if rescale_coords:
+            p_fit = {
+                param: value * scale_factors[param] for param, value in p_fit.items()
+            }
+            p_err = {
+                param: value * scale_factors[param] for param, value in p_err.items()
+            }
 
-        p_derived, p_derived_err = self.model.calculate_derived_params(p_fit, p_err)
+        p_derived, p_derived_err = self._model.calculate_derived_params(p_fit, p_err)
         p_fit.update(p_derived)
         p_err.update(p_derived_err)
         p_fit.update({param: value for param, value in self._fixed_params.items()})
@@ -238,7 +278,7 @@ class FitBase:
 
         return self._fitted_params, self._fitted_param_uncertainties
 
-    def _fit(self, initial_values, bounds, func):
+    def _fit(self, x, y, y_err, initial_values, bounds, func):
         raise NotImplementedError
 
     def fit_significance(self) -> float:
@@ -262,13 +302,12 @@ class FitBase:
         """
         if np.isscalar(x_fit):
             x_fit = np.linspace(np.min(self._x), np.max(self._x), x_fit)
-        y_fit = self.model.func(x_fit, self._fitted_params)
+        y_fit = self._model.func(x_fit, self._fitted_params)
         return x_fit, y_fit
 
-    @property
     def residuals(self):
         """Returns the fit residuals."""
         if self._y is None:
             raise ValueError("Cannot calculate residuals without a dataset")
 
-        return self._y - self._func_free(self._x, self._fitted_params)
+        return self._y - self.evaluate(self._x)

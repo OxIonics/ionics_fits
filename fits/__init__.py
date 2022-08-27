@@ -1,2 +1,4 @@
 from .common import FitParameter, FitModel, FitBase
-import models
+from .lsq import LSQFit
+from . import models
+from . import utils

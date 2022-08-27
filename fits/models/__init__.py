@@ -1,1 +1,1 @@
-from .polynomial import Power
+from .polynomial import Power, Polynomial

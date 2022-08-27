@@ -10,8 +10,14 @@ class LSQFit(FitBase):
     data that is close to normal this is usually a pretty good approximation of MLE.
     """
 
-    def _fit(x, y, y_err, initial_values, bounds, func):
-        p0 = [value for _, value in initial_values.items()]
+    def _fit(self, x, y, y_err, initial_values, bounds, func):
+        p0 = [initial_values[param] for param in self._free_params]
+        lower = [bounds[param][0] for param in self._free_params]
+        upper = [bounds[param][1] for param in self._free_params]
+
+        assert x.dtype == np.float64
+        assert y.dtype == np.float64
+
         p, p_cov = optimize.curve_fit(
             f=func,
             xdata=x,
@@ -19,13 +25,13 @@ class LSQFit(FitBase):
             p0=p0,
             sigma=y_err,
             absolute_sigma=y_err is not None,
-            bounds=bounds,
+            bounds=(lower, upper),
+            method="trf",
         )
-
         p_err = np.sqrt(np.diag(p_cov))
 
-        p = {param: value for param, value in zip(initial_values.keys(), p)}
-        p_err = {param: value for param, value in zip(initial_values.keys(), p_err)}
+        p = {param: value for param, value in zip(self._free_params, p)}
+        p_err = {param: value for param, value in zip(self._free_params, p_err)}
 
         return p, p_err
 

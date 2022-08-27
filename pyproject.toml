@@ -8,19 +8,22 @@ authors = ["hartytp <thomas.peter.harty@gmail.com>"]
 python = ">=3.8, <3.11"
 numpy = "^1.22.0"
 scipy = "^1.7.3"
+statsmodels = "^0.13.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
 poethepoet = "^0.12.1"
 flake8 = "^4.0.1"
 black = "^22.6.0"
+matplotlib = "^3.5.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poe.tasks]
-test = "pytest"
+test = "python -m unittest discover -v test"
 fmt-test = "black --check ."
 fmt = "black ."
 flake = "flake8 ."
+fuzz = "python test\\fuzz.py"
