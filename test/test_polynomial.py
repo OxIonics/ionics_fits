@@ -24,7 +24,7 @@ class TestPower(TestBase):
         )
 
     def fuzz(self, num_trials=100):
-        x = np.linspace(0.1, 50)  # TODO microns
+        x = np.linspace(0.1, 50)
         fixed_params = {"x0": 0, "y0": 0}
         super().fuzz(
             x,

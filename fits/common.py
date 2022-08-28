@@ -52,7 +52,7 @@ class FitModel:
         return dict(cls._PARAMETERS)
 
     @staticmethod
-    def estimate_parameters(x, y, y_err, known_values, bounds) -> Dict[str, float]:
+    def estimate_parameters(x, y, known_values, bounds) -> Dict[str, float]:
         """
         Returns a dictionary of estimates for the parameter values for the specified
         dataset.
@@ -62,7 +62,6 @@ class FitModel:
 
         :param x: dataset x-axis values
         :param y: dataset y-axis values
-        :param y_err: dataset y-axis uncertainties
         :param known_values: dictionary of parameters whose value is known (e.g. because
             the parameter is fixed to a certain value or an estimate guess has been
             provided by the user).
@@ -145,31 +144,23 @@ class FitBase:
         self._fitted_params = None
         self._fitted_param_uncertainties = None
 
-    def set_dataset(self, x, y, y_err=None):
+    def set_dataset(self, x, y):
         self._x = np.array(x, dtype=np.float64, copy=True)
         self._y = np.array(y, dtype=np.float64, copy=True)
-        self._y_err = (
-            None if y_err is None else np.array(y_err, dtype=np.float64, copy=True)
-        )
 
         valid_pts = np.logical_and(np.isfinite(self._x), np.isfinite(self._y))
         self._x = self._x[valid_pts]
         self._y = self._y[valid_pts]
-        self._y_err = None if self._y_err is None else self._y_err[valid_pts]
 
         inds = np.argsort(self._x)
         self._x = self._x[inds]
         self._y = self._y[inds]
-        self._y_err = None if self._y_err is None else self._y_err[inds]
 
         self._fitted_params = None
         self._fitted_param_uncertainties = None
 
         if self._x.shape != self._y.shape:
             raise ValueError("Shapes of x and y do not match.")
-
-        if self._y_err is not None and self._y.shape != self._y_err.shape:
-            raise ValueError("Shape of y and y_err do not match")
 
     def fit(self) -> Tuple[Dict[str, float], Dict[str, float]]:
         """
@@ -183,7 +174,6 @@ class FitBase:
 
         x = np.array(self._x, copy=True)
         y = np.array(self._y, copy=True)
-        y_err = None if self._y_err is None else np.array(self._y_err, copy=True)
 
         fixed_params = dict(self._fixed_params)
         initial_values = dict(self._initial_values)
@@ -219,7 +209,6 @@ class FitBase:
         if rescale_coords:
             x /= x_scale
             y /= y_scale
-            y_err = None if self._y_err is None else y_err / y_scale
 
             initial_values = {
                 param: value / scale_factors[param]
@@ -233,9 +222,7 @@ class FitBase:
                 param: value / scale_factors[param] for param, value in bounds.items()
             }
 
-        initial_values = self._model.estimate_parameters(
-            x, y, y_err, initial_values, bounds
-        )
+        initial_values = self._model.estimate_parameters(x, y, initial_values, bounds)
 
         bounds = {
             param: bounds
@@ -257,7 +244,9 @@ class FitBase:
             params.update(fixed_params)
             return self._model.func(x, params)
 
-        p_fit, p_err = self._fit(x, y, y_err, initial_values, bounds, free_func)
+        p_fit, p_err = self._fit(
+            x, y, initial_values, bounds, free_func, x_scale, y_scale
+        )
 
         if rescale_coords:
             p_fit = {
@@ -278,7 +267,7 @@ class FitBase:
 
         return self._fitted_params, self._fitted_param_uncertainties
 
-    def _fit(self, x, y, y_err, initial_values, bounds, func):
+    def _fit(self, x, y, initial_values, bounds, func, x_scale, y_scale):
         raise NotImplementedError
 
     def fit_significance(self) -> float:

@@ -54,7 +54,7 @@ class Power(FitModel):
         return a * np.float_power(x - x0, n) + y0
 
     @staticmethod
-    def estimate_parameters(x, y, y_err, known_values, bounds) -> Dict[str, float]:
+    def estimate_parameters(x, y, known_values, bounds) -> Dict[str, float]:
         """
         Returns a dictionary of estimates for the parameter values for the specified
         dataset.
@@ -64,7 +64,6 @@ class Power(FitModel):
 
         :param x: dataset x-axis values
         :param y: dataset y-axis values
-        :param y_err: dataset y-axis uncertainties
         :param known_values: dictionary of parameters whose value is known (e.g. because
             the parameter is fixed to a certain value or an estimate guess has been
             provided by the user).
@@ -131,7 +130,7 @@ class Polynomial(FitModel):
         return y
 
     @staticmethod
-    def estimate_parameters(x, y, y_err, known_values, bounds) -> Dict[str, float]:
+    def estimate_parameters(x, y, known_values, bounds) -> Dict[str, float]:
         """
         Returns a dictionary of estimates for the parameter values for the specified
         dataset.
@@ -141,7 +140,6 @@ class Polynomial(FitModel):
 
         :param x: dataset x-axis values
         :param y: dataset y-axis values
-        :param y_err: dataset y-axis uncertainties
         :param known_values: dictionary of parameters whose value is known (e.g. because
             the parameter is fixed to a certain value or an estimate guess has been
             provided by the user).

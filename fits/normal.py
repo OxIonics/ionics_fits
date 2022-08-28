@@ -3,14 +3,16 @@ from scipy import optimize, stats
 from . import FitBase
 
 
-class LSQFit(FitBase):
-    """Least-squares fitting.
+class NormalFit(FitBase):
+    """Fit normally-distributed data.
 
-    This is a maximum-likelihood parameter estimator for normally distributed data. For
-    data that is close to normal this is usually a pretty good approximation of MLE.
+    We use least-squares fitting as a maximum-likelihood parameter estimator for
+    normally distributed data. For data that is close to normal this is usually a pretty
+    good approximation of a true MLE estimator.
     """
+    def _fit(self, x, y, initial_values, bounds, func, x_scale, y_scale):
+        y_err = None if self._y_err is None else self._y_err / y_scale
 
-    def _fit(self, x, y, y_err, initial_values, bounds, func):
         p0 = [initial_values[param] for param in self._free_params]
         lower = [bounds[param][0] for param in self._free_params]
         upper = [bounds[param][1] for param in self._free_params]
@@ -60,3 +62,29 @@ class LSQFit(FitBase):
         chi_2 = np.sum(np.power((self._y - y_fit) / self._y_err, 2))
         p = stats.chi2.sf(chi_2, n)
         return p
+
+    def set_dataset(self, x, y, y_err=None):
+        self._x = np.array(x, dtype=np.float64, copy=True)
+        self._y = np.array(y, dtype=np.float64, copy=True)
+        self._y_err = (
+            None if y_err is None else np.array(y_err, dtype=np.float64, copy=True)
+        )
+
+        valid_pts = np.logical_and(np.isfinite(self._x), np.isfinite(self._y))
+        self._x = self._x[valid_pts]
+        self._y = self._y[valid_pts]
+        self._y_err = None if self._y_err is None else self._y_err[valid_pts]
+
+        inds = np.argsort(self._x)
+        self._x = self._x[inds]
+        self._y = self._y[inds]
+        self._y_err = None if self._y_err is None else self._y_err[inds]
+
+        self._fitted_params = None
+        self._fitted_param_uncertainties = None
+
+        if self._x.shape != self._y.shape:
+            raise ValueError("Shapes of x and y do not match.")
+
+        if self._y_err is not None and self._y.shape != self._y_err.shape:
+            raise ValueError("Shape of y and y_err do not match")

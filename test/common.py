@@ -11,7 +11,7 @@ class TestBase(unittest.TestCase):
     def setUp(
         self,
         model_class: fits.FitModel,
-        fit_class: fits.FitBase = fits.LSQFit,
+        fit_class: fits.FitBase = fits.NormalFit,
         plot_failures=False,
     ):
         self.model_class = model_class
@@ -204,7 +204,7 @@ class TestPoisson(TestBase):
         # TODO: move over to PoissonFit
         super().setUp(
             model_class=model_class,
-            fit_class=fits.LSQFit,
+            fit_class=fits.NormalFit,
             plot_failures=plot_failures,
         )
 
@@ -234,7 +234,7 @@ class TestBinomial(TestBase):
         # TODO: move over to BinomialFit
         super().setUp(
             model_class=model_class,
-            fit_class=fits.LSQFit,
+            fit_class=fits.NormalFit,
             plot_failures=plot_failures,
         )
         self.num_shots = num_shots
@@ -247,7 +247,7 @@ class TestBinomial(TestBase):
 
         y = np.random.binomial(self.num_shots, y_model)
 
-        # TODO: this is an approximation for when we're using LSQFits
+        # TODO: this is an approximation for when we're using NormalFits
         # q = 1 - y_model  # For BinomialFit
         # y_err = np.sqrt(self.num_shots * y_model * q)  # For BinomialFit
         y_err = fits.utils.binom_onesided(
