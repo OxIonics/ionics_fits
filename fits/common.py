@@ -162,6 +162,10 @@ class FitBase:
         if self._x.shape != self._y.shape:
             raise ValueError("Shapes of x and y do not match.")
 
+    def post_fit(self, x, y, p_fit, p_err, fixed_params, initial_values, bounds):
+        """Hook called post-fit, override to implement custom functionality."""
+        pass
+
     def fit(self) -> Tuple[Dict[str, float], Dict[str, float]]:
         """
         Fit the dataset and return the fitted parameter values and uncertainties.
@@ -255,6 +259,8 @@ class FitBase:
             p_err = {
                 param: value * scale_factors[param] for param, value in p_err.items()
             }
+
+        self.post_fit(x, y, p_fit, p_err, fixed_params, initial_values, bounds)
 
         p_derived, p_derived_err = self._model.calculate_derived_params(p_fit, p_err)
         p_fit.update(p_derived)

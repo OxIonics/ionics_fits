@@ -10,6 +10,7 @@ class NormalFit(FitBase):
     normally distributed data. For data that is close to normal this is usually a pretty
     good approximation of a true MLE estimator.
     """
+
     def _fit(self, x, y, initial_values, bounds, func, x_scale, y_scale):
         y_err = None if self._y_err is None else self._y_err / y_scale
 
