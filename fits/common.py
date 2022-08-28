@@ -57,16 +57,16 @@ class FitModel:
         Returns a dictionary of estimates for the parameter values for the specified
         dataset.
 
-        The dataset must be sorted in order of increasing x-axis values and not contain
-        any infinite or nan values.
+        The dataset must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values.
 
         :param x: dataset x-axis values
         :param y: dataset y-axis values
         :param known_values: dictionary of parameters whose value is known (e.g. because
             the parameter is fixed to a certain value or an estimate guess has been
             provided by the user).
-        :param bounds: dictionary of parameter bounds. All estimated values must lie
-            within the specified parameter bounds.
+        :param bounds: dictionary of parameter bounds. Estimated values will be clipped
+            to lie within bounds.
         """
         raise NotImplementedError
 
@@ -226,7 +226,13 @@ class FitBase:
                 param: value / scale_factors[param] for param, value in bounds.items()
             }
 
-        initial_values = self._model.estimate_parameters(x, y, initial_values, bounds)
+        # Make sure we're using the known values and clip to bounds
+        estimated_values = self._model.estimate_parameters(x, y, initial_values, bounds)
+        estimated_values.update(initial_values)
+        for param, value in estimated_values.items():
+            lower, upper = bounds[param]
+            estimated_values[param] = min(max(value, lower), upper)
+        initial_values = estimated_values
 
         bounds = {
             param: bounds

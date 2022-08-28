@@ -59,16 +59,16 @@ class Power(FitModel):
         Returns a dictionary of estimates for the parameter values for the specified
         dataset.
 
-        The dataset must be sorted in order of increasing x-axis values and not contain
-        any infinite or nan values.
+        The dataset must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values.
 
         :param x: dataset x-axis values
         :param y: dataset y-axis values
         :param known_values: dictionary of parameters whose value is known (e.g. because
             the parameter is fixed to a certain value or an estimate guess has been
             provided by the user).
-        :param bounds: dictionary of parameter bounds. All estimated values must lie
-            within the specified parameter bounds.
+        :param bounds: dictionary of parameter bounds. Estimated values will be clipped
+            to lie within bounds.
         """
         param_guesses = {}
         param_guesses["x0"] = known_values.get("x0", 0)
@@ -135,16 +135,16 @@ class Polynomial(FitModel):
         Returns a dictionary of estimates for the parameter values for the specified
         dataset.
 
-        The dataset must be sorted in order of increasing x-axis values and not contain
-        any infinite or nan values.
+        The dataset must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values.
 
         :param x: dataset x-axis values
         :param y: dataset y-axis values
         :param known_values: dictionary of parameters whose value is known (e.g. because
             the parameter is fixed to a certain value or an estimate guess has been
             provided by the user).
-        :param bounds: dictionary of parameter bounds. All estimated values must lie
-            within the specified parameter bounds.
+        :param bounds: dictionary of parameter bounds. Estimated values will be clipped
+            to lie within bounds.
         """
         param_guesses = dict(known_values)
         param_guesses["x0"] = param_guesses.get("x0", 0)
