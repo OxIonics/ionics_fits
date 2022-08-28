@@ -55,8 +55,8 @@ class TestPolynomial(TestBase):
         x = np.linspace(-5, 50) * 1e-3
         fixed_params = {f"a_{n}": 0 for n in range(3, 11)}
 
-        # Floating x0 we get a rather under-defined problem so we check the residuals
-        # rather than the parameter values.
+        # Floating x0 leads to an under-defined problem so we check the residuals rather
+        # than the parameter values.
         self._test_multiple(
             x,
             fixed_params,

@@ -106,9 +106,9 @@ class Polynomial(FitModel):
     Fit parameters (all floated by default unless stated otherwise):
       - a_0 ... a_10: polynomial coefficients. All polynomial coefficients above 1 are
           fixed to 0 by default.
-      - x0: x-axis offset (fixed to 0 by default). NB Floating x0 as well as the
-          polynomial coefficients results in a rather under-defined problem...use with
-          care and provide initial parameter guesses where possible!
+      - x0: x-axis offset (fixed to 0 by default). Floating x0 as well as polynomial
+          coefficients results in an under-defined problem. This parameter is rarely
+          used and is generally anticipated to be set to a fixed value.
 
     Derived parameters:
         None
