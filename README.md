@@ -2,6 +2,38 @@ Lightweight Python library for data fitting with an emphasis on AMO (Atomic Mole
 
 It was inspired by the [Oxford Ion Trap Group fitting library](https://github.com/OxfordIonTrapGroup/oitg/tree/master/oitg/fitting) originally authored by @tballance. It is still in the alpha phase and is likely to be renamed (although `fits` is still available on pypi)...please feel free to help bikeshed names.
 
+# Getting started
+
+## Installation
+
+Install from `pypi` with `pip install fits` or add to your poetry project with `poetry add fits`.
+
+## Example Usage
+
+```python
+import numpy as np
+import fits
+
+a = 3.2
+y0 = -9
+
+x = np.linspace(-10, 10)
+y = a*x + y0
+
+fit = fits.NormalFit(model=fits.models.Line)
+fit.set_dataset(x, y)
+p_fit, _ = fit.fit()
+print(f"Fitted: y = {p_fit['a']:.3f} * x + {p_fit['y0']:.3f}")
+```
+
+# Developing
+
+Before committing:
+- Update formatting: `poe fmt`
+- Lints: `poe flake`
+- Run test suite: `poe test`
+- Optionally: [fuzz](Fuzzing) any new models
+
 # Design Philosophy
 
 ## Good Heuristics
@@ -35,3 +67,35 @@ At present the library is still an MVP. While we do provide some hooks like `pos
 # Ontology
 
 There are two main kinds of object in the library: `fit`s and `model`s. Models are general-purpose functions to be fitted, such as sinusoids or Lorentzians, but are agnostic about the statistics. Fits do the fitting (maximum likelihood parameter estimation) and validation based on some underlying statistics (normal, binomial, etc). 
+
+# Testing methodology
+
+This package uses both `unit test`s and `fuzzing`.
+
+## Unit Tests
+
+- run using `poe test`
+- all tests must pass before a PR can be merged into master
+- PRs to add new models will only be merged once they have reasonable test coverage
+- unit tests aim to provide good coverage over the space of "reasonable datasets". There
+  will always be corner-cases where the fits fail and that's fine; the aim here is to
+  cover the main cases users will hit in the wild
+- when a user hits a case in the wild where the fit fails unexpectedly (i.e. we think
+  the fit code should have handled it), we add `regression tests` based on the failing
+  dataset. 
+- unit tests should be deterministic. Synthetic datasets should be included in the test
+  rather than randomly generated at run time. Tip: while writing a test it's fine to let
+  the test code generate datasets for you. Once you're happy, run the test in verbose
+  mode and copy the dataset from the log output
+
+## Fuzzing
+
+- run with `poe fuzz` (see `--help` for details)
+- a non-deterministic (random parameter values, randomly generated datasets) exploration
+  of the parameter space.
+- used when developing / debugging fits, but not automatically run by CI
+- fit failures during fuzzing are not automatically considered a bug; unlike unit tests,
+  fuzzing explores the "unreasonable" part of parameter space as well. Indeed, a large
+  part of the point of fuzzing is to help the developer understand what should be
+  considered "reasonable" (this information should end up in the documentation for the
+  fuzzed model).

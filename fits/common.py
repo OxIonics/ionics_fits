@@ -29,8 +29,30 @@ class FitParameter:
 class FitModel:
     _PARAMETERS: Dict[str, FitParameter] = {}
 
-    @staticmethod
-    def func(x: np.array, params: Dict[str, float]) -> np.array:
+    @classmethod
+    def min_sqrs(cls, x, y, params, scanned_param, scanned_param_values):
+        params = dict(params)
+        scanned_param_values = np.asarray(scanned_param_values)
+        costs = np.zeros(scanned_param_values.shape)
+        for idx, value in np.ndenumerate(scanned_param_values):
+            params[scanned_param] = value
+            y_params = cls.func(x, params)
+            costs[idx] = np.sqrt(np.sum(np.power(y - y_params, 2)))
+        opt = np.argmin(costs)
+        return float(scanned_param_values[opt]), float(costs[opt])
+
+    @classmethod
+    def pre_fit(cls, fixed_params, initial_values, bounds, free_params):
+        """Hook called post-fit, override to implement custom functionality."""
+        pass
+
+    @classmethod
+    def post_fit(cls, x, y, p_fit, p_err):
+        """Hook called post-fit, override to implement custom functionality."""
+        pass
+
+    @classmethod
+    def func(cls, x: np.array, params: Dict[str, float]) -> np.array:
         """Returns the model function values at the points specified by `x` for the
         parameter values specified by `params`.
         """
@@ -51,8 +73,8 @@ class FitModel:
         """Returns a dictionary of model parameters."""
         return dict(cls._PARAMETERS)
 
-    @staticmethod
-    def estimate_parameters(x, y, known_values, bounds) -> Dict[str, float]:
+    @classmethod
+    def estimate_parameters(cls, x, y, known_values, bounds) -> Dict[str, float]:
         """
         Returns a dictionary of estimates for the parameter values for the specified
         dataset.
@@ -87,8 +109,9 @@ class FitBase:
             in the model, pass `None` as bounds.
         :param fixed_params: dictionary specifying parameters which are to be held
             constant (not floated in the fit). Entries in this dictionary override the
-            defaults provided by the model. To float a parameter that is fixed by
-            default in the model, provide `None` as a value.
+            defaults provided by the model. By default, models float all commonly used
+            parameters and only fix rarely used ones. To float a parameter that is
+            fixed by default in the model, provide `None` as a value.
         :param initial_values: dictionary of initial parameter values. These are used
             instead of heuristics (if you find you need these it may be indicative of
             a poor heuristic so please consider filing an issue).
@@ -162,10 +185,6 @@ class FitBase:
         if self._x.shape != self._y.shape:
             raise ValueError("Shapes of x and y do not match.")
 
-    def post_fit(self, x, y, p_fit, p_err, fixed_params, initial_values, bounds):
-        """Hook called post-fit, override to implement custom functionality."""
-        pass
-
     def fit(self) -> Tuple[Dict[str, float], Dict[str, float]]:
         """
         Fit the dataset and return the fitted parameter values and uncertainties.
@@ -182,6 +201,8 @@ class FitBase:
         fixed_params = dict(self._fixed_params)
         initial_values = dict(self._initial_values)
         initial_values.update(self._fixed_params)
+        free_params = list(self._free_params)
+
         bounds = {
             param: np.array(bounds, copy=True)
             for param, bounds in self._param_bounds.items()
@@ -226,30 +247,36 @@ class FitBase:
                 param: value / scale_factors[param] for param, value in bounds.items()
             }
 
+        self._model.pre_fit(
+            fixed_params=fixed_params,
+            initial_values=initial_values,
+            bounds=bounds,
+            free_params=free_params,
+        )
         # Make sure we're using the known values and clip to bounds
         estimated_values = self._model.estimate_parameters(x, y, initial_values, bounds)
         estimated_values.update(initial_values)
         for param, value in estimated_values.items():
             lower, upper = bounds[param]
             estimated_values[param] = min(max(value, lower), upper)
-        initial_values = estimated_values
+
+        initial_values = dict(estimated_values)
+        self._estimated_values = estimated_values  # stored for debugging purposes
 
         bounds = {
-            param: bounds
-            for param, bounds in bounds.items()
-            if param in self._free_params
+            param: bounds for param, bounds in bounds.items() if param in free_params
         }
         initial_values = {
             param: value
             for param, value in initial_values.items()
-            if param in self._free_params
+            if param in free_params
         }
 
-        def free_func(x, *free_params):
+        def free_func(x, *free_param_values):
             """Call the model function with the values of the free parameters."""
             params = {
                 param: value
-                for param, value in zip(self._free_params, list(free_params))
+                for param, value in zip(free_params, list(free_param_values))
             }
             params.update(fixed_params)
             return self._model.func(x, params)
@@ -265,14 +292,19 @@ class FitBase:
             p_err = {
                 param: value * scale_factors[param] for param, value in p_err.items()
             }
+            self._estimated_values = {
+                param: value * scale_factors[param]
+                for param, value in self._estimated_values.items()
+            }
 
-        self.post_fit(x, y, p_fit, p_err, fixed_params, initial_values, bounds)
+        p_fit.update({param: value for param, value in self._fixed_params.items()})
+        p_err.update({param: 0 for param, _ in self._fixed_params.items()})
+
+        self._model.post_fit(x, y, p_fit, p_err)
 
         p_derived, p_derived_err = self._model.calculate_derived_params(p_fit, p_err)
         p_fit.update(p_derived)
         p_err.update(p_derived_err)
-        p_fit.update({param: value for param, value in self._fixed_params.items()})
-        p_err.update({param: 0 for param, _ in self._fixed_params.items()})
 
         self._fitted_params = p_fit
         self._fitted_param_uncertainties = p_err

@@ -1,1 +1,2 @@
-from .polynomial import Power, Polynomial
+from .polynomial import Power, Polynomial, Line, Parabola
+from . import utils

@@ -1,12 +1,33 @@
 import numpy as np
+import logging
 from matplotlib import pyplot as plt
-from typing import Any, Dict, Tuple, Union
+import traceback
+from typing import Any, Dict, Optional, Tuple, Union
 import unittest
+import warnings
 import fits
 
 
-# TODO: tests with statistics (e.g. normally-distributed data)
-# TODO: fuzzing
+# TODO: fixup logging during tests
+logger = logging.getLogger(__name__)
+
+# parser = argparse.ArgumentParser()
+# parser.add_argument(
+#     "-v", "--verbose", default=0, action="count", help="increase logging level"
+# )
+# parser.add_argument(
+#     "-q", "--quiet", default=0, action="count", help="decrease logging level"
+# )
+# args, _ = parser.parse_known_args()
+
+# logging.getLogger().setLevel(logging.DEBUG)
+# logger.setLevel(logging.WARNING + args.quiet * 10 - args.verbose * 10)
+
+# handler = logging.StreamHandler(sys.stdout)
+# handler.setLevel(logging.DEBUG)
+# logger.addHandler(handler)
+
+
 class TestBase(unittest.TestCase):
     def setUp(
         self,
@@ -18,6 +39,8 @@ class TestBase(unittest.TestCase):
         self.fit_class = fit_class
         self.plot_failures = plot_failures
 
+        warnings.filterwarnings("error")  # Promote divide by zero etc to hard errors
+
     def get_data(self, x, params):
         return self.model_class.func(x, params), None
 
@@ -28,6 +51,7 @@ class TestBase(unittest.TestCase):
         param_tol=1e-3,
         p_thresh=0.9,
         residual_tol=None,
+        plot_failures=None,
         **kwargs: Any,
     ):
         """Validates the fit for a single set of x-axis data and parameter values.
@@ -35,56 +59,60 @@ class TestBase(unittest.TestCase):
         keyword arguments are passed directly into the fit class constructor.
         """
         if set(params.keys()) != set(self.model_class.get_parameters().keys()):
-            print(params.keys())
             raise ValueError("Test parameter sets must match the model parameters")
 
         y, y_err = self.get_data(x, params)
 
         fit = self.fit_class(self.model_class, **kwargs)
         fit.set_dataset(x, y, y_err)
-        fitter_params, fitted_param_err = fit.fit()
+        fitted_params, fitted_param_err = fit.fit()
 
         def plot():
+            do_plot = plot_failures if plot_failures is not None else self.plot_failures
+
+            if not do_plot:
+                return
+
             plt.title(self.__class__.__name__)
             if y_err is None:
-                plt.plot(x, y, label="data")
+                plt.plot(x, y, "-o", label="data")
             else:
-                plt.errorbar(x, y, yerr=y_err, label="data")
-            plt.plot(x, fit.evaluate(x)[1], label="fit")
+                plt.errorbar(x, y, "-o", yerr=y_err, label="data")
+
+            plt.plot(x, fit.evaluate(x)[1], "--o", label="fit")
+            plt.plot(
+                x, fit._model.func(x, fit._estimated_values), "-o", label="heuristic"
+            )
             plt.grid()
             plt.legend()
             plt.show()
 
         if param_tol is not None:
             for param in fit._free_params:
-                if not self.params_close(param, params, fitter_params, param_tol):
-                    if self.plot_failures:
-                        plot()
-
+                if not self.params_close(param, params, fitted_params, param_tol):
+                    plot()
                     # TODO: tidy up error message
                     raise ValueError(
                         f"Error in {param} is too large: actual value is "
                         f"{params[param]:.3e}"
-                        f" fitted value is {fitter_params[param]:.3e}"
+                        f" fitted value is {fitted_params[param]:.3e}"
                         f" actual parameter set: {params}"
-                        f" fitted parameter set: {fitter_params}"
+                        f" fitted parameter set: {fitted_params}"
                     )
 
         if p_thresh is not None and y_err is not None:
             p_fit = fit.fit_significance()
 
-            if self.plot_failures and p_fit < self.p_thresh:
+            if p_fit < self.p_thresh:
                 plot()
 
-            self.assertTrue(
-                p_fit >= self.p_thresh,
+            raise ValueError(
                 f"Fit significance too low: {p_fit:.2f} < {self.p_thresh:.2f}",
             )
 
         if residual_tol is not None:
             if not self.is_close(y, fit.evaluate(x)[1], residual_tol):
-                if self.plot_failures:
-                    plot()
+                plot()
                 raise ValueError(
                     f"Fitted data not close to model: {y}, {fit.evaluate(x)[1]}"
                 )
@@ -106,35 +134,37 @@ class TestBase(unittest.TestCase):
     def _test_multiple(
         self,
         x,
-        fixed_params: Dict[str, float],
+        static_params: Dict[str, float],
         scanned_params: Dict[str, Union[float, np.array]],
+        fixed_params: Optional[Dict[str, float]] = None,
         param_tol=1e-3,
         p_thresh=0.9,
         residual_tol=None,
+        **kwargs,
     ):
         model_params = set(self.model_class.get_parameters().keys())
-        fixed = set(fixed_params.keys())
+        static = set(static_params.keys())
         scanned = set(scanned_params.keys())
-        input_params = fixed.union(scanned)
+        input_params = static.union(scanned)
 
-        assert scanned.intersection(fixed) == set()
+        assert scanned.intersection(static) == set()
         assert input_params == model_params, (
             f"Input parameters '{input_params}' don't match model parameters "
             f"'{model_params}'"
         )
 
-        fixed_params.update(
-            {param: None for param in scanned}
-        )  # Float the scanned parameters
-        params = dict(fixed_params)
+        if fixed_params is None:
+            fixed_params = {param: static_params.get(param) for param in model_params}
 
-        def walk_params(params, fixed, scanned):
+        params = dict(static_params)
+
+        def walk_params(params, static, scanned):
             scanned = dict(scanned)
             param, values = scanned.popitem()
             for value in values:
                 params[param] = value
                 if scanned:
-                    walk_params(params, fixed, scanned)
+                    walk_params(params, static, scanned)
                 else:
                     self._test_single(
                         x,
@@ -143,6 +173,7 @@ class TestBase(unittest.TestCase):
                         param_tol=param_tol,
                         p_thresh=p_thresh,
                         residual_tol=residual_tol,
+                        **kwargs,
                     )
 
         walk_params(params, fixed_params, scanned_params)
@@ -150,41 +181,52 @@ class TestBase(unittest.TestCase):
     def fuzz(
         self,
         x,
-        fixed_params,
+        static_params: Dict[str, float],
         fuzzed_params: Dict[str, Tuple[float, float]],
+        fixed_params: Optional[Dict[str, float]] = None,
         num_trials=10,
         param_tol=1e-3,
         p_thresh=0.9,
         residual_tol=None,
+        stop_at_failure=True,
+        plot_failures=False,
     ):
         model_params = set(self.model_class.get_parameters().keys())
-        fixed = set(fixed_params.keys())
+        static = set(static_params.keys())
         fuzzed = set(fuzzed_params.keys())
-        input_params = fixed.union(fuzzed)
+        input_params = static.union(fuzzed)
 
-        assert fuzzed.intersection(fixed) == set()
+        assert fuzzed.intersection(static) == set()
         assert input_params == model_params, (
             f"Input parameters '{input_params}' don't match model parameters "
             f"'{model_params}'"
         )
 
-        # TODO: document the different usage of fixed here!
-        fixed_params.update(
-            {param: None for param in fuzzed}
-        )  # Float the fuzzed parameters
+        if fixed_params is None:
+            fixed_params = {param: static_params.get(param) for param in model_params}
 
         params = dict(fixed_params)
+        failures = 0
         for trial in range(num_trials):
             for param, bounds in fuzzed_params.items():
                 params[param] = np.random.uniform(*bounds)
-            self._test_single(
-                x,
-                params,
-                fixed_params=fixed_params,
-                param_tol=param_tol,
-                p_thresh=p_thresh,
-                residual_tol=residual_tol,
-            )
+
+            try:
+                self._test_single(
+                    x,
+                    params,
+                    fixed_params=fixed_params,
+                    param_tol=param_tol,
+                    p_thresh=p_thresh,
+                    residual_tol=residual_tol,
+                    plot_failures=plot_failures,
+                )
+            except Exception:
+                if stop_at_failure:
+                    raise
+                failures += 1
+                logger.warning(f"failed...{traceback.format_exc()}")
+        return failures
 
 
 class TestPoisson(TestBase):
