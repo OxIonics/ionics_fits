@@ -34,12 +34,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--continue_at_failure",
         action="store_true",
-        help="Stop fuzzing a target after a single failure",
+        help="If set, we do not stop fuzzing a target after a single failure",
     )
     parser.add_argument(
         "--plot_failures",
         action="store_true",
-        help="Plot data/fit for each failure",
+        help="If set, we plot data/fit for each failure",
     )
     parser.add_argument(
         "--num_trials",
@@ -75,6 +75,7 @@ if __name__ == "__main__":
 
     for target in args.targets:
         logger.info(f"Fuzzing {target}...")
+
         test = targets[target]()
         test.setUp()
 

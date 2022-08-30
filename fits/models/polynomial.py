@@ -5,6 +5,8 @@ from typing import Dict
 from . import utils
 from .. import FitModel, FitParameter
 
+# TODO: check scale factors, heuristics, test coverage...
+
 
 class Power(FitModel):
     """Single-power fit according to:
@@ -114,7 +116,7 @@ class Power(FitModel):
             if len(n) == 0:
                 return 0, np.inf
 
-            return cls.min_sqrs(x, y, param_guesses, "n", n)
+            return cls.param_min_sqrs(x, y, param_guesses, "n", n)
 
         param_guesses["x0"] = known_values.get("x0", 0)
         param_guesses["a"] = known_values.get("a", 1)
