@@ -119,7 +119,7 @@ This package uses both `unit test`s and `fuzzing`.
   will always be corner-cases where the fits fail and that's fine; the aim here is to
   cover the main cases users will hit in the wild
 - when a user hits a case in the wild where the fit fails unexpectedly (i.e. we think
-  the fit code should have handled it), a `regression tests` based on the failing
+  the fit code should have handled it), a `regression test` based on the failing
   dataset should be added
 - unit tests should be deterministic. Synthetic datasets should be included in the test
   rather than randomly generated at run time. Tip: while writing a test it's fine to let
@@ -128,7 +128,7 @@ This package uses both `unit test`s and `fuzzing`.
 
 ## Fuzzing
 
-- fuzzing ais non-deterministic (random parameter values, randomly generated datasets)
+- fuzzing is non-deterministic (random parameter values, randomly generated datasets)
   exploration of the parameter space.
 - used when developing / debugging fits, but not automatically run by CI
 - run with `poe fuzz` (see `--help` for details)
