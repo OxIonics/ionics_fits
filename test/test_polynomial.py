@@ -45,6 +45,9 @@ class TestPower(TestBase):
         super().setUp(model_class=models.Power)
 
     def test_n(self):
+        """Tests with `n` and `y0` floated for parameter sets with various values of
+        `n` and `y0`. `x0` and `a` are held at single values.
+        """
         x = np.linspace(0.1, 1)
         fixed_params = {"x0": 0, "a": 1}
         self.check_multiple(
@@ -54,10 +57,15 @@ class TestPower(TestBase):
         )
 
     def test_a(self):
+        """Tests with `a` and `y0` floated for parameter sets with various values of
+        `n` and `y0`. `x0` and `n` are held at single values.
+        """
         x = np.linspace(0.1, 15)
         fixed_params = {"x0": 0, "n": 5}
         self.check_multiple(
-            x, fixed_params, scanned_params={"a": [0.5, 1, 3, 5.5], "y0": [0, 1, 100]}
+            x,
+            fixed_params,
+            scanned_params={"a": [0.5, 1, 3, 5.5], "y0": [-2.4, 0, 1, 100]},
         )
 
     def fuzz(self, num_trials=100, stop_at_failure=True, plot_failures=False):
