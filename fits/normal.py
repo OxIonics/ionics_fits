@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 from scipy import optimize, stats
 from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
@@ -8,6 +9,9 @@ from .utils import Array, ArrayLike
 if TYPE_CHECKING:
     num_samples = float
     num_values = float
+
+
+logger = logging.getLogger(__name__)
 
 
 class NormalFit(FitBase):
@@ -60,7 +64,7 @@ class NormalFit(FitBase):
         assert x.dtype == np.float64
         assert y.dtype == np.float64
 
-        p, p_cov = optimize.curve_fit(
+        p, p_cov, infodict, mesg, ier = optimize.curve_fit(
             f=free_func,
             xdata=x,
             ydata=y,
@@ -69,11 +73,17 @@ class NormalFit(FitBase):
             absolute_sigma=y_err is not None,
             bounds=(lower, upper),
             method="trf",
+            full_output=True,
         )
+
         p_err = np.sqrt(np.diag(p_cov))
 
         p = {param: value for param, value in zip(self._free_params, p)}
         p_err = {param: value for param, value in zip(self._free_params, p_err)}
+
+        logger.debug(
+            f"Least-squares fit complete: " f"{infodict}\n" f"{mesg}\n" f"{ier}"
+        )
 
         return p, p_err
 

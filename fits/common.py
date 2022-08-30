@@ -210,6 +210,7 @@ class FitBase:
             work (in which case please consider filing an issue); a poor-quality
             dataset; too many floated parameters; etc.
         """
+
         self._model = model
         params = model.get_parameters()
         self._param_names = set(params.keys())
@@ -393,7 +394,9 @@ class FitBase:
                 for param, value in zip(free_params, list(free_param_values))
             }
             params.update(fixed_params)
-            return self._model.func(x, params)
+            y = self._model.func(x, params)
+
+            return y
 
         p_fit, p_err = self._fit(
             x, y, initial_values, bounds, free_func, x_scale, y_scale

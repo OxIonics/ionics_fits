@@ -16,7 +16,7 @@ class TestLine(TestBase):
     def test_line(self):
         x = np.linspace(-10, 10)
         params = {"a": 3.2, "y0": -9}
-        self._test_single(
+        self.check_single(
             x,
             params,
         )
@@ -35,7 +35,7 @@ class TestParabola(TestBase):
     def test_parabola(self):
         x = np.linspace(-10, 10)
         params = {"k": -9, "y0": +4, "x0": -3}
-        self._test_single(x, params)
+        self.check_single(x, params)
 
 
 class TestPower(TestBase):
@@ -47,7 +47,7 @@ class TestPower(TestBase):
     def test_n(self):
         x = np.linspace(0.1, 1)
         fixed_params = {"x0": 0, "a": 1}
-        self._test_multiple(
+        self.check_multiple(
             x,
             fixed_params,
             scanned_params={"n": [-5.51, -1, 1, 0, 3], "y0": [0, 1e-5, -1e-3]},
@@ -56,12 +56,12 @@ class TestPower(TestBase):
     def test_a(self):
         x = np.linspace(0.1, 15)
         fixed_params = {"x0": 0, "n": 5}
-        self._test_multiple(
+        self.check_multiple(
             x, fixed_params, scanned_params={"a": [0.5, 1, 3, 5.5], "y0": [0, 1, 100]}
         )
 
     def fuzz(self, num_trials=100, stop_at_failure=True, plot_failures=False):
-        x = np.linspace(1, 15)
+        x = np.linspace(0.1, 15)
         static_params = {"x0": 0, "a": 1}
         return super().fuzz(
             x,
@@ -77,14 +77,14 @@ class TestPolynomial(TestBase):
     """Tests for polynomials.Polynomial"""
 
     def setUp(self):
-        super().setUp(model_class=models.Polynomial)
+        super().setUp(model_class=models.Polynomial, plot_failures=True)
 
     def test_polynomial(self):
-        x = np.linspace(-5, 50) * 1e-3
+        x = np.linspace(-5, 5)
         fixed_params = {"x0": 0}
         fixed_params.update({f"a_{n}": 0 for n in range(4, 11)})
 
-        self._test_multiple(
+        self.check_multiple(
             x,
             fixed_params,
             scanned_params={"a_0": [1], "a_1": [50], "a_2": [10], "a_3": [2]},
@@ -96,7 +96,7 @@ class TestPolynomial(TestBase):
 
         # Floating x0 leads to an under-defined problem so we check the residuals rather
         # than the parameter values.
-        self._test_multiple(
+        self.check_multiple(
             x,
             fixed_params,
             scanned_params={"x0": [-10], "a_0": [1], "a_1": [50], "a_2": [10]},
