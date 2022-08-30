@@ -36,7 +36,7 @@ Before committing:
 - Update formatting: `poe fmt`
 - Lints: `poe flake`
 - Run test suite: `poe test`
-- Optionally: [fuzz](Fuzzing) any new models
+- Optionally: [fuzz](#Fuzzing) any new models
 
 # Design Philosophy
 
