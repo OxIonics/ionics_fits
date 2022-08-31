@@ -24,7 +24,7 @@ y0 = -9
 x = np.linspace(-10, 10)
 y = a*x + y0
 
-fit = fits.NormalFit(model=fits.models.Line)
+fit = fits.NormalFit(model=fits.models.Line())
 fit.set_dataset(x, y)
 p_fit, _ = fit.fit()
 print(f"Fitted: y = {p_fit['a']:.3f} * x + {p_fit['y0']:.3f}")

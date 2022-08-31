@@ -1,4 +1,6 @@
 import dataclasses
+import inspect
+
 import numpy as np
 from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 
@@ -48,11 +50,15 @@ class FitModel:
     and default bounds) and heuristics.
     """
 
-    _PARAMETERS: Dict[str, FitParameter] = {}
+    def __init__(self, parameters=None):
+        if parameters is None:
+            spec = inspect.getfullargspec(self._func)
+            self._parameters = {name: spec.annotations[name] for name in spec.args[2:]}
+        else:
+            self._parameters = parameters
 
-    @classmethod
     def param_min_sqrs(
-        cls,
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         params: Dict[str, float],
@@ -77,14 +83,13 @@ class FitModel:
         costs = np.zeros(scanned_param_values.shape)
         for idx, value in np.ndenumerate(scanned_param_values):
             params[scanned_param] = value
-            y_params = cls.func(x, params)
+            y_params = self.func(x, params)
             costs[idx] = np.sqrt(np.sum(np.power(y - y_params, 2)))
         opt = np.argmin(costs)
         return float(scanned_param_values[opt]), float(costs[opt])
 
-    @classmethod
     def pre_fit(
-        cls,
+        self,
         fixed_params: Dict[str, float],
         initial_values: Dict[str, float],
         bounds: Dict[str, Tuple[float, float]],
@@ -103,9 +108,8 @@ class FitModel:
         """
         pass
 
-    @classmethod
     def post_fit(
-        cls,
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         p_fit: Dict[str, float],
@@ -121,15 +125,36 @@ class FitModel:
         """
         pass
 
-    @classmethod
     def func(
-        cls, x: Array[("num_samples",), np.float64], params: Dict[str, float]
+        self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
         """Evaluates the model at a given set of x-axis points and with a given
         parameter set and returns the result.
 
         :param x: x-axis data
         :param params: dictionary of parameter values
+        :returns: array of model values
+        """
+        return self._func(x, **params)
+
+    def _func(
+        self,
+        x: Array[("num_samples",), np.float64],
+    ) -> Array[("num_samples",), np.float64]:
+        """Evaluates the model at a given set of x-axis points and with a given
+        parameter set and returns the result.
+
+        Overload this is preference to `func` unless the FitModel takes a
+        dynamic set of parameters. Use FitParameter objects as the annotation
+        for the parameters arguments. e.g.:
+
+        ```
+        def _func(x: ..., a: FitParameter(), b: FitParameter(), c: FitParameter()):
+        ```
+
+        The FitParameters will be exposed from `get_parameters` automatically.
+
+        :param x: x-axis data
         :returns: array of model values
         """
         raise NotImplementedError
@@ -153,14 +178,12 @@ class FitModel:
         """
         return {}, {}
 
-    @classmethod
-    def get_parameters(cls) -> Dict[str, FitParameter]:
+    def get_parameters(self) -> Dict[str, FitParameter]:
         """Returns a dictionary mapping model parameter names to their metadata."""
-        return dict(cls._PARAMETERS)
+        return dict(self._parameters)
 
-    @classmethod
     def estimate_parameters(
-        cls,
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         known_values: Dict[str, float],

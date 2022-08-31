@@ -1,5 +1,5 @@
 import numpy as np
-from common import TestBase
+from test.common import TestBase
 from fits import models
 
 
@@ -11,7 +11,7 @@ class TestLine(TestBase):
     """
 
     def setUp(self):
-        super().setUp(model_class=models.Line)
+        super().setUp(model=models.Line())
 
     def test_line(self):
         x = np.linspace(-10, 10)
@@ -30,7 +30,7 @@ class TestParabola(TestBase):
     """
 
     def setUp(self):
-        super().setUp(model_class=models.Parabola, plot_failures=True)
+        super().setUp(model=models.Parabola(), plot_failures=True)
 
     def test_parabola(self):
         x = np.linspace(-10, 10)
@@ -42,7 +42,7 @@ class TestPower(TestBase):
     """Tests for polynomials.Power"""
 
     def setUp(self):
-        super().setUp(model_class=models.Power)
+        super().setUp(model=models.Power())
 
     def test_n(self):
         """Tests with `n` and `y0` floated for parameter sets with various values of
@@ -85,7 +85,7 @@ class TestPolynomial(TestBase):
     """Tests for polynomials.Polynomial"""
 
     def setUp(self):
-        super().setUp(model_class=models.Polynomial, plot_failures=True)
+        super().setUp(model=models.Polynomial(), plot_failures=True)
 
     def test_polynomial(self):
         x = np.linspace(-5, 5)

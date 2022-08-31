@@ -1,8 +1,8 @@
-import functools
-import numpy as np
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, TYPE_CHECKING, Tuple
 
-from . import utils
+import numpy as np
+
+from .utils import MappedFitModel
 from .. import FitModel, FitParameter
 from ..utils import Array
 
@@ -37,21 +37,18 @@ class Power(FitModel):
         None
     """
 
-    _PARAMETERS: Dict[str, FitParameter] = {
-        "a": FitParameter(
+    def _func(
+        self,
+        x: Array[("num_samples",), np.float64],
+        a: FitParameter(
             fixed_to=1,
             scale_func=lambda x_scale, y_scale, fixed_params: None
             if "n" not in fixed_params
             else y_scale / np.float_power(x_scale, fixed_params["n"]),
         ),
-        "x0": FitParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
-        "y0": FitParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        "n": FitParameter(),
-    }
-
-    @classmethod
-    def func(
-        cls, x: Array[("num_samples",), np.float64], params: Dict[str, float]
+        x0: FitParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
+        y0: FitParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
+        n: FitParameter(),
     ) -> Array[("num_samples",), np.float64]:
         """Evaluates the model at a given set of x-axis points and with a given
         parameter set and returns the result.
@@ -60,18 +57,12 @@ class Power(FitModel):
         :param params: dictionary of parameter values
         :returns: array of model values
         """
-        a = params["a"]
-        x0 = params["x0"]
-        y0 = params["y0"]
-        n = params["n"]
-
         assert all(x - x0 >= 0), "`x - x0` must be > 0"
 
         return a * np.float_power(x - x0, n) + y0
 
-    @classmethod
     def estimate_parameters(
-        cls,
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         known_values: Dict[str, float],
@@ -131,7 +122,7 @@ class Power(FitModel):
             if len(n) == 0:
                 return 1, np.inf
 
-            return cls.param_min_sqrs(x, y, param_guesses, "n", n)
+            return self.param_min_sqrs(x, y, param_guesses, "n", n)
 
         # We don't have a heuristic for x0
         unknowns = set(["x0", "a", "y0", "n"]) - set(known_values.keys())
@@ -161,7 +152,7 @@ class Power(FitModel):
             x = x - x0
             y = y - y0
             a = y / np.float_power(x, n)
-            a = cls.param_min_sqrs(x, y, param_guesses, "a", a)[0]
+            a = self.param_min_sqrs(x, y, param_guesses, "a", a)[0]
 
             param_guesses["a"] = a
 
@@ -174,7 +165,7 @@ class Power(FitModel):
             n = param_guesses["n"]
 
             y0 = y - a * np.float_power(x - x0, n)
-            y0 = cls.param_min_sqrs(x, y, param_guesses, "y0", y0)[0]
+            y0 = self.param_min_sqrs(x, y, param_guesses, "y0", y0)[0]
 
             param_guesses["y0"] = y0
 
@@ -207,17 +198,18 @@ class Power(FitModel):
         return param_guesses
 
 
-def _generate_poly_parameters(poly_degree):
-    def scale_func(n, x_scale, y_scale, _):
+def poly_fit_parameter(n):
+    def scale_func(x_scale, y_scale, _):
         return y_scale / np.power(x_scale, n)
 
-    params = {
-        f"a_{n}": FitParameter(
-            fixed_to=None if n <= 1 else 0,
-            scale_func=functools.partial(scale_func, n),
-        )
-        for n in range(11)
-    }
+    return FitParameter(
+        fixed_to=None if n <= 1 else 0,
+        scale_func=scale_func,
+    )
+
+
+def _generate_poly_parameters(poly_degree):
+    params = {f"a_{n}": poly_fit_parameter(n) for n in range(poly_degree + 1)}
     params.update(
         {
             "x0": FitParameter(
@@ -245,12 +237,12 @@ class Polynomial(FitModel):
         None
     """
 
-    _POLY_DEGREE = 10
-    _PARAMETERS = _generate_poly_parameters(_POLY_DEGREE)
+    def __init__(self, poly_degree=10):
+        self.poly_degree = poly_degree
+        super().__init__(parameters=_generate_poly_parameters(poly_degree))
 
-    @classmethod
     def func(
-        cls, x: Array[("num_samples",), np.float64], params: Dict[str, float]
+        self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
         """Evaluates the model at a given set of x-axis points and with a given
         parameter set and returns the result.
@@ -260,15 +252,16 @@ class Polynomial(FitModel):
         :returns: array of model values
         """
         x0 = params["x0"]
-        p = np.array([params[f"a_{n}"] for n in range(10, -1, -1)], dtype=np.float64)
-        assert len(p) == 11
+        p = np.array(
+            [params[f"a_{n}"] for n in range(self.poly_degree, -1, -1)],
+            dtype=np.float64,
+        )
 
         y = np.polyval(p, x - x0)
         return y
 
-    @classmethod
     def estimate_parameters(
-        cls,
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         known_values: Dict[str, float],
@@ -293,7 +286,7 @@ class Polynomial(FitModel):
         param_guesses["x0"] = param_guesses.get("x0", 0)
 
         free = [
-            n for n in range(cls._POLY_DEGREE + 1) if param_guesses.get(f"a_{n}") != 0.0
+            n for n in range(self.poly_degree + 1) if param_guesses.get(f"a_{n}") != 0.0
         ]
         if len(free) == 0:
             return param_guesses
@@ -307,12 +300,7 @@ class Polynomial(FitModel):
         return param_guesses
 
 
-line_unused = {f"a_{n}": 0 for n in range(2, 11)}
-line_unused.update({"x0": 0})
-
-
-@utils.rename_params(param_map={"a": "a_1", "y0": "a_0"}, unused_params=line_unused)
-class Line(Polynomial):
+class Line(MappedFitModel):
     """Straight line fit according to:
     `y = a * x + y0`
 
@@ -324,17 +312,15 @@ class Line(Polynomial):
         None
     """
 
-    _POLY_DEGREE = 1
+    def __init__(self):
+        super().__init__(
+            Polynomial(1),
+            {"a": "a_1", "y0": "a_0"},
+            {"x0": 0},
+        )
 
 
-parabola_unused = {f"a_{n}": 0 for n in range(3, 11)}
-parabola_unused.update({"a_1": 0})
-
-
-@utils.rename_params(
-    param_map={"k": "a_2", "y0": "a_0", "x0": "x0"}, unused_params=parabola_unused
-)
-class Parabola(Polynomial):
+class Parabola(MappedFitModel):
     """Parabola fit according to:
     `y = k * (x - x0)^2 + y0`
 
@@ -346,11 +332,18 @@ class Parabola(Polynomial):
         None
     """
 
-    _POLY_DEGREE = 2
+    def __init__(self):
+        inner = Polynomial(2)
+        inner._parameters["x0"].fixed_to = None
+        inner._parameters["a_2"].fixed_to = None
+        super().__init__(
+            inner,
+            {"k": "a_2", "y0": "a_0", "x0": "x0"},
+            {"a_1": 0},
+        )
 
-    @classmethod
-    def estimate_parameters(
-        cls,
+    def _inner_estimate_parameters(
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         known_values: Dict[str, float],
@@ -383,7 +376,7 @@ class Parabola(Polynomial):
         :param bounds: dictionary of parameter bounds. Estimated values will be clipped
             to lie within bounds.
         """
-        param_guesses = super().estimate_parameters(x, y, known_values, bounds)
+        param_guesses = super()._inner_estimate_parameters(x, y, known_values, bounds)
 
         if "x0" not in known_values:
             a_0 = param_guesses["a_0"]
@@ -391,10 +384,6 @@ class Parabola(Polynomial):
             a_2 = param_guesses["a_2"]
 
             param_guesses["x0"] = x0 = -a_1 / (2 * a_2)
-            param_guesses["y0"] = known_values.get("y0", a_0 - a_2 * x0**2)
+            param_guesses["a_0"] = known_values.get("a_0", a_0 - a_2 * x0**2)
 
         return param_guesses
-
-
-Parabola._PARAMETERS["x0"].fixed_to = None
-Parabola._PARAMETERS["k"].fixed_to = None

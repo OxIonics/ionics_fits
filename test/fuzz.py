@@ -3,7 +3,7 @@ import argparse
 import logging
 import traceback
 
-from test_polynomial import TestPower, TestPolynomial
+from test.test_polynomial import TestPower, TestPolynomial
 
 logger = logging.getLogger(__name__)
 

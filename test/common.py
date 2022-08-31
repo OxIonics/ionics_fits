@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pprint
 import traceback
-from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING, Type
 import unittest
 import warnings
 
@@ -38,8 +38,8 @@ logger = logging.getLogger(__name__)
 class TestBase(unittest.TestCase):
     def setUp(
         self,
-        model_class: fits.FitModel,
-        fit_class: fits.FitBase = fits.NormalFit,
+        model: fits.FitModel,
+        fit_class: Type[fits.FitBase] = fits.NormalFit,
         plot_failures: bool = False,
     ):
         """Call before running any tests.
@@ -49,7 +49,7 @@ class TestBase(unittest.TestCase):
         :param plot_failures: if `True` we plot the dataset/fit results each time the
             test fails
         """
-        self.model_class = model_class
+        self.model = model
         self.fit_class = fit_class
         self.plot_failures = plot_failures
 
@@ -71,7 +71,7 @@ class TestBase(unittest.TestCase):
         :param params: dictionary mapping names of model parameters to their values
         :returns: dataset y-axis values and, optionally, their error bars
         """
-        y = self.model_class.func(x, params)
+        y = self.model.func(x, params)
         fit.set_dataset(x, y)
         return y, None
 
@@ -97,10 +97,10 @@ class TestBase(unittest.TestCase):
         :param kwargs: keyword arguments are passed directly into the fit class
             constructor.
         """
-        if set(params.keys()) != set(self.model_class.get_parameters().keys()):
+        if set(params.keys()) != set(self.model.get_parameters().keys()):
             raise ValueError("Test parameter sets must match the model parameters")
 
-        fit = self.fit_class(self.model_class, **kwargs)
+        fit = self.fit_class(self.model, **kwargs)
         y, y_err = self.set_dataset(x, params, fit)
         fitted_params, fitted_param_err = fit.fit()
 
@@ -224,7 +224,7 @@ class TestBase(unittest.TestCase):
         :param kwargs: keyword arguments are passed into :meth test_single:
         """
 
-        model_params = set(self.model_class.get_parameters().keys())
+        model_params = set(self.model.get_parameters().keys())
         fixed_params = dict(fixed_params if fixed_params is not None else static_params)
 
         static = set(static_params.keys())
@@ -301,7 +301,7 @@ class TestBase(unittest.TestCase):
         :param stop_at_failure: if True we stop fuzzing the first time a test fails.
         :param kwargs: keyword arguments are passed into :meth test_single:
         """
-        model_params = set(self.model_class.get_parameters().keys())
+        model_params = set(self.model.get_parameters().keys())
         fixed_params = dict(fixed_params if fixed_params is not None else static_params)
 
         fixed = set(fixed_params.keys())
@@ -356,18 +356,18 @@ class TestPoisson(TestBase):
 
     def setUp(
         self,
-        model_class: fits.FitModel,
+        model: fits.FitModel,
         plot_failures: bool = False,
     ):
         """Call before running any tests.
 
-        :param model_class: the model class to be tested
+        :param model: the model class to be tested
         :param fit_class: the fit class to be used during the test
         :param plot_failures: if `True` we plot the dataset/fit results each time the
             test fails
         """
         super().setUp(
-            model_class=model_class,
+            model=model,
             fit_class=fits.NormalFit,
             plot_failures=plot_failures,
         )
@@ -408,21 +408,20 @@ class TestBinomial(TestBase):
 
     def setUp(
         self,
-        model_class: fits.FitModel,
+        model: fits.FitModel,
         plot_failures: bool = False,
         num_shots: int = 100,
     ):
         """Call before running any tests.
 
-        :param model_class: the model class to be tested
-        :param fit_class: the fit class to be used during the test
+        :param model: the model class to be tested
         :param plot_failures: if `True` we plot the dataset/fit results each time the
             test fails
         :param num_shots: number of shots used at each data point. May be changed later
             on using the `num_shots` attribute.
         """
         super().setUp(
-            model_class=model_class,
+            model=model,
             fit_class=fits.NormalFit,
             plot_failures=plot_failures,
         )
