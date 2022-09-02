@@ -7,26 +7,52 @@ from ..utils import Array
 
 
 class MappedFitModel(FitModel):
+    """`FitModel` wrapping another `FitModel` with renamed parameters"""
+
     def __init__(
         self,
         inner: FitModel,
         mapped_params: Dict[str, str],
         fixed_params: Dict[str, float] = None,
     ):
+        """Init
+
+        :param inner: The wrapped fit model, the implementation of `inner` will
+            be used after the parameter mapping has been done.
+        :param mapped_params: dictionary mapping names of parameters in the new
+            model to names of parameters used in the wrapped model.
+        :param fixed_params: dictionary mapping names of parameters used in the
+            wrapped model to values they are fixed to in the new model. These
+            will not be parameters of the new model.
+        """
         inner_params = inner.get_parameters()
 
-        if not set(mapped_params.values()).union(set(fixed_params)) == set(
-            inner_params
-        ):
+        if unknown_mapped_params := set(mapped_params.values()) - inner_params.keys():
             raise ValueError(
-                "Parameter map does not match original model class parameters"
+                "The target of parameter mappings must be parameters of the inner "
+                f"model. The mapping targets are not: {unknown_mapped_params}"
             )
 
-        if not set(fixed_params).issubset(set(inner_params)):
-            raise ValueError("Fixed parameters must be parameters of inner model class")
+        if unknown_fixed_params := fixed_params.keys() - inner_params.keys():
+            raise ValueError(
+                "Fixed parameters must be parameters of the inner model. The "
+                f"follow fixed parameters are not: {unknown_fixed_params}"
+            )
 
-        if set(fixed_params).intersection(set(mapped_params.values())):
-            raise ValueError("Fixed parameters must not feature in the parameter map")
+        if missing_params := inner_params.keys() - (
+            fixed_params.keys() | mapped_params.values()
+        ):
+            raise ValueError(
+                "All parameters of the inner model must be either mapped of "
+                "fixed. The following inner model parameters are neither: "
+                f"{missing_params}"
+            )
+
+        if duplicated_params := fixed_params.keys() & mapped_params.values():
+            raise ValueError(
+                "Parameters cannot be both mapped and fixed. The following "
+                f"parameters are both: {duplicated_params}"
+            )
 
         params = {
             new_name: inner_params[old_name]

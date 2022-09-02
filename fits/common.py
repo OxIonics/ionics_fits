@@ -131,6 +131,9 @@ class FitModel:
         """Evaluates the model at a given set of x-axis points and with a given
         parameter set and returns the result.
 
+        Overload this to provide a model function with a dynamic set of
+        parameters, otherwise prefer to override `_func`.
+
         :param x: x-axis data
         :param params: dictionary of parameter values
         :returns: array of model values
@@ -144,15 +147,16 @@ class FitModel:
         """Evaluates the model at a given set of x-axis points and with a given
         parameter set and returns the result.
 
-        Overload this is preference to `func` unless the FitModel takes a
+        Overload this in preference to `func` unless the FitModel takes a
         dynamic set of parameters. Use FitParameter objects as the annotation
         for the parameters arguments. e.g.:
 
         ```
-        def _func(x: ..., a: FitParameter(), b: FitParameter(), c: FitParameter()):
+        def _func(self, x, a: FitParameter(), b: FitParameter(), c: FitParameter()):
         ```
 
-        The FitParameters will be exposed from `get_parameters` automatically.
+        The FitParameters will be exposed from `get_parameters` automatically
+        using the argument names as the dictionary keys.
 
         :param x: x-axis data
         :returns: array of model values

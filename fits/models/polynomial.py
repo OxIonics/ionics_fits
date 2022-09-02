@@ -224,12 +224,14 @@ def _generate_poly_parameters(poly_degree):
 
 
 class Polynomial(FitModel):
-    """10th-order polynomial fit according to:
-    y = sum(a_n*(x-x0)^n) for n ={0...10}
+    """A polynomial fit model.
+
+    Fits the function:
+    y = sum(a_n*(x-x0)^n) for n ={0...poly_degree}
 
     Fit parameters (all floated by default unless stated otherwise):
-      - a_0 ... a_10: polynomial coefficients. All polynomial coefficients above 1 are
-          fixed to 0 by default.
+      - a_0 ... a_{poly_degree}: polynomial coefficients. All polynomial coefficients
+          above 1 are fixed to 0 by default.
       - x0: x-axis offset (fixed to 0 by default). Floating x0 as well as polynomial
           coefficients results in an under-defined problem.
 
@@ -238,6 +240,11 @@ class Polynomial(FitModel):
     """
 
     def __init__(self, poly_degree=10):
+        """Init
+
+        :param poly_degree: The degree of the polynomial that we're fitting
+           defaults to 10.
+        """
         self.poly_degree = poly_degree
         super().__init__(parameters=_generate_poly_parameters(poly_degree))
 
