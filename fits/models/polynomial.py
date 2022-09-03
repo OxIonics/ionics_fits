@@ -85,45 +85,6 @@ class Power(FitModel):
         """
         param_guesses = dict(known_values)
 
-        def optimal_n():
-            """Find the optimal (in the least-squared residuals sense) value of `n`
-            based on our current best guesses for the other parameters.
-
-            We use the fact that if `y = x^n` then `n = log(y) / log(x)`. This gives
-            us an estimate for `n` at each value of x. We choose the one which results
-            in lowest sum of squares residuals.
-            """
-            if "n" in known_values.keys():
-                return known_values["n"], 0
-
-            y0 = param_guesses["y0"]
-            a = param_guesses["a"]
-            x0 = param_guesses["x0"]
-
-            x_pr = x - x0
-            y_pr = y - y0
-            y_pr = y_pr / a
-
-            # avoid divide by zero errors
-            valid = np.argwhere(np.logical_and(y_pr != 0, x_pr != 1))
-
-            if len(valid) == 0:
-                return 0, np.inf
-
-            n = np.log(np.abs(y_pr[valid])) / np.log(np.abs(x_pr[valid]))
-            n = n.squeeze()
-
-            # don't look for silly values of n
-            n_min = max(-10, bounds["n"][0])
-            n_max = min(10, bounds["n"][1])
-
-            n = n[np.argwhere(np.logical_and(n >= n_min, n <= n_max))]
-
-            if len(n) == 0:
-                return 1, np.inf
-
-            return self.param_min_sqrs(x, y, param_guesses, "n", n)
-
         # We don't have a heuristic for x0
         unknowns = set(["x0", "a", "y0", "n"]) - set(known_values.keys())
 
@@ -157,7 +118,9 @@ class Power(FitModel):
             param_guesses["a"] = a
 
         elif unknowns == set("n"):
-            param_guesses["n"] = optimal_n()[0]
+            param_guesses["n"] = self.optimal_n(
+                x, y, param_guesses, known_values, bounds
+            )[0]
 
         elif unknowns == set("y0"):
             a = param_guesses["a"]
@@ -191,11 +154,52 @@ class Power(FitModel):
             costs = np.zeros_like(y0_guesses)
             for idx, y0 in np.ndenumerate(y0_guesses):
                 param_guesses["y0"] = y0
-                ns[idx], costs[idx] = optimal_n()
+                ns[idx], costs[idx] = self.optimal_n(
+                    x, y, param_guesses, known_values, bounds
+                )
             param_guesses["n"] = float(ns[np.argmin(costs)])
             param_guesses["y0"] = float(y0_guesses[np.argmin(costs)])
 
         return param_guesses
+
+    def optimal_n(self, x, y, param_guesses, known_values, bounds):
+        """Find the optimal (in the least-squared residuals sense) value of `n`
+        based on our current best guesses for the other parameters.
+
+        We use the fact that if `y = x^n` then `n = log(y) / log(x)`. This gives
+        us an estimate for `n` at each value of x. We choose the one which results
+        in lowest sum of squares residuals.
+        """
+        if "n" in known_values.keys():
+            return known_values["n"], 0
+
+        y0 = param_guesses["y0"]
+        a = param_guesses["a"]
+        x0 = param_guesses["x0"]
+
+        x_pr = x - x0
+        y_pr = y - y0
+        y_pr = y_pr / a
+
+        # avoid divide by zero errors
+        valid = np.argwhere(np.logical_and(y_pr != 0, x_pr != 1))
+
+        if len(valid) == 0:
+            return 0, np.inf
+
+        n = np.log(np.abs(y_pr[valid])) / np.log(np.abs(x_pr[valid]))
+        n = n.squeeze()
+
+        # don't look for silly values of n
+        n_min = max(-10, bounds["n"][0])
+        n_max = min(10, bounds["n"][1])
+
+        n = n[np.argwhere(np.logical_and(n >= n_min, n <= n_max))]
+
+        if len(n) == 0:
+            return 1, np.inf
+
+        return self.param_min_sqrs(x, y, param_guesses, "n", n)
 
 
 def poly_fit_parameter(n):
