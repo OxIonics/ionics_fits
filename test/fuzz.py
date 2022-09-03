@@ -8,20 +8,6 @@ from test.test_polynomial import TestPower, TestPolynomial
 logger = logging.getLogger(__name__)
 
 
-# copied from github.com/m-labs/sipyco since it's not on pypi
-class MultilineFormatter(logging.Formatter):
-    def __init__(self):
-        logging.Formatter.__init__(self, "%(levelname)s:%(name)s:%(message)s")
-
-    def format(self, record):
-        r = logging.Formatter.format(self, record)
-        linebreaks = r.count("\n")
-        if linebreaks:
-            i = r.index(":")
-            r = r[:i] + "<" + str(linebreaks + 1) + ">" + r[i:]
-        return r
-
-
 if __name__ == "__main__":
 
     targets = {"power": TestPower, "polynomial": TestPolynomial}
@@ -66,7 +52,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     handler = logging.StreamHandler()
-    handler.setFormatter(MultilineFormatter())
     logging.getLogger().setLevel(logging.WARNING + args.quiet * 10 - args.verbose * 10)
     logging.getLogger().addHandler(handler)
 
