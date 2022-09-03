@@ -450,11 +450,7 @@ class TestBinomial(TestBase):
 
         y = np.random.binomial(self.num_shots, y_model)
 
-        # TODO: this is an approximation for when we're using NormalFits
-        # q = 1 - y_model  # For BinomialFit
-        # y_err = np.sqrt(self.num_shots * y_model * q)  # For BinomialFit
-        y_err = fits.utils.binom_onesided(
-            np.array(y_model * self.num_shots, dtype=int), self.num_shots
-        )
+        q = 1 - y_model  # For BinomialFit
+        y_err = np.sqrt(self.num_shots * y_model * q)
 
         return y, y_err
