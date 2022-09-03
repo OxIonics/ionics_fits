@@ -1,9 +1,13 @@
-from typing import Dict, Tuple
+from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
 from ..common import FitModel
 from ..utils import Array
+
+
+if TYPE_CHECKING:
+    num_samples = float
 
 
 class MappedFitModel(FitModel):
