@@ -88,26 +88,6 @@ class FitModel:
         opt = np.argmin(costs)
         return float(scanned_param_values[opt]), float(costs[opt])
 
-    def pre_fit(
-        self,
-        fixed_params: Dict[str, float],
-        initial_values: Dict[str, float],
-        bounds: Dict[str, Tuple[float, float]],
-        free_params: List[str],
-    ):
-        """Hook called post-fit, override to implement custom functionality.
-
-        :param fixed_params: dictionary mapping names of fixed (not floated) parameters
-            to their values.
-        :param initial_values: dictionary mapping names of parameters with
-            user-specified initial values to those values.
-        :param bounds: dictionary mapping model parameter names to a tuple of
-            `(lower, upper)` parameter bounds. Fitted parameter values are guaranteed
-            to lie between lower and upper bounds.
-        :param free_params: list of names of the model's free (not fixed) parameters.
-        """
-        pass
-
     def post_fit(
         self,
         x: Array[("num_samples",), np.float64],
@@ -384,13 +364,6 @@ class FitBase:
             bounds = {
                 param: value / scale_factors[param] for param, value in bounds.items()
             }
-
-        self._model.pre_fit(
-            fixed_params=fixed_params,
-            initial_values=initial_values,
-            bounds=bounds,
-            free_params=free_params,
-        )
 
         # Make sure we're using the known values and clip to bounds
         estimated_values = self._model.estimate_parameters(x, y, initial_values, bounds)
