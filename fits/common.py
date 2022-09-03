@@ -65,9 +65,8 @@ class FitModel:
         scanned_param: str,
         scanned_param_values: ArrayLike["num_values", np.float64],
     ) -> Tuple[float, float]:
-        """Tests an array of values for one model parameter to find the value which
-        results in lowest sum-sqaured residuals given fixed values for all other model
-        parameters.
+        """Scans one model parameter while holding the others fixed to find the value
+        that gives the best fit to the data (minimum sum-squared residuals).
 
         :param x: x-axis data
         :param y: y-axis data
