@@ -272,6 +272,9 @@ class FitBase:
         self._estimated_values = None
         self._fitted_params = None
         self._fitted_param_uncertainties = None
+        self._x = None
+        self._y = None
+        self._y_err = None
 
     def set_dataset(
         self,

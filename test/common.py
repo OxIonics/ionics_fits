@@ -3,8 +3,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pprint
 import traceback
-from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING, Type
-import unittest
+from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
 import warnings
 
 import fits
@@ -17,6 +16,7 @@ if TYPE_CHECKING:
 
 # TODO: how should we handle logging during tests?
 logger = logging.getLogger(__name__)
+warnings.filterwarnings("error")  # Promote divide by zero etc to hard errors
 
 # parser = argparse.ArgumentParser()
 # parser.add_argument(
@@ -35,236 +35,205 @@ logger = logging.getLogger(__name__)
 # logger.addHandler(handler)
 
 
-class TestBase(unittest.TestCase):
-    def setUp(
-        self,
-        model: fits.FitModel,
-        fit_class: Type[fits.FitBase] = fits.NormalFit,
-        plot_failures: bool = False,
-    ):
-        """Call before running any tests.
+def is_close(
+    a: fits.utils.ArrayLike[("num_samples",), np.float64],
+    b: fits.utils.ArrayLike[("num_samples",), np.float64],
+    tol: float,
+):
+    """Returns True if `a` and `b` are approximately equal.
 
-        :param model_class: the model class to be tested
-        :param fit_class: the fit class to be used during the test
-        :param plot_failures: if `True` we plot the dataset/fit results each time the
-            test fails
-        """
-        self.model = model
-        self.fit_class = fit_class
-        self.plot_failures = plot_failures
+    `np.isclose` computes `(|a-b| <= atol + rtol * |b|)`, but what we really want is
+    `|a-b| <= atol` OR `|a-b| <= rtol * |b|`.
+    """
+    return np.all(
+        np.logical_or(
+            np.isclose(a, b, rtol=tol, atol=0), np.isclose(a, b, rtol=0, atol=tol)
+        )
+    )
 
-        warnings.filterwarnings("error")  # Promote divide by zero etc to hard errors
 
-    def set_dataset(
-        self,
-        x: fits.utils.Array[("num_samples",), np.float64],
-        params: Dict[str, float],
-        fit: fits.FitBase,
-    ) -> Tuple[
-        fits.utils.Array[("num_samples",), np.float64],
-        Optional[fits.utils.Array[("num_samples",), np.float64]],
-    ]:
-        """Generates a synthetic dataset at the given x-axis points for the given model
-        parameters and passes it into the fit function.
+def params_close(
+    nominal_params: Dict[str, float], fitted_params: Dict[str, float], tol: float
+):
+    """Returns true if the values of all fitted parameters are close to the nominal
+    values.
+    """
+    return all(
+        [
+            is_close(nominal_params[param], fitted_params[param], tol)
+            for param in nominal_params.keys()
+        ]
+    )
 
-        :param x: x-axis points
-        :param params: dictionary mapping names of model parameters to their values
-        :returns: dataset y-axis values and, optionally, their error bars
-        """
-        y = self.model.func(x, params)
-        fit.set_dataset(x, y)
-        return y, None
 
-    def check_single(
+# TODO: the design here doesn't feel quite right. Setting fixed_params in the constructor
+# but the parameter values in the tests feels odd. Not sure what the right way of handling
+# this is however...
+class ModelTest:
+    """Base class for tests for individual models."""
+
+    def __init__(
         self,
         x: fits.utils.ArrayLike[("num_samples",), np.float64],
-        params: Dict[str, float],
+        fitter: fits.common.FitBase,
+        *,
+        param_bounds: Optional[Dict[str, Optional[Tuple[float, float]]]] = None,
+        fixed_params: Optional[Dict[str, Optional[float]]] = None,
+        initial_values: Optional[Dict[str, float]] = None,
         param_tol: Optional[float] = 1e-3,
-        p_thresh: Optional[float] = None,
+        significance_tol: Optional[float] = None,
         residual_tol: Optional[float] = None,
-        plot_failures: bool = None,
-        **kwargs: Any,
+        plot_failures: bool = True,
     ):
-        """Validates the fit for a single set of x-axis data and parameter values.
-
-        :param x: x-axis points
-        :param params: dictionary mapping names of model parameters to their values
-        :param param_tol: optional tolerance to check fitted parameters against.
-        :param p_thresh: optional tolerance to check fit significance against.
-        :param residual_tol: optional tolerance to check fit residuals against.
-        :param plot_failures: if `True` we plot the dataset/fit results each time the
-            test fails. If `None` we use the value set in :meth setUp`.
-        :param kwargs: keyword arguments are passed directly into the fit class
-            constructor.
         """
-        if set(params.keys()) != set(self.model.get_parameters().keys()):
+        :param x: x-axis dataset
+        :param fitter: the fitter to test with
+        :param param_bounds: parameter bounds dictionary passed to the fitter
+        :param fixed_params: fixed parameter dictionary passed to the fitter
+        :param initial_values: parameter initial value dictionary passed to the fitter
+        :param significance_tol: optional tolerance to check fitted parameters against
+        :param p_tol: optional tolerance to check fit significance against
+        :param residual_tol: optional tolerance to check fit residuals against
+        :param plot_failures: if `True` we plot the dataset/fit results for failed tests
+        """
+        self._x = np.asarray(x)
+        self._fitter = fitter
+
+        self.param_tol = param_tol
+        self.significance_tol = significance_tol
+        self.residual_tol = residual_tol
+        self.plot_failures = plot_failures
+
+    def check_single_param_set(self, test_params: Dict[str, float]):
+        """Validates the fit for a single set of parameter values.
+
+        :param test_params: dictionary of parameter values to test
+        """
+        if set(test_params.keys()) != set(self._fitter._model.get_parameters().keys()):
             raise ValueError("Test parameter sets must match the model parameters")
 
-        fit = self.fit_class(self.model, **kwargs)
-        y, y_err = self.set_dataset(x, params, fit)
-        fitted_params, fitted_param_err = fit.fit()
+        y, y_err = self.generate_data(test_params)
 
         logger.debug(
-            "Testing with dataset:\n"
-            f"x={pprint.pformat(x, indent=4)}\n"
+            f"Testing {self._fitter._model.__class__.__name__} with dataset:\n"
+            f"x={pprint.pformat(self._x, indent=4)}\n"
             f"y={pprint.pformat(y, indent=4)}"
         )
 
-        def plot():
-            do_plot = plot_failures if plot_failures is not None else self.plot_failures
 
-            if not do_plot:
-                return
+        fitted_params, fitted_param_err = self._fitter.fit()
 
-            plt.title(self.__class__.__name__)
-            if y_err is None:
-                plt.plot(x, y, "-o", label="data")
-            else:
-                plt.errorbar(x, y, "-o", yerr=y_err, label="data")
-
-            plt.plot(x, fit.evaluate(x)[1], "-.o", label="fit")
-            plt.plot(
-                x, fit._model.func(x, fit._estimated_values), "--o", label="heuristic"
-            )
-            plt.grid()
-            plt.legend()
-            plt.show()
-
-        params_str = pprint.pformat(params, indent=4)
+        params_str = pprint.pformat(test_params, indent=4)
         fitted_params_str = pprint.pformat(fitted_params, indent=4)
 
-        if param_tol is not None:
-            if not self.params_close(params, fitted_params, param_tol):
-                plot()
-                raise ValueError(
-                    "Error in parameter values is too large:\n"
-                    f"actual parameter set was {params_str}\n"
-                    f"fitted parameters were: {fitted_params_str}"
-                )
-
-        if p_thresh is not None:
-            p_fit = fit.fit_significance()
-
-            if p_fit < self.p_thresh:
-                plot()
-
-                raise ValueError(
-                    f"Fit significance too low: {p_fit:.2f} < {self.p_thresh:.2f}",
-                )
-
-        if residual_tol is not None:
-            if not self.is_close(y, fit.evaluate(x)[1], residual_tol):
-                plot()
-                raise ValueError(
-                    "Fitted data not close to model:\n"
-                    f"actual parameter set was {params_str}\n"
-                    f"fitted parameters were: {fitted_params_str}"
-                )
-
-    @staticmethod
-    def is_close(
-        a: fits.utils.ArrayLike[("num_samples",), np.float64],
-        b: fits.utils.ArrayLike[("num_samples",), np.float64],
-        tol: float,
-    ):
-        """Returns True if `a` and `b` are approximately equal.
-
-        `np.isclose` computes `(|a-b| <= atol + rtol * |b|)`, but what we really want is
-        `|a-b| <= atol` OR `|a-b| <= rtol * |b|`.
-        """
-        return np.all(
-            np.logical_or(
-                np.isclose(a, b, rtol=tol, atol=0), np.isclose(a, b, rtol=0, atol=tol)
+        if self.param_tol is not None and not params_close(
+            test_params, fitted_params, self.param_tol
+        ):
+            self.plot_failure(y, y_err)
+            raise ValueError(
+                "Error in parameter values is too large:\n"
+                f"test parameter set was: {params_str}\n"
+                f"fitted parameters were: {fitted_params_str}"
             )
-        )
 
-    @staticmethod
-    def params_close(
-        nominal_params: Dict[str, float], fitted_params: Dict[str, float], tol: float
-    ):
-        """Returns true if the values of all fitted parameters are close to the nominal
-        values.
+        if (
+            self.significance_tol is not None
+            and (p_fit := self._fitter.fit_significance()) < self.significance_tol
+        ):
+            self.plot_failure(y, y_err)
+            raise ValueError(
+                f"Fit significance too low: {p_fit:.2f} < {self.p_thresh:.2f}",
+            )
+
+        if self.residual_tol is not None and not is_close(
+            y, self._fitter.evaluate(self._x)[1], self.residual_tol
+        ):
+            self.plot_failure()
+            raise ValueError(
+                "Fitted data not close to model:\n"
+                f"actual parameter set was {params_str}\n"
+                f"fitted parameters were: {fitted_params_str}"
+            )
+
+    def generate_data(
+        self, params: Dict[str, float]
+    ) -> Tuple[
+        fits.utils.Array[("num_samples",), np.float64],
+        Optional[fits.utils.ArrayLike[("num_samples",), np.float64]],
+    ]:
+        """Generates a synthetic dataset for a given set of parameter values.
+
+        :param params: parameter dictionary
+        :returns: tuple of y-axis values and their uncertainties
         """
-        return all(
-            [
-                TestBase.is_close(nominal_params[param], fitted_params[param], tol)
-                for param in nominal_params.keys()
-            ]
-        )
+        y = self._fitter._model.func(self._x, params)
+        self._fitter.set_dataset(self._x, y)
+        return y, None
 
-    def check_multiple(
+    def plot_failure(self, y, y_err):
+        if not self.plot_failures:
+            return
+
+        if y_err is None:
+            plt.plot(self._x, y, "-o", label="data")
+        else:
+            plt.errorbar(self._x, y, "-o", yerr=y_err, label="data")
+
+        plt.plot(self._x, self._fitter.evaluate(self._x)[1], "-.o", label="fit")
+        plt.plot(
+            self._x,
+            self._fitter._model.func(self._x, self._fitter._estimated_values),
+            "--o",
+            label="heuristic",
+        )
+        plt.grid()
+        plt.legend()
+        plt.show()
+
+    def check_multiple_params(
         self,
-        x: fits.utils.ArrayLike[("num_samples",), np.float64],
-        static_params: Dict[str, float],
-        scanned_params: Dict[str, fits.utils.ArrayLike[("num_values",), np.float64]],
-        fixed_params: Optional[Dict[str, float]] = None,
-        param_tol: Optional[float] = 1e-3,
-        p_thresh: Optional[float] = None,
-        residual_tol: Optional[float] = None,
-        plot_failures: bool = None,
-        **kwargs: Any,
+        test_params: Dict[str, fits.utils.ArrayLike[("num_values",), np.float64]],
     ):
-        """Validates the fit for a single set of x-axis data and multiple sets of
-        parameter values.
+        """Validates the fit for multiple sets of parameter values.
 
-        :param x: x-axis points
-        :param static_params: dictionary mapping names of model parameters which are
-            evaluated with a single value to those values
-        :param scanned_params: dictionary mapping names of model parameters which are
-            evaluated at multiple values to arrays of those values.
-        :param fixed_params: dictionary mapping model parameter names to names that the
-            fit is told to hold those values constant at. If `None` this is set to
-            :param static_params:.  *Scanned parameters are floated unless explicitly
-            fixed in :param fixed_params:, even if the model fixes them by default.*
-        :param param_tol: optional tolerance to check fitted parameters against.
-        :param p_thresh: optional tolerance to check fit significance against.
-        :param residual_tol: optional tolerance to check fit residuals against.
-        :param plot_failures: if `True` we plot the dataset/fit results each time the
-            test fails. If `None` we use the value set in :meth setUp`.
-        :param kwargs: keyword arguments are passed into :meth test_single:
+        :param test_params: dictionary of parameter values to test. Each entry may
+            contain either a single value or an array of values to test.
         """
 
-        model_params = set(self.model.get_parameters().keys())
-        fixed_params = dict(fixed_params if fixed_params is not None else static_params)
+        model_params = set(self._fitter._model.get_parameters().keys())
+        input_params = set(test_params.keys())
+        fixed_params = set(self._fitter._fixed_params)
 
-        static = set(static_params.keys())
-        scanned = set(scanned_params.keys())
-        fixed = set(fixed_params.keys())
-        input_params = static.union(scanned)
+        assert not input_params.intersection(fixed_params), (
+            f"Input parameters must not include fixed parameters")
 
-        assert scanned.intersection(static) == set()
-        assert input_params == model_params, (
+        assert input_params.union(fixed_params) == model_params, (
             f"Input parameters '{input_params}' don't match model parameters "
             f"'{model_params}'"
         )
-        assert set(fixed).intersection(scanned) == set(), (
-            "Parameters cannot be both fixed and scanned: "
-            f"{set(fixed).intersection(scanned)}"
-        )
-        fixed_params.update({param: fixed_params.get(param, None) for param in scanned})
 
-        params = dict(static_params)
 
-        def walk_params(params, static, scanned):
-            scanned = dict(scanned)
-            param, values = scanned.popitem()
+
+        test_params = dict(test_params)
+        test_params.update(self._fitter._fixed_params)
+
+        def walk_params(scanned_params, fixed_params):
+            scanned_params = dict(scanned_params)
+            fixed_params = dict(fixed_params)
+
+            param, values = scanned_params.popitem()
+
+            if np.isscalar(values):
+                values = [values]
+
             for value in values:
-                params[param] = value
-                if scanned:
-                    walk_params(params, static, scanned)
+                fixed_params[param] = value
+                if scanned_params != {}:
+                    walk_params(scanned_params, fixed_params)
                 else:
-                    self.check_single(
-                        x,
-                        params,
-                        param_tol=param_tol,
-                        p_thresh=p_thresh,
-                        residual_tol=residual_tol,
-                        plot_failures=plot_failures,
-                        fixed_params=fixed_params,
-                        **kwargs,
-                    )
+                    self.check_single_param_set(fixed_params)
 
-        walk_params(params, fixed_params, scanned_params)
+        walk_params(test_params, {})
 
     def fuzz(
         self,
@@ -346,111 +315,48 @@ class TestBase(unittest.TestCase):
         return failures
 
 
-class TestPoisson(TestBase):
-    """Test using Possonian statistics to generate the synthetic datasets.
+class NormalModelTest(ModelTest):
+    """Test for fit model using `NormalFitter`."""
 
-    NB we do not currently have a Possonian MLE fitter so we approximate with a
-    least-squares fit. Tests based on fit significance are prone to failure
-    because the Poisson distribution has a longer tail than a normal distribution.
-    """
-
-    def setUp(
+    def __init__(
         self,
+        x: fits.utils.ArrayLike[("num_samples",), np.float64],
         model: fits.FitModel,
-        plot_failures: bool = False,
+        *,
+        param_bounds: Optional[Dict[str, Optional[Tuple[float, float]]]] = None,
+        fixed_params: Optional[Dict[str, Optional[float]]] = None,
+        initial_values: Optional[Dict[str, float]] = None,
+        param_tol: Optional[float] = 1e-3,
+        significance_tol: Optional[float] = None,
+        residual_tol: Optional[float] = None,
+        plot_failures: bool = True,
     ):
-        """Call before running any tests.
-
-        :param model: the model class to be tested
-        :param fit_class: the fit class to be used during the test
-        :param plot_failures: if `True` we plot the dataset/fit results each time the
-            test fails
         """
-        super().setUp(
+        :param x: x-axis dataset
+        :param model: the fit model to be tested
+        :param param_bounds: parameter bounds dictionary passed to the fitter
+        :param fixed_params: fixed parameter dictionary passed to the fitter
+        :param initial_values: parameter initial value dictionary passed to the fitter
+        :param significance_tol: optional tolerance to check fitted parameters against
+        :param p_tol: optional tolerance to check fit significance against
+        :param residual_tol: optional tolerance to check fit residuals against
+        :param plot_failures: if `True` we plot the dataset/fit results for failed tests
+        """
+        fitter = fits.NormalFit(
             model=model,
-            fit_class=fits.NormalFit,
-            plot_failures=plot_failures,
+            param_bounds=param_bounds,
+            fixed_params=fixed_params,
+            initial_values=initial_values,
         )
 
-    def set_dataset(
-        self,
-        x: fits.utils.Array[("num_samples",), np.float64],
-        params: Dict[str, float],
-        fit: fits.FitBase,
-    ) -> Tuple[
-        fits.utils.Array[("num_samples",), np.float64],
-        Optional[fits.utils.Array[("num_samples",), np.float64]],
-    ]:
-        """Generates a synthetic dataset at the given x-axis points for the given model
-        parameters and passes it into the fit function.
-
-        :param x: x-axis points
-        :param params: dictionary mapping names of model parameters to their values
-        :returns: dataset y-axis values and their error bars
-        """
-        y_model = super().set_dataset(x, params)[0]
-
-        if any(y_model < 0):
-            raise ValueError("The mean of a Possonian variable must be >0")
-
-        y = np.random.poisson(y_model)
-        y_err = np.sqrt(y_model)  # std = sqrt(mean) for Poisson
-
-        return y, y_err
-
-
-class TestBinomial(TestBase):
-    """Test using Binomial statistics to generate the synthetic datasets.
-
-    NB we do not currently have a Binomial MLE fitter so we approximate with a
-    least-squares fit. This is accurate in the limit of large number of shots.
-    """
-
-    def setUp(
-        self,
-        model: fits.FitModel,
-        plot_failures: bool = False,
-        num_shots: int = 100,
-    ):
-        """Call before running any tests.
-
-        :param model: the model class to be tested
-        :param plot_failures: if `True` we plot the dataset/fit results each time the
-            test fails
-        :param num_shots: number of shots used at each data point. May be changed later
-            on using the `num_shots` attribute.
-        """
-        super().setUp(
-            model=model,
-            fit_class=fits.NormalFit,
+        super().__init__(
+            x,
+            fitter,
+            param_bounds=param_bounds,
+            fixed_params=fixed_params,
+            initial_values=initial_values,
+            param_tol=param_tol,
+            significance_tol=significance_tol,
+            residual_tol=residual_tol,
             plot_failures=plot_failures,
         )
-        self.num_shots = num_shots
-
-    def set_dataset(
-        self,
-        x: fits.utils.Array[("num_samples",), np.float64],
-        params: Dict[str, float],
-        fit: fits.FitBase,
-    ) -> Tuple[
-        fits.utils.Array[("num_samples",), np.float64],
-        Optional[fits.utils.Array[("num_samples",), np.float64]],
-    ]:
-        """Generates a synthetic dataset at the given x-axis points for the given model
-        parameters and passes it into the fit function.
-
-        :param x: x-axis points
-        :param params: dictionary mapping names of model parameters to their values
-        :returns: dataset y-axis values and their error bars
-        """
-        y_model = super().set_dataset(x, params)[0]
-
-        if any(0 > y_model > 1):
-            raise ValueError("The mean of a Binomial variable must lie between 0 and 1")
-
-        y = np.random.binomial(self.num_shots, y_model)
-
-        q = 1 - y_model  # For BinomialFit
-        y_err = np.sqrt(self.num_shots * y_model * q)
-
-        return y, y_err
