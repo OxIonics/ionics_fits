@@ -3,14 +3,18 @@ import argparse
 import logging
 import traceback
 
-from test.test_polynomial import TestPower, TestPolynomial
+import test
+from test import test_polynomial
 
 logger = logging.getLogger(__name__)
 
 
 if __name__ == "__main__":
 
-    targets = {"power": TestPower, "polynomial": TestPolynomial}
+    targets = {
+        "power": test_polynomial.fuzz_power,
+        "polynomial": test_polynomial.fuzz_polynomial,
+    }
 
     parser = argparse.ArgumentParser(
         description="Fit model fuzzer.",
@@ -58,17 +62,17 @@ if __name__ == "__main__":
     args.targets = args.targets or targets.keys()
     args.targets = [args.targets] if isinstance(args.targets, str) else args.targets
 
+    test_config = test.common.TestConfig(plot_failures=args.plot_failures)
     for target in args.targets:
         logger.info(f"Fuzzing {target}...")
 
-        test = targets[target]()
-        test.setUp()
+        target_fun = targets[target]
 
         try:
-            failures = test.fuzz(
+            failures = target_fun(
                 num_trials=args.num_trials,
                 stop_at_failure=not args.continue_at_failure,
-                plot_failures=args.plot_failures,
+                test_config=test_config,
             )
             if failures:
                 logger.warning(

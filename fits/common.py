@@ -1,10 +1,11 @@
+from __future__ import annotations
 import dataclasses
+import copy
 import inspect
-
 import numpy as np
 from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
-
 from .utils import Array, ArrayLike
+
 
 if TYPE_CHECKING:
     num_samples = float
@@ -12,56 +13,235 @@ if TYPE_CHECKING:
 
 
 @dataclasses.dataclass
-class FitParameter:
-    """Describes a single fit parameter.
+class ModelParameter:
+    """Metadata associated with a model parameter.
 
-    Arguments:
-        bounds: tuple of default `(lower, upper)` bounds for the parameter. Fitted
-            values are guaranteed to lie between lower and upper.
-        fixed_to: optional float specifying the value (if any) that the parameter is
-            fixed to by default. All parameters which are not explicitly fixed are
-            floated during the fit.
+    Attributes:
+        lower_bound: lower bound for the parameter. Fitted values are guaranteed to be
+            greater than or equal to the lower bound. Parameter bounds may be used by
+            fit heuristics to help find good starting points for the optimizer.
+        upper_bound: upper bound for the parameter. Fitted values are guaranteed to be
+            lower than or equal to the upper bound. Parameter bounds may be used by
+            fit heuristics to help find good starting points for the optimizer.
+        fixed_to: if not `None` the model parameter is fixed to this value during
+            fitting instead of being floated.
+        initialised_to: if not `None` this value is used as an initial value during
+            fitting rather than obtaining a value from the heuristics. This value may
+            additionally be used by the heuristics to help find good initial conditions
+            for other model parameters where none has been explicitly given.
         scale_func: callable returning a scale factor which the parameter must be
-            *multiplied* by if it was fitted using `x` / `y` data *divided* by the given
-            scale factors. This is used to improve numerics by avoiding asking
-            the optimizer to work with very large or very small values of `x` and `y`.
-            The callable takes three arguments: the x-axis scale factor, the y-axis
-            scale factor and a dictionary of fixed parameter values. If any `scale_func`
+            *multiplied* by if it was fitted using `x` / `y` data that has been
+            *divided* by the given scale factors. Scale factors are used to improve
+            numerical stability by avoiding asking the optimizer to work with very large
+            or very small values of `x` and `y`. The callable takes three arguments: the
+            x-axis and y-axis scale factors and the model instance. If any `scale_func`
             returns a value that is `0`, not finite (e.g. `nan`) or `None` we do not
-            rescale the coordinates.
+            rescale the coordinates. c.f. :meth can_rescale: and :meth rescale:.
     """
 
-    bounds: Tuple[float, float] = (-np.inf, np.inf)
+    lower_bound: float = -np.inf
+    upper_bound: float = np.inf
     fixed_to: Optional[float] = None
+    initialised_to: Optional[float] = None
     scale_func: Callable[
         [
-            Array[("num_samples",), np.float64],
-            Array[("num_samples",), np.float64],
-            Dict[str, float],
+            float,
+            float,
+            Model,
         ],
         Optional[float],
-    ] = lambda x_scale, y_scale, fixed_params: 1
+    ] = lambda x_scale, y_scale, model: 1
+
+    def can_rescale(self, x_scale: float, y_scale: float, model: Model) -> bool:
+        """Returns `True` if the parameter can be rescaled."""
+        scale_factor = self.scale_func(x_scale, y_scale, model)
+        return (
+            scale_factor is not None and np.isfinite(scale_factor) and scale_factor != 0
+        )
+
+    def rescale(self, x_scale: float, y_scale: float, model: Model) -> float:
+        """Rescales the parameter metadata based on the specified x and y data scale
+        factors and returns the overall scale factor used.
+        """
+        scale_factor = self.scale_func(x_scale, y_scale, model)
+
+        def _rescale(attr):
+            if attr is None:
+                return None
+            return attr / scale_factor
+
+        self.lower_bound = _rescale(self.lower_bound)
+        self.upper_bound = _rescale(self.upper_bound)
+        self.fixed_to = _rescale(self.fixed_to)
+        self.initialised_to = _rescale(self.initialised_to)
+        return scale_factor
+
+    def get_initial_value(self, default: Optional[float] = None) -> Optional[float]:
+        """If a value is known for this parameter prior to fitting -- either because an
+        initial value has been set or because the parameter has been fixed -- we return
+        it, otherwise we return :param default:.
+
+        Does not mutate the parameter.
+        """
+        if self.fixed_to is not None:
+            return self.fixed_to
+        if self.initialised_to is not None:
+            return self.initialised_to
+        return default
+
+    def initialise(self, estimate: float) -> float:
+        """Sets the parameter's initial value based on the supplied estimate. If an
+        initial value is already known for this parameter (see :meth get_initial_value:)
+        we use that instead of the supplied estimate. The value is clipped to lie
+        between the set lower and upper bounds.
+
+        After this method, :attribute initialised_to: the parameter either has a valid
+        initial value (i.e. one that is not `None` and lies between the set bounds) or
+        a `ValueError` be raised.
+
+        :returns: the initialised value
+        """
+        self.initialised_to = self.get_initial_value(estimate)
+        if self.initialised_to is None:
+            raise ValueError("No valid initial value set for parameter")
+        self.initialised_to = np.clip(
+            self.initialised_to, self.lower_bound, self.upper_bound
+        )
+
+        return self.initialised_to
 
 
-class FitModel:
+class Model:
     """Base class for fit models.
 
-    A model represents a function to be fitted and associated metadata (parameter names
-    and default bounds) and heuristics.
+    A model groups a function to be fitted with associated metadata (parameter names,
+    default bounds etc) and heuristics. It is agnostic about the method of fitting or
+    the data statistics.
     """
 
-    def __init__(self, parameters=None):
+    def __init__(self, parameters: Optional[Dict[str, ModelParameter]] = None):
+        """
+        :param parameters: optional dictionary mapping names of model parameters to
+            their metadata. This should be `None` (default) if the model has a static
+            set of parameters in which case the parameter dictionary is generated from
+            the call signature of :meth _func:. The model parameters are stored as
+            `self.parameters` and may be modified after construction to change the model
+            behaviour during fitting (e.g. to change the bounds, fixed parameters, etc).
+        """
         if parameters is None:
             spec = inspect.getfullargspec(self._func)
-            self._parameters = {name: spec.annotations[name] for name in spec.args[2:]}
+            for name in spec.args[2:]:
+                assert isinstance(
+                    spec.annotations[name], ModelParameter
+                ), "Model parameters must be instances of `ModelParameter`"
+            self.parameters = {name: spec.annotations[name] for name in spec.args[2:]}
         else:
-            self._parameters = parameters
+            self.parameters = parameters
+
+    def func(
+        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
+    ) -> Array[("num_samples",), np.float64]:
+        """Evaluates the model at a given set of x-axis points and with a given set of
+        parameter values and returns the result.
+
+        Overload this to provide a model function with a dynamic set of parameters,
+        otherwise prefer to override `_func`.
+
+        :param x: x-axis data
+        :param param_values: dictionary of parameter values
+        :returns: array of model values
+        """
+        return self._func(x, **param_values)
+
+    def _func(
+        self,
+        x: Array[("num_samples",), np.float64],
+    ) -> Array[("num_samples",), np.float64]:
+        """Evaluates the model at a given set of x-axis points and with a given set of
+        parameter values and returns the result.
+
+        Overload this in preference to `func` unless the FitModel takes a
+        dynamic set of parameters. Use : class ModelParameter: objects as the annotation
+        for the parameters arguments. e.g.:
+
+        ```
+        def _func(self, x, a: ModelParameter(), b: ModelParameter()):
+        ```
+
+        A dictionary of `ModelParameter`s may be accessed via the `self.parameters`
+        attribute. These parameters may be modified by the user to change the model
+        behaviour during fitting (e.g. to change the bounds, fixed parameters, etc).
+
+        :param x: x-axis data
+        :returns: array of model values
+        """
+        raise NotImplementedError
+
+    def estimate_parameters(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        model_parameters: Dict[str, ModelParameter],
+    ):
+        """Sets initial values for model parameters based on heuristics. Typically
+        called during `Fitter.fit`.
+
+        Heuristic results should stored in :param model_parameters: using the
+        `ModelParameter`'s `initialise` method. This ensures that all information passed
+        in by the user (fixed values, initial values, bounds) is used correctly.
+
+        The dataset must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values.
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :param model_parameters: dictionary mapping model parameter names to their
+            metadata.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def calculate_derived_params(
+        fitted_params: Dict[str, float], fit_uncertainties: Dict[str, float]
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        Returns dictionaries of values and uncertainties for the derived model
+        parameters (parameters which are calculated from the fit results rather than
+        being directly part of the fit) based on values of the fitted parameters and
+        their uncertainties.
+
+        :param: fitted_params: dictionary mapping model parameter names to their
+            fitted values.
+        :param fit_uncertainties: dictionary mapping model parameter names to
+            their fit uncertainties.
+        :returns: tuple of dictionaries mapping derived parameter names to their
+            values and uncertainties.
+        """
+        return {}, {}
+
+    def post_fit(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
+    ):
+        """Hook called post-fit. Override to implement custom functionality.
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :param fitted_params: dictionary mapping model parameter names to their fitted
+            values
+        :param fit_uncertainties: dictionary mapping model parameter names to
+            the fit uncertainties (`0` for fixed parameters).
+        """
+        pass
 
     def param_min_sqrs(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        params: Dict[str, float],
+        parameters: Dict[str, ModelParameter],
         scanned_param: str,
         scanned_param_values: ArrayLike["num_values", np.float64],
     ) -> Tuple[float, float]:
@@ -70,322 +250,154 @@ class FitModel:
 
         :param x: x-axis data
         :param y: y-axis data
-        :param params: dictionary of fixed parameter values
+        :param parameters: dictionary of model parameters
         :param scanned_param: name of parameter to optimize
         :param scanned_param_values: array of scanned parameter values to test
 
         :returns: tuple with the value from :param scanned_param_values: which results
-        in lowest residuals an the root-sum-squared residuals for that value.
+        in lowest residuals and the root-sum-squared residuals for that value.
         """
-        params = dict(params)
+        param_values = {
+            param: value
+            for param, param_data in parameters.items()
+            if (value := param_data.get_initial_value()) is not None
+        }
+
         scanned_param_values = np.asarray(scanned_param_values)
         costs = np.zeros(scanned_param_values.shape)
         for idx, value in np.ndenumerate(scanned_param_values):
-            params[scanned_param] = value
-            y_params = self.func(x, params)
+            param_values[scanned_param] = value
+            y_params = self.func(x, param_values)
             costs[idx] = np.sqrt(np.sum(np.power(y - y_params, 2)))
         opt = np.argmin(costs)
         return float(scanned_param_values[opt]), float(costs[opt])
 
-    def post_fit(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-        p_fit: Dict[str, float],
-        p_err: Dict[str, float],
-    ):
-        """Hook called post-fit, override to implement custom functionality.
 
-        :param x: x-axis data
-        :param y: y-axis data
-        :param p_fit: dictionary mapping model parameter names to their fitted values
-        :param p_err: dictionary mapping model parameter names to the fit uncertainties
-            (`0` for fixed parameters).
-        """
-        pass
+class Fitter:
+    """Base class for fitters.
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
-    ) -> Array[("num_samples",), np.float64]:
-        """Evaluates the model at a given set of x-axis points and with a given
-        parameter set and returns the result.
+    Fitters perform maximum likelihood parameter estimation on a dataset under the
+    assumption of a certain model and statistics (normal, binomial, etc) and store the
+    results as attributes.
 
-        Overload this to provide a model function with a dynamic set of
-        parameters, otherwise prefer to override `_func`.
+    Attributes:
+        x: x-axis data
+        y: y-axis data
+        sigma: optional y-axis  standard deviations. Only used by `NormalFitter`
+        values: dictionary mapping model parameter names to their fitted values
+        uncertainties: dictionary mapping model parameter names to their fit
+            uncertainties. For sufficiently large datasets, well-formed problems and
+            ignoring covariances these are the 1-sigma confidence intervals (roughly:
+            there is a 1/3 chance that the real parameter values differ from their
+            fitted values by more than this much).
+        initial_values: dictionary mapping model parameter names to the initial values
+            used to seed the fit.
+        model: the fit model
+        fit_significance: if applicable, the fit significance as a number between 0 and
+            1 (1 indicates perfect agreement between the fitted model and input
+            dataset). See :meth _fit_significance: for details.
+        free_parameters: list of names of the model parameters floated during the fit
+    """
 
-        :param x: x-axis data
-        :param params: dictionary of parameter values
-        :returns: array of model values
-        """
-        return self._func(x, **params)
+    x: Array[("num_samples",), np.float64]
+    y: Array[("num_samples",), np.float64]
+    sigma: Optional[Array[("num_samples",), np.float64]]
+    values: Dict[str, float]
+    uncertainties: Dict[str, float]
+    initial_values: Dict[str, float]
+    model: Model
+    fit_significance: Optional[float]
+    free_parameters: List[str]
 
-    def _func(
-        self,
-        x: Array[("num_samples",), np.float64],
-    ) -> Array[("num_samples",), np.float64]:
-        """Evaluates the model at a given set of x-axis points and with a given
-        parameter set and returns the result.
-
-        Overload this in preference to `func` unless the FitModel takes a
-        dynamic set of parameters. Use FitParameter objects as the annotation
-        for the parameters arguments. e.g.:
-
-        ```
-        def _func(self, x, a: FitParameter(), b: FitParameter(), c: FitParameter()):
-        ```
-
-        The FitParameters will be exposed from `get_parameters` automatically
-        using the argument names as the dictionary keys.
-
-        :param x: x-axis data
-        :returns: array of model values
-        """
-        raise NotImplementedError
-
-    @staticmethod
-    def calculate_derived_params(
-        fitted_params: Dict[str, float], uncertainties: Dict[str, float]
-    ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """
-        Returns dictionaries of values and uncertainties for the derived model
-        parameters (parameters which are calculated from the fit results rather than
-        being part of the fit themselves) based on values of the fitted parameters and
-        their uncertainties.
-
-        :param: fitted_params: dictionary mapping model parameter names to their
-            fitted values.
-        :param uncertainties: dictionary mapping model parameter names to their fit
-            uncertainties.
-        :returns: tuple of dictionaries mapping derived parameter names to their
-            values and uncertainties.
-        """
-        return {}, {}
-
-    def get_parameters(self) -> Dict[str, FitParameter]:
-        """Returns a dictionary mapping model parameter names to their metadata."""
-        return dict(self._parameters)
-
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-        known_values: Dict[str, float],
-        bounds: Dict[str, Tuple[float, float]],
-    ) -> Dict[str, float]:
-        """
-        Returns a dictionary of estimates for the model parameter values for the
-        specified dataset.
-
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values, typically called as part of `FitBase.fit`.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param known_values: dictionary mapping model parameter names to values
-            parameters whose value is known (e.g. because the parameter is fixed to a
-            certain value or an initial value has been provided by the user).
-        :param bounds: dictionary of parameter bounds. Estimated values will be clipped
-            to lie within bounds.
-        """
-        raise NotImplementedError
-
-
-class FitBase:
     def __init__(
-        self,
-        model: FitModel,
-        param_bounds: Optional[Dict[str, Optional[Tuple[float, float]]]] = None,
-        fixed_params: Optional[Dict[str, Optional[float]]] = None,
-        initial_values: Optional[Dict[str, float]] = None,
-    ):
-        """
-        :param model: the model function to fit to.
-        :param param_bounds: dictionary mapping model parameter names to tuples of
-            `(lower, upper)` bounds. Entries in this dictionary override the defaults
-            provided by the model. To unbound a parameter which is bounded by default
-            in the model, pass either `None` or `(-np.inf, np.inf)` as bounds.
-        :param fixed_params: dictionary mapping model parameter names to values which
-            they are to be fixed to. Fixed parameters are not floated during the fit.
-            Entries in this dictionary override the defaults provided by the model. By
-            default, models float all commonly used parameters and only fix rarely used
-            ones. To float a parameter that is fixed by default in the model, provide
-            `None` as a value.
-        :param initial_values: dictionary mapping parameter names to initial values.
-            These values are used by the heuristics. If you find you need these values
-            it may be indicative of an issue, such as: the mode heuristic needing more
-            work (in which case please consider filing an issue); a poor-quality
-            dataset; too many floated parameters; etc.
-        """
-
-        self._model = model
-        params = model.get_parameters()
-        self._param_names = set(params.keys())
-
-        default_bounds = {
-            param: param_data.bounds for param, param_data in params.items()
-        }
-        default_fixed = {
-            param: param_data.fixed_to
-            for param, param_data in params.items()
-            if param_data.fixed_to is not None
-        }
-
-        def validate_param_names(params, kind):
-            param_names = set(params.keys())
-            invalid = param_names - self._param_names
-            if invalid:
-                raise ValueError(f"Invalid {kind} parameter names: {invalid}")
-
-        param_bounds = param_bounds or {}
-        fixed_params = fixed_params or {}
-        initial_values = initial_values or {}
-
-        validate_param_names(param_bounds, "parameter bound")
-        validate_param_names(fixed_params, "fixed parameter")
-        validate_param_names(initial_values, "initial value")
-
-        self._param_bounds = default_bounds
-        self._fixed_params = default_fixed
-        self._initial_values = {}
-
-        self._param_bounds.update(param_bounds)
-        self._fixed_params.update(fixed_params)
-        self._initial_values.update(initial_values)
-
-        self._param_bounds = {
-            param: np.asarray(bounds if bounds is not None else (-np.inf, np.inf))
-            for param, bounds in self._param_bounds.items()
-        }
-        self._fixed_params = {
-            param: fixed
-            for param, fixed in self._fixed_params.items()
-            if fixed is not None
-        }
-        self._initial_values = {
-            param: initial
-            for param, initial in self._initial_values
-            if initial is not None
-        }
-
-        self._free_params = self._param_names - set(self._fixed_params.keys())
-
-        self._estimated_values = None
-        self._fitted_params = None
-        self._fitted_param_uncertainties = None
-        self._x = None
-        self._y = None
-        self._y_err = None
-
-    def set_dataset(
         self,
         x: ArrayLike[("num_samples",), np.float64],
         y: ArrayLike[("num_samples",), np.float64],
+        sigma: Optional[ArrayLike[("num_samples",), np.float64]],
+        model: Model,
     ):
-        """Sets the dataset to be fit.
+        """Fits a model to a dataset and stores the results.
 
         :param x: x-axis data
         :param y: y-axis data
+        :param sigma: optional y-axis  standard deviations. Only used by `NormalFitter`
+        :param model: the model function to fit to. The model's parameter dictionary is
+            used to configure the fit (set parameter bounds etc). Modify this before
+            fitting to change the fit behaviour from the model class' defaults.
         """
-        self._x = np.array(x, dtype=np.float64, copy=True)
-        self._y = np.array(y, dtype=np.float64, copy=True)
+        model = copy.deepcopy(model)
 
-        valid_pts = np.logical_and(np.isfinite(self._x), np.isfinite(self._y))
-        self._x = self._x[valid_pts]
-        self._y = self._y[valid_pts]
+        # sanitize input dataset
+        x = np.array(x, dtype=np.float64, copy=True)
+        y = np.array(y, dtype=np.float64, copy=True)
+        sigma = None if sigma is None else np.array(sigma, dtype=np.float64, copy=True)
 
-        if self._x.shape != self._y.shape:
+        if x.shape != y.shape:
             raise ValueError("Shapes of x and y must match.")
 
-        inds = np.argsort(self._x)
-        self._x = self._x[inds]
-        self._y = self._y[inds]
+        if sigma is not None and sigma.shape != y.shape:
+            raise ValueError("Shapes of sigma and y must match.")
 
-        self._estimated_values = None
-        self._fitted_params = None
-        self._fitted_param_uncertainties = None
+        valid_pts = np.logical_and(np.isfinite(x), np.isfinite(y))
+        x = x[valid_pts]
+        y = y[valid_pts]
+        sigma = None if sigma is None else sigma[valid_pts]
 
-    def fit(self) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """
-        Fit the dataset and return dictionaries mapping model parameter names, including
-        derived parameters, to their fitted parameter values and uncertainties. Fixed
-        parameters are given an uncertainty of `0`.
-        """
-        if self._x is None:
-            raise ValueError("Cannot fit without first setting a dataset")
+        inds = np.argsort(x)
+        x = x[inds]
+        y = y[inds]
+        sigma = None if sigma is None else sigma[inds]
 
-        if not self._free_params:
-            raise ValueError("Attempt to fit without any floated parameters")
+        # Rescale coordinates to improve numerics (optimizers need to do things like
+        # calculate numerical derivatives which is easiest if x and y are O(1)).
+        x_scale = np.max(np.abs(x))
+        y_scale = np.max(np.abs(y))
 
-        # We want to be able to mutate these without altering the instance attributes
-        x = np.array(self._x, copy=True)
-        y = np.array(self._y, copy=True)
-
-        bounds = dict(self._param_bounds)
-        fixed_params = dict(self._fixed_params)
-        initial_values = dict(self._initial_values)
-        initial_values.update(self._fixed_params)
-        free_params = list(self._free_params)
-
-        # Rescale our coordinates to avoid working with very large/small values
-        x_scale = np.max(np.abs(self._x))
-        y_scale = np.max(np.abs(self._y))
-
-        scale_funcs = {
-            param: param_data.scale_func
-            for param, param_data in self._model.get_parameters().items()
-        }
-
-        assert set(scale_funcs.keys()) == set(self._param_names)
-
-        scale_factors = {
-            param: scale_func(x_scale, y_scale, fixed_params)
-            for param, scale_func in scale_funcs.items()
-        }
+        parameters = dict(model.parameters)
         rescale_coords = all(
             [
-                scale is not None and np.isfinite(scale) and scale != 0
-                for scale in scale_factors.values()
+                param_data.can_rescale(x_scale, y_scale, model)
+                for param_data in parameters.values()
             ]
         )
 
         if not rescale_coords:
-            x_scale = None
-            y_scale = None
+            x_scale = 1
+            y_scale = 1
+            scale_factors = {param: 1 for param in parameters.keys()}
         else:
-            x /= x_scale
-            y /= y_scale
-
-            initial_values = {
-                param: value / scale_factors[param]
-                for param, value in initial_values.items()
-            }
-            fixed_params = {
-                param: value / scale_factors[param]
-                for param, value in fixed_params.items()
-            }
-            bounds = {
-                param: value / scale_factors[param] for param, value in bounds.items()
+            scale_factors = {
+                param: param_data.rescale(x_scale, y_scale, model)
+                for param, param_data in parameters.items()
             }
 
-        # Make sure we're using the known values and clip to bounds
-        estimated_values = self._model.estimate_parameters(x, y, initial_values, bounds)
-        estimated_values.update(initial_values)
-        for param, value in estimated_values.items():
-            lower, upper = bounds[param]
-            estimated_values[param] = min(max(value, lower), upper)
+        x = x / x_scale
+        y = y / y_scale
 
-        initial_values = estimated_values
-        self._estimated_values = estimated_values  # stored for debugging purposes
+        sigma = None if sigma is None else sigma / y_scale
 
-        # Trim out free factors in preparation for the optimization step
-        bounds = {
-            param: bounds for param, bounds in bounds.items() if param in free_params
+        model.estimate_parameters(x, y, parameters)
+
+        # raises an exception if any parameter has not been initialised
+        try:
+            for param, param_data in parameters.items():
+                param_data.initialise(None)
+        except ValueError:
+            raise Exception(f"No initial value found for parameter {param}.")
+
+        fixed_params = {
+            param_name: param_data.fixed_to
+            for param_name, param_data in parameters.items()
+            if param_data.fixed_to is not None
         }
-        initial_values = {
-            param: value
-            for param, value in initial_values.items()
-            if param in free_params
-        }
+        self.free_parameters = [
+            param_name
+            for param_name, param_data in parameters.items()
+            if param_data.fixed_to is None
+        ]
+
+        if self.free_parameters == []:
+            raise ValueError("Attempt to fit with no free parameters")
 
         def free_func(
             x: Array[("num_samples",), np.float64], *free_param_values: float
@@ -393,81 +405,73 @@ class FitBase:
             """Call the model function with the values of the free parameters."""
             params = {
                 param: value
-                for param, value in zip(free_params, list(free_param_values))
+                for param, value in zip(self.free_parameters, list(free_param_values))
             }
             params.update(fixed_params)
-            y = self._model.func(x, params)
-
+            y = model.func(x, params)
             return y
 
-        p_fit, p_err = self._fit(
-            x, y, initial_values, bounds, free_func, x_scale, y_scale
+        fitted_params, uncertainties = self._fit(x, y, sigma, parameters, free_func)
+
+        fitted_params.update({param: value for param, value in fixed_params.items()})
+        uncertainties.update({param: 0 for param in fixed_params.keys()})
+
+        fitted_params = {
+            param: value * scale_factors[param]
+            for param, value in fitted_params.items()
+        }
+        uncertainties = {
+            param: value * scale_factors[param]
+            for param, value in uncertainties.items()
+        }
+        initial_values = {
+            param: param_data.initialised_to * scale_factors[param]
+            for param, param_data in parameters.items()
+        }
+
+        derived_params, derived_uncertainties = model.calculate_derived_params(
+            fitted_params, uncertainties
         )
+        fitted_params.update(derived_params)
+        uncertainties.update(derived_uncertainties)
 
-        if rescale_coords:
-            p_fit = {
-                param: value * scale_factors[param] for param, value in p_fit.items()
-            }
-            p_err = {
-                param: value * scale_factors[param] for param, value in p_err.items()
-            }
-            self._estimated_values = {
-                param: value * scale_factors[param]
-                for param, value in self._estimated_values.items()
-            }
+        model.post_fit(x, y, fitted_params, uncertainties)
 
-        p_fit.update({param: value for param, value in self._fixed_params.items()})
-        p_err.update({param: 0 for param, _ in self._fixed_params.items()})
-
-        self._model.post_fit(x, y, p_fit, p_err)
-
-        p_derived, p_derived_err = self._model.calculate_derived_params(p_fit, p_err)
-        p_fit.update(p_derived)
-        p_err.update(p_derived_err)
-
-        self._fitted_params = p_fit
-        self._fitted_param_uncertainties = p_err
-
-        return self._fitted_params, self._fitted_param_uncertainties
+        self.model = model
+        self.x = x
+        self.y = y
+        self.sigma = sigma
+        self.values = fitted_params
+        self.uncertainties = uncertainties
+        self.initial_values = initial_values
+        self.fit_significance = self._fit_significance()
 
     def _fit(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        initial_values: Dict[str, float],
-        bounds: Dict[str, Tuple[float, float]],
-        free_func: Callable[
-            # TODO: correct annotation for *args?
-            [Array[("num_samples",), np.float64], List[float]],
-            Array[("num_samples",), np.float64],
-        ],
-        x_scale: Optional[float],
-        y_scale: Optional[float],
+        sigma: Optional[Array[("num_samples",), np.float64]],
+        parameters: Dict[str, ModelParameter],
+        free_func: Callable[..., Array[("num_samples",), np.float64]],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """Implementation of the fit function called from within :meth fit:, which does
-        the common pre/post-processing.
+        """Implementation of the parameter estimation.
 
-        `FitBase` implementations must override this to provide a fit with appropriate
-        statistics.
+        `Fitter` implementations must override this method to provide a fit with
+        appropriate statistics.
 
-        :param x: x-axis data
-        :param y: y-axis data
-        :param initial_values: dictionary mapping model parameter names to initial
-            values (either user-specified or from heuristics) to use as a starting point
-            for the optimizer.
-        :param bounds: dictionary mapping model parameter names to their
-            `(lower, upper)` bounds. Fitted values must lie within these bounds.
-        :param free_func: wrapper for the model function, taking only values for the
-            fit's free parameters.
-        :param x_scale: x-axis scale factor or `None` if the axis was not rescaled
-        :param y_scale: y-axis scale factor or `None` if the axis was not rescaled
+        :param x: rescaled x-axis data
+        :param y: rescaled y-axis data
+        :param sigma: rescaled standard deviations
+        :param parameters: dictionary of rescaled model parameters
+        :param free_func: convenience wrapper for the model function, taking only values
+            for the fit's free parameters
 
         :returns: tuple of dictionaries mapping model parameter names to their fitted
             values and uncertainties.
         """
         raise NotImplementedError
 
-    def fit_significance(self) -> float:
+    def _fit_significance(self) -> Optional[float]:
         """Returns an estimate of the goodness of fit as a number between 0 and 1.
 
         This is the defined as the probability that fit residuals as large as the ones
@@ -478,15 +482,14 @@ class FitBase:
         a value close to 0 indicates significant deviations of the dataset from the
         fitted model.
         """
-        raise NotImplementedError
+        return None
 
     def evaluate(
         self, x_fit: Optional[Union[Array[("num_samples",), np.float64], int]] = None
     ) -> Tuple[
         Array[("num_samples",), np.float64], Array[("num_samples",), np.float64]
     ]:
-        """Evaluates the model function using the fitted parameter set and at x-axis
-        points given by :param x_fit`:.
+        """Evaluates the model function using the fitted parameter set.
 
         :param x_fit: optional x-axis points to evaluate the model at. If `None` we use
             the dataset values. If a scalar we generate an axis of linearly spaced
@@ -495,20 +498,14 @@ class FitBase:
 
         :returns: tuple of x-axis values used and model values for those points
         """
-        if self._fitted_params is None:
-            raise ValueError("`fit` must be called before `evaluate`")
-
-        x_fit = x_fit if x_fit is not None else self._x
+        x_fit = x_fit if x_fit is not None else self.x
 
         if np.isscalar(x_fit):
-            x_fit = np.linspace(np.min(self._x), np.max(self._x), x_fit)
+            x_fit = np.linspace(np.min(self.x), np.max(self.x), x_fit)
 
-        y_fit = self._model.func(x_fit, self._fitted_params)
+        y_fit = self.model.func(x_fit, self.values)
         return x_fit, y_fit
 
     def residuals(self) -> Array[("num_samples",), np.float64]:
         """Returns an array of fit residuals."""
-        if self._y is None:
-            raise ValueError("Cannot calculate residuals without a dataset")
-
-        return self._y - self.evaluate()[0]
+        return self.y - self.evaluate()[1]

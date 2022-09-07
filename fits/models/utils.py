@@ -1,8 +1,8 @@
-from typing import Dict, Tuple, TYPE_CHECKING
-
+import copy
 import numpy as np
+from typing import Dict, TYPE_CHECKING
 
-from ..common import FitModel
+from ..common import Model, ModelParameter
 from ..utils import Array
 
 
@@ -10,26 +10,26 @@ if TYPE_CHECKING:
     num_samples = float
 
 
-class MappedFitModel(FitModel):
-    """`FitModel` wrapping another `FitModel` with renamed parameters"""
+class MappedModel(Model):
+    """`Model` wrapping another `Model` with renamed parameters"""
 
     def __init__(
         self,
-        inner: FitModel,
+        inner: Model,
         mapped_params: Dict[str, str],
         fixed_params: Dict[str, float] = None,
     ):
         """Init
 
-        :param inner: The wrapped fit model, the implementation of `inner` will
-            be used after the parameter mapping has been done.
+        :param inner: The wrapped model, the implementation of `inner` will be used
+            after the parameter mapping has been done.
         :param mapped_params: dictionary mapping names of parameters in the new
             model to names of parameters used in the wrapped model.
         :param fixed_params: dictionary mapping names of parameters used in the
             wrapped model to values they are fixed to in the new model. These
             will not be parameters of the new model.
         """
-        inner_params = inner.get_parameters()
+        inner_params = inner.parameters
 
         if unknown_mapped_params := set(mapped_params.values()) - inner_params.keys():
             raise ValueError(
@@ -68,10 +68,20 @@ class MappedFitModel(FitModel):
         self.fixed_params = fixed_params or {}
 
     def func(
-        self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
+        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
+        """Evaluates the model at a given set of x-axis points and with a given set of
+        parameter values and returns the result.
+
+        Overload this to provide a model function with a dynamic set of parameters,
+        otherwise prefer to override `_func`.
+
+        :param x: x-axis data
+        :param param_values: dictionary of parameter values
+        :returns: array of model values
+        """
         new_params = {
-            old_name: params[new_name]
+            old_name: param_values[new_name]
             for new_name, old_name in self.mapped_args.items()
         }
         new_params.update(self.fixed_params)
@@ -81,38 +91,48 @@ class MappedFitModel(FitModel):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        known_values: Dict[str, float],
-        bounds: Dict[str, Tuple[float, float]],
-    ):
-        return self.inner.estimate_parameters(x, y, known_values, bounds)
+        inner_parameters: Dict[str, ModelParameter],
+    ) -> Dict[str, float]:
+        return self.inner.estimate_parameters(x, y, inner_parameters)
 
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        known_values: Dict[str, float],
-        bounds: Dict[str, Tuple[float, float]],
-    ) -> Dict[str, float]:
-        known_values = {
-            original_param: value
-            for new_param, original_param in self.mapped_args.items()
-            if (value := known_values.get(original_param)) is not None
-        }
-        known_values.update(self.fixed_params)
+        model_parameters: Dict[str, ModelParameter],
+    ):
+        """Sets initial values for model parameters based on heuristics. Typically
+        called during `Fitter.fit`.
 
-        bounds = {
-            self.mapped_args[new_param]: bounds for new_param, bounds in bounds.items()
+        Heuristic results should stored in :param model_parameters: using the
+        `ModelParameter`'s `initialise` method. This ensures that all information passed
+        in by the user (fixed values, initial values, bounds) is used correctly.
+
+        The dataset must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values.
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :param model_parameters: dictionary mapping model parameter names to their
+            metadata.
+        """
+        inner_parameters = {
+            original_param: copy.deepcopy(value)
+            for new_param, original_param in self.mapped_args.items()
+            if (value := model_parameters.get(new_param)) is not None
         }
-        bounds.update(
+
+        inner_parameters.update(
             {
-                original_param: (value, value)
-                for original_param, value in self.fixed_params.items()
+                param: ModelParameter(
+                    lower_bound=value, upper_bound=value, fixed_to=value
+                )
+                for param, value in self.fixed_params.items()
             }
         )
 
-        param_guesses = self._inner_estimate_parameters(x, y, known_values, bounds)
+        self._inner_estimate_parameters(x, y, inner_parameters)
 
-        return {
-            new_param: param_guesses[original_param]
-            for new_param, original_param in self.mapped_args.items()
-        }
+        for new_param, original_param in self.mapped_args.items():
+            initial_value = inner_parameters[original_param].get_initial_value()
+            model_parameters[new_param].initialise(initial_value)

@@ -1,4 +1,4 @@
-from .common import FitParameter, FitModel, FitBase
-from .normal import NormalFit
+from .common import ModelParameter, Model, Fitter
+from .normal import NormalFitter
 from . import models
 from . import utils
