@@ -1,9 +1,9 @@
-from typing import Dict, TYPE_CHECKING, Tuple
+from typing import Dict, Optional, TYPE_CHECKING
 
 import numpy as np
 
-from .utils import MappedFitModel
-from .. import FitModel, FitParameter
+from .utils import MappedModel
+from .. import Model, ModelParameter
 from ..utils import Array
 
 if TYPE_CHECKING:
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     num_values = float
 
 
-class Power(FitModel):
+class Power(Model):
     """Single-power fit according to:
     y = a*(x-x0)^n + y0
 
@@ -37,56 +37,48 @@ class Power(FitModel):
         None
     """
 
+    def _x_scale(x_scale: float, y_scale: float, model: Model) -> Optional[float]:
+        if model.parameters["n"].fixed_to is None:
+            return None
+        return y_scale / np.float_power(x_scale, model.parameters["n"].fixed_to)
+
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        a: FitParameter(
-            fixed_to=1,
-            scale_func=lambda x_scale, y_scale, fixed_params: None
-            if "n" not in fixed_params
-            else y_scale / np.float_power(x_scale, fixed_params["n"]),
-        ),
-        x0: FitParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
-        y0: FitParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        n: FitParameter(),
+        a: ModelParameter(fixed_to=1, scale_func=_x_scale),
+        x0: ModelParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
+        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
+        n: ModelParameter(),
     ) -> Array[("num_samples",), np.float64]:
-        """Evaluates the model at a given set of x-axis points and with a given
-        parameter set and returns the result.
-
-        :param x: x-axis data
-        :param params: dictionary of parameter values
-        :returns: array of model values
-        """
+        """Evaluates the model at a given set of x-axis points and with a given set of
+        parameter values and returns the result."""
         assert all(x - x0 >= 0), "`x - x0` must be > 0"
-
         return a * np.float_power(x - x0, n) + y0
 
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        known_values: Dict[str, float],
-        bounds: Dict[str, Tuple[float, float]],
+        model_parameters: Dict[str, ModelParameter],
     ) -> Dict[str, float]:
         """
         Returns a dictionary of estimates for the model parameter values for the
-        specified dataset.
+        specified dataset. Typically called during `Fitter.fit`.
 
         The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values, typically called as part of `FitBase.fit`.
+        contain any infinite or nan values.
 
         :param x: x-axis data
         :param y: y-axis data
-        :param known_values: dictionary mapping model parameter names to values
-            parameters whose value is known (e.g. because the parameter is fixed to a
-            certain value or an initial value has been provided by the user).
-        :param bounds: dictionary of parameter bounds. Estimated values will be clipped
-            to lie within bounds.
+        :param model_parameters: dictionary mapping model parameter names to their
+            metadata.
         """
-        param_guesses = dict(known_values)
-
-        # We don't have a heuristic for x0
-        unknowns = set(["x0", "a", "y0", "n"]) - set(known_values.keys())
+        param_guesses = {
+            param: value
+            for param, param_data in model_parameters.items()
+            if (value := param_data.get_initial_value()) is not None
+        }
+        unknowns = set(self.parameters.keys()) - set(param_guesses.keys())
 
         # set some fallbacks for if cases where our heuristics fail us
         param_guesses["x0"] = param_guesses.get("x0", 0)
@@ -105,7 +97,7 @@ class Power(FitModel):
             # unless tight bounds have been set this is likely to fail
             pass
 
-        elif unknowns == set("a"):
+        elif unknowns == {"a"}:
             x0 = param_guesses["x0"]
             y0 = param_guesses["y0"]
             n = param_guesses["n"]
@@ -117,12 +109,12 @@ class Power(FitModel):
 
             param_guesses["a"] = a
 
-        elif unknowns == set("n"):
-            param_guesses["n"] = self.optimal_n(
-                x, y, param_guesses, known_values, bounds
-            )[0]
+        elif unknowns == {"n"}:
+            param_guesses["n"] = self.optimal_n(x, y, param_guesses, model_parameters)[
+                0
+            ]
 
-        elif unknowns == set("y0"):
+        elif unknowns == {"y0"}:
             a = param_guesses["a"]
             x0 = param_guesses["x0"]
             n = param_guesses["n"]
@@ -136,7 +128,7 @@ class Power(FitModel):
             pass  # don't have a great heuristic for these cases
 
         else:
-            assert unknowns == set(["y0", "n"])
+            assert unknowns == set(["y0", "n"]), unknowns
 
             # Datasets normally taken such that they contain a value of y close to y0
             y0_guesses = np.array(
@@ -147,22 +139,26 @@ class Power(FitModel):
                     np.mean(y),
                 ]
             )
-            if all(np.isfinite(bounds["y0"])):
-                y0_guesses = y0_guesses.append(bounds["y0"])
+            y0_bounds = [
+                model_parameters["y0"].lower_bound,
+                model_parameters["y0"].upper_bound,
+            ]
+            y0_bounds = [bound for bound in y0_bounds if np.isfinite(bound)]
+            y0_guesses = np.append(y0_guesses, y0_bounds)
 
             ns = np.zeros_like(y0_guesses)
             costs = np.zeros_like(y0_guesses)
             for idx, y0 in np.ndenumerate(y0_guesses):
                 param_guesses["y0"] = y0
                 ns[idx], costs[idx] = self.optimal_n(
-                    x, y, param_guesses, known_values, bounds
+                    x, y, param_guesses, model_parameters
                 )
             param_guesses["n"] = float(ns[np.argmin(costs)])
             param_guesses["y0"] = float(y0_guesses[np.argmin(costs)])
 
         return param_guesses
 
-    def optimal_n(self, x, y, param_guesses, known_values, bounds):
+    def optimal_n(self, x, y, param_guesses, model_parameters):
         """Find the optimal (in the least-squared residuals sense) value of `n`
         based on our current best guesses for the other parameters.
 
@@ -170,8 +166,8 @@ class Power(FitModel):
         us an estimate for `n` at each value of x. We choose the one which results
         in lowest sum of squares residuals.
         """
-        if "n" in known_values.keys():
-            return known_values["n"], 0
+        if (known_n := model_parameters["n"].get_initial_value()) is not None:
+            return known_n, 0
 
         y0 = param_guesses["y0"]
         a = param_guesses["a"]
@@ -191,8 +187,8 @@ class Power(FitModel):
         n = n.squeeze()
 
         # don't look for silly values of n
-        n_min = max(-10, bounds["n"][0])
-        n_max = min(10, bounds["n"][1])
+        n_min = max(-10, model_parameters["n"].lower_bound)
+        n_max = min(10, model_parameters["n"].upper_bound)
 
         n = n[np.argwhere(np.logical_and(n >= n_min, n <= n_max))]
 
@@ -206,28 +202,26 @@ def poly_fit_parameter(n):
     def scale_func(x_scale, y_scale, _):
         return y_scale / np.power(x_scale, n)
 
-    return FitParameter(
+    return ModelParameter(
         fixed_to=None if n <= 1 else 0,
         scale_func=scale_func,
     )
 
 
+def _poly_x_scale(x_scale: float, y_scale: float, model: Model) -> Optional[float]:
+    # If a non-zero value has been set for `x0` we can't rescale the dataset
+    if model.parameters["x0"].fixed_to == 0.0:
+        return 1
+    return None
+
+
 def _generate_poly_parameters(poly_degree):
     params = {f"a_{n}": poly_fit_parameter(n) for n in range(poly_degree + 1)}
-    params.update(
-        {
-            "x0": FitParameter(
-                fixed_to=0,
-                scale_func=lambda x_scale, y_scale, fixed_params: 1
-                if fixed_params.get("x0") == 0
-                else None,
-            ),
-        }
-    )
+    params.update({"x0": ModelParameter(fixed_to=0, scale_func=_poly_x_scale)})
     return params
 
 
-class Polynomial(FitModel):
+class Polynomial(Model):
     """A polynomial fit model.
 
     Fits the function:
@@ -256,12 +250,7 @@ class Polynomial(FitModel):
         self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
         """Evaluates the model at a given set of x-axis points and with a given
-        parameter set and returns the result.
-
-        :param x: x-axis data
-        :param params: dictionary of parameter values
-        :returns: array of model values
-        """
+        parameter set and returns the result."""
         x0 = params["x0"]
         p = np.array(
             [params[f"a_{n}"] for n in range(self.poly_degree, -1, -1)],
@@ -275,29 +264,27 @@ class Polynomial(FitModel):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        known_values: Dict[str, float],
-        bounds: Dict[str, Tuple[float, float]],
+        model_parameters: Dict[str, ModelParameter],
     ) -> Dict[str, float]:
         """
         Returns a dictionary of estimates for the model parameter values for the
-        specified dataset.
+        specified dataset. Typically called during `Fitter.fit`.
 
         The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values, typically called as part of `FitBase.fit`.
+        contain any infinite or nan values.
 
         :param x: x-axis data
         :param y: y-axis data
-        :param known_values: dictionary mapping model parameter names to values
-            parameters whose value is known (e.g. because the parameter is fixed to a
-            certain value or an initial value has been provided by the user).
-        :param bounds: dictionary of parameter bounds. Estimated values will be clipped
-            to lie within bounds.
+        :param model_parameters: dictionary mapping model parameter names to their
+            metadata.
         """
-        param_guesses = dict(known_values)
-        param_guesses["x0"] = param_guesses.get("x0", 0)
+        param_guesses = {}
+        param_guesses["x0"] = model_parameters["x0"].get_initial_value(0)
 
         free = [
-            n for n in range(self.poly_degree + 1) if param_guesses.get(f"a_{n}") != 0.0
+            n
+            for n in range(self.poly_degree + 1)
+            if model_parameters[f"a_{n}"].fixed_to != 0.0
         ]
         if len(free) == 0:
             return param_guesses
@@ -311,7 +298,7 @@ class Polynomial(FitModel):
         return param_guesses
 
 
-class Line(MappedFitModel):
+class Line(MappedModel):
     """Straight line fit according to:
     `y = a * x + y0`
 
@@ -331,11 +318,12 @@ class Line(MappedFitModel):
         )
 
 
-class Parabola(MappedFitModel):
+class Parabola(MappedModel):
     """Parabola fit according to:
     `y = k * (x - x0)^2 + y0`
 
     Fit parameters (all floated by default unless stated otherwise):
+      - x0: x-axis offset
       - y0: y-axis intercept
       - k: curvature
 
@@ -345,8 +333,8 @@ class Parabola(MappedFitModel):
 
     def __init__(self):
         inner = Polynomial(2)
-        inner._parameters["x0"].fixed_to = None
-        inner._parameters["a_2"].fixed_to = None
+        inner.parameters["x0"].fixed_to = None
+        inner.parameters["a_2"].fixed_to = None
         super().__init__(
             inner,
             {"k": "a_2", "y0": "a_0", "x0": "x0"},
@@ -357,17 +345,11 @@ class Parabola(MappedFitModel):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        known_values: Dict[str, float],
-        bounds: Dict[str, Tuple[float, float]],
+        inner_parameters: Dict[str, ModelParameter],
     ) -> Dict[str, float]:
         """
-        Returns a dictionary of estimates for the model parameter values for the
-        specified dataset.
-
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values, typically called as part of `FitBase.fit`.
-
-        Maps the Polynomial `a_1` coefficient onto a value for `x0` according to
+        If `x0` is floated, we map the Polynomial `a_1` coefficient onto a value for
+        `x0` according to:
         ```
         y = a_0 + a_2 * x^2
         x -> x - x0: y = a_0 + a_2 * (x - x0)^2
@@ -378,23 +360,17 @@ class Parabola(MappedFitModel):
         a_1 -> 2*a_2*x0 => x0 = a_1/(2*a_2)
         a_2 -> a_2
         ```
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param known_values: dictionary mapping model parameter names to values
-            parameters whose value is known (e.g. because the parameter is fixed to a
-            certain value or an initial value has been provided by the user).
-        :param bounds: dictionary of parameter bounds. Estimated values will be clipped
-            to lie within bounds.
         """
-        param_guesses = super()._inner_estimate_parameters(x, y, known_values, bounds)
+        param_guesses = super()._inner_estimate_parameters(x, y, inner_parameters)
 
-        if "x0" not in known_values:
+        if inner_parameters["x0"].get_initial_value() is None:
             a_0 = param_guesses["a_0"]
             a_1 = param_guesses["a_1"]
             a_2 = param_guesses["a_2"]
 
             param_guesses["x0"] = x0 = -a_1 / (2 * a_2)
-            param_guesses["a_0"] = known_values.get("a_0", a_0 - a_2 * x0**2)
+            param_guesses["a_0"] = inner_parameters["a_0"].get_initial_value(
+                a_0 - a_2 * x0**2
+            )
 
         return param_guesses
