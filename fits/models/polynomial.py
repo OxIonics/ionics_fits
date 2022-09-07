@@ -193,7 +193,7 @@ def poly_fit_parameter(n):
         return y_scale / np.power(x_scale, n)
 
     return ModelParameter(
-        fixed_to=None if n <= 1 else 0,
+        fixed_to=None,
         scale_func=scale_func,
     )
 
@@ -218,8 +218,7 @@ class Polynomial(Model):
     y = sum(a_n*(x-x0)^n) for n ={0...poly_degree}
 
     Fit parameters (all floated by default unless stated otherwise):
-      - a_0 ... a_{poly_degree}: polynomial coefficients. All polynomial coefficients
-          above 1 are fixed to 0 by default.
+      - a_0 ... a_{poly_degree}: polynomial coefficients.
       - x0: x-axis offset (fixed to 0 by default). Floating x0 as well as polynomial
           coefficients results in an under-defined problem.
 
@@ -358,5 +357,5 @@ class Parabola(MappedModel):
             a_1 = inner_parameters["a_1"].get_initial_value()
             a_2 = inner_parameters["a_2"].get_initial_value()
 
-            inner_parameters["x0"].initialise(-a_1 / (2 * a_2))
+            x0 = inner_parameters["x0"].initialise(-a_1 / (2 * a_2))
             inner_parameters["a_0"].initialisee(a_0 - a_2 * x0**2)

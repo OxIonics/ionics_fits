@@ -83,10 +83,7 @@ def test_polynomial():
     """Test for polynomials.Polynomial."""
     x = np.linspace(-5, 5)
     params = {"x0": 0, "a_0": 1, "a_1": 50, "a_2": 10, "a_3": 2}
-    params.update({f"a_{n}": 0 for n in range(4, 11)})
-    model = fits.models.Polynomial(poly_degree=10)
-    model.parameters["a_2"].fixed_to = None
-    model.parameters["a_3"].fixed_to = None
+    model = fits.models.Polynomial(poly_degree=3)
     test.common.check_single_param_set(x, model, params)
 
 
@@ -99,7 +96,6 @@ def test_x0():
     params = {"x0": -10, "a_0": 1, "a_1": 50, "a_2": 10}
     model = fits.models.Polynomial(poly_degree=2)
     model.parameters["x0"].fixed_to = None
-    model.parameters["a_2"].fixed_to = None
     config = test.common.TestConfig(residual_tol=1e-6, param_tol=None)
     test.common.check_single_param_set(x, model, params, config=config)
 
@@ -111,14 +107,10 @@ def fuzz_polynomial(
 ) -> float:
     x = np.linspace(-5, 50) * 1e-3
 
-    static_params = {f"a_{n}": 0 for n in range(4, 11)}
-    static_params.update({"x0": 0})
-
+    static_params = {"x0": 0}
     fuzzed_params = {f"a_{n}": (-10, 10) for n in range(4)}
 
-    model = fits.models.Polynomial(poly_degree=10)
-    model.parameters["a_2"].fixed_to = None
-    model.parameters["a_3"].fixed_to = None
+    model = fits.models.Polynomial(poly_degree=3)
 
     return test.common.fuzz(
         x=x,
