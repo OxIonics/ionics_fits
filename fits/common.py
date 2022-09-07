@@ -80,6 +80,8 @@ class ModelParameter:
         """If a value is known for this parameter prior to fitting -- either because an
         initial value has been set or because the parameter has been fixed -- we return
         it, otherwise we return :param default:.
+
+        Does not mutate the parameter.
         """
         if self.fixed_to is not None:
             return self.fixed_to
@@ -87,7 +89,7 @@ class ModelParameter:
             return self.initialised_to
         return default
 
-    def initialise(self, estimate: float):
+    def initialise(self, estimate: float) -> float:
         """Sets the parameter's initial value based on the supplied estimate. If an
         initial value is already known for this parameter (see :meth get_initial_value:)
         we use that instead of the supplied estimate. The value is clipped to lie
@@ -96,6 +98,8 @@ class ModelParameter:
         After this method, :attribute initialised_to: the parameter either has a valid
         initial value (i.e. one that is not `None` and lies between the set bounds) or
         a `ValueError` be raised.
+
+        :returns: the initialised value
         """
         self.initialised_to = self.get_initial_value(estimate)
         if self.initialised_to is None:
@@ -103,6 +107,8 @@ class ModelParameter:
         self.initialised_to = np.clip(
             self.initialised_to, self.lower_bound, self.upper_bound
         )
+
+        return self.initialised_to
 
 
 class Model:
@@ -176,10 +182,13 @@ class Model:
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
-    ) -> Dict[str, float]:
-        """
-        Returns a dictionary of estimates for the model parameter values for the
-        specified dataset. Typically called during `Fitter.fit`.
+    ):
+        """Sets initial values for model parameters based on heuristics. Typically
+        called during `Fitter.fit`.
+
+        Heuristic results should stored in :param model_parameters: using the
+        `ModelParameter`'s `initialise` method. This ensures that all information passed
+        in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -232,7 +241,7 @@ class Model:
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        param_values: Dict[str, float],
+        parameters: Dict[str, ModelParameter],
         scanned_param: str,
         scanned_param_values: ArrayLike["num_values", np.float64],
     ) -> Tuple[float, float]:
@@ -241,14 +250,19 @@ class Model:
 
         :param x: x-axis data
         :param y: y-axis data
-        :param param_values: dictionary of fixed parameter values
+        :param parameters: dictionary of model parameters
         :param scanned_param: name of parameter to optimize
         :param scanned_param_values: array of scanned parameter values to test
 
         :returns: tuple with the value from :param scanned_param_values: which results
         in lowest residuals and the root-sum-squared residuals for that value.
         """
-        param_values = dict(param_values)
+        param_values = {
+            param: value
+            for param, param_data in parameters.items()
+            if (value := param_data.get_initial_value()) is not None
+        }
+
         scanned_param_values = np.asarray(scanned_param_values)
         costs = np.zeros(scanned_param_values.shape)
         for idx, value in np.ndenumerate(scanned_param_values):
@@ -362,10 +376,14 @@ class Fitter:
 
         sigma = None if sigma is None else sigma / y_scale
 
-        # make sure initial values have been correctly set for all parameters
-        estimates = model.estimate_parameters(x, y, dict(parameters))
-        for param, param_data in parameters.items():
-            param_data.initialise(estimates.get(param))
+        model.estimate_parameters(x, y, parameters)
+
+        # raises an exception if any parameter has not been initialised
+        try:
+            for param, param_data in parameters.items():
+                param_data.initialise(None)
+        except ValueError:
+            raise Exception(f"No initial value found for parameter {param}.")
 
         fixed_params = {
             param_name: param_data.fixed_to

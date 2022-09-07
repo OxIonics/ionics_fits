@@ -1,6 +1,6 @@
-from typing import Dict, TYPE_CHECKING
-
+import copy
 import numpy as np
+from typing import Dict, TYPE_CHECKING
 
 from ..common import Model, ModelParameter
 from ..utils import Array
@@ -100,10 +100,13 @@ class MappedModel(Model):
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
-    ) -> Dict[str, float]:
-        """
-        Returns a dictionary of estimates for the model parameter values for the
-        specified dataset. Typically called during `Fitter.fit`.
+    ):
+        """Sets initial values for model parameters based on heuristics. Typically
+        called during `Fitter.fit`.
+
+        Heuristic results should stored in :param model_parameters: using the
+        `ModelParameter`'s `initialise` method. This ensures that all information passed
+        in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -114,7 +117,7 @@ class MappedModel(Model):
             metadata.
         """
         inner_parameters = {
-            original_param: value
+            original_param: copy.deepcopy(value)
             for new_param, original_param in self.mapped_args.items()
             if (value := model_parameters.get(new_param)) is not None
         }
@@ -128,9 +131,8 @@ class MappedModel(Model):
             }
         )
 
-        param_guesses = self._inner_estimate_parameters(x, y, inner_parameters)
+        self._inner_estimate_parameters(x, y, inner_parameters)
 
-        return {
-            new_param: param_guesses[original_param]
-            for new_param, original_param in self.mapped_args.items()
-        }
+        for new_param, original_param in self.mapped_args.items():
+            initial_value = inner_parameters[original_param].get_initial_value()
+            model_parameters[new_param].initialise(initial_value)

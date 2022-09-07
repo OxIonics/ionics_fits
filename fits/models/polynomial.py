@@ -60,10 +60,13 @@ class Power(Model):
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
-    ) -> Dict[str, float]:
-        """
-        Returns a dictionary of estimates for the model parameter values for the
-        specified dataset. Typically called during `Fitter.fit`.
+    ):
+        """Sets initial values for model parameters based on heuristics. Typically
+        called during `Fitter.fit`.
+
+        Heuristic results should stored in :param model_parameters: using the
+        `ModelParameter`'s `initialise` method. This ensures that all information passed
+        in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -73,56 +76,39 @@ class Power(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata.
         """
-        param_guesses = {
-            param: value
-            for param, param_data in model_parameters.items()
-            if (value := param_data.get_initial_value()) is not None
-        }
-        unknowns = set(self.parameters.keys()) - set(param_guesses.keys())
+        unknowns = set(
+            [
+                param
+                for param, param_data in model_parameters.items()
+                if param_data.fixed_to is None
+            ]
+        )
 
-        # set some fallbacks for if cases where our heuristics fail us
-        param_guesses["x0"] = param_guesses.get("x0", 0)
-        param_guesses["y0"] = param_guesses.get("y0", 0)
-        param_guesses["a"] = param_guesses.get("a", 1)
-        param_guesses["n"] = param_guesses.get("n", 1)
+        x0 = model_parameters["x0"].get_initial_value(0)
+        y0 = model_parameters["y0"].get_initial_value(0)
+        a = model_parameters["a"].get_initial_value(1)
+        n = model_parameters["n"].get_initial_value(1)
 
-        if len(unknowns) == 0:
-            pass  # nothing to do
-
-        elif "x0" in unknowns:
-            pass  # don't have a good heuristic for this case
-
-        elif len(unknowns) > 2:
-            # Really hard to have good heuristics with this many free parameters
-            # unless tight bounds have been set this is likely to fail
+        if len(unknowns) == 0 or "x0" in unknowns or len(unknowns) > 2:
+            # No heuristic needed / we don't have a good heuristic for this case
+            # Fit may well fail if we hit this :(
             pass
 
         elif unknowns == {"a"}:
-            x0 = param_guesses["x0"]
-            y0 = param_guesses["y0"]
-            n = param_guesses["n"]
-
             x = x - x0
             y = y - y0
             a = y / np.float_power(x, n)
-            a = self.param_min_sqrs(x, y, param_guesses, "a", a)[0]
-
-            param_guesses["a"] = a
+            a = self.param_min_sqrs(x, y, model_parameters, "a", a)[0]
+            model_parameters["a"].initialise(a)
 
         elif unknowns == {"n"}:
-            param_guesses["n"] = self.optimal_n(x, y, param_guesses, model_parameters)[
-                0
-            ]
+            n = self.optimal_n(x, y, model_parameters)[0]
+            model_parameters["m"].initialise(n)
 
         elif unknowns == {"y0"}:
-            a = param_guesses["a"]
-            x0 = param_guesses["x0"]
-            n = param_guesses["n"]
-
             y0 = y - a * np.float_power(x - x0, n)
-            y0 = self.param_min_sqrs(x, y, param_guesses, "y0", y0)[0]
-
-            param_guesses["y0"] = y0
+            y0 = self.param_min_sqrs(x, y, model_parameters, "y0", y0)[0]
+            model_parameters["y0"].initialise(y0)
 
         elif "a" in unknowns:
             pass  # don't have a great heuristic for these cases
@@ -149,16 +135,20 @@ class Power(Model):
             ns = np.zeros_like(y0_guesses)
             costs = np.zeros_like(y0_guesses)
             for idx, y0 in np.ndenumerate(y0_guesses):
-                param_guesses["y0"] = y0
-                ns[idx], costs[idx] = self.optimal_n(
-                    x, y, param_guesses, model_parameters
-                )
-            param_guesses["n"] = float(ns[np.argmin(costs)])
-            param_guesses["y0"] = float(y0_guesses[np.argmin(costs)])
+                model_parameters["y0"].initialise(y0)
+                ns[idx], costs[idx] = self.optimal_n(x, y, model_parameters)
+                model_parameters["y0"].initialised_to = None
 
-        return param_guesses
+            model_parameters["n"].initialise(float(ns[np.argmin(costs)]))
+            model_parameters["y0"].initialise(float(y0_guesses[np.argmin(costs)]))
 
-    def optimal_n(self, x, y, param_guesses, model_parameters):
+        # apply fallbacks for any parameters we haven't already set
+        model_parameters["x0"].initialise(x0)
+        model_parameters["y0"].initialise(y0)
+        model_parameters["a"].initialise(a)
+        model_parameters["n"].initialise(n)
+
+    def optimal_n(self, x, y, model_parameters):
         """Find the optimal (in the least-squared residuals sense) value of `n`
         based on our current best guesses for the other parameters.
 
@@ -169,9 +159,9 @@ class Power(Model):
         if (known_n := model_parameters["n"].get_initial_value()) is not None:
             return known_n, 0
 
-        y0 = param_guesses["y0"]
-        a = param_guesses["a"]
-        x0 = param_guesses["x0"]
+        x0 = model_parameters["x0"].get_initial_value()
+        y0 = model_parameters["y0"].get_initial_value()
+        a = model_parameters["a"].get_initial_value()
 
         x_pr = x - x0
         y_pr = y - y0
@@ -195,7 +185,7 @@ class Power(Model):
         if len(n) == 0:
             return 1, np.inf
 
-        return self.param_min_sqrs(x, y, param_guesses, "n", n)
+        return self.param_min_sqrs(x, y, model_parameters, "n", n)
 
 
 def poly_fit_parameter(n):
@@ -265,10 +255,13 @@ class Polynomial(Model):
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
-    ) -> Dict[str, float]:
-        """
-        Returns a dictionary of estimates for the model parameter values for the
-        specified dataset. Typically called during `Fitter.fit`.
+    ):
+        """Sets initial values for model parameters based on heuristics. Typically
+        called during `Fitter.fit`.
+
+        Heuristic results should stored in :param model_parameters: using the
+        `ModelParameter`'s `initialise` method. This ensures that all information passed
+        in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -278,8 +271,7 @@ class Polynomial(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata.
         """
-        param_guesses = {}
-        param_guesses["x0"] = model_parameters["x0"].get_initial_value(0)
+        x0 = model_parameters["x0"].initialise(0)
 
         free = [
             n
@@ -287,15 +279,13 @@ class Polynomial(Model):
             if model_parameters[f"a_{n}"].fixed_to != 0.0
         ]
         if len(free) == 0:
-            return param_guesses
+            return
 
         deg = max(free)
 
-        p = np.polyfit(x - param_guesses["x0"], y, deg)
-
-        param_guesses.update({f"a_{n}": p[deg - n] for n in range(deg + 1)})
-
-        return param_guesses
+        p = np.polyfit(x - x0, y, deg)
+        for idx in range(deg + 1):
+            model_parameters[f"a_{idx}"].initialise(p[deg - idx])
 
 
 class Line(MappedModel):
@@ -346,7 +336,7 @@ class Parabola(MappedModel):
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         inner_parameters: Dict[str, ModelParameter],
-    ) -> Dict[str, float]:
+    ):
         """
         If `x0` is floated, we map the Polynomial `a_1` coefficient onto a value for
         `x0` according to:
@@ -361,16 +351,12 @@ class Parabola(MappedModel):
         a_2 -> a_2
         ```
         """
-        param_guesses = super()._inner_estimate_parameters(x, y, inner_parameters)
+        super()._inner_estimate_parameters(x, y, inner_parameters)
 
         if inner_parameters["x0"].get_initial_value() is None:
-            a_0 = param_guesses["a_0"]
-            a_1 = param_guesses["a_1"]
-            a_2 = param_guesses["a_2"]
+            a_0 = inner_parameters["a_0"].get_initial_value()
+            a_1 = inner_parameters["a_1"].get_initial_value()
+            a_2 = inner_parameters["a_2"].get_initial_value()
 
-            param_guesses["x0"] = x0 = -a_1 / (2 * a_2)
-            param_guesses["a_0"] = inner_parameters["a_0"].get_initial_value(
-                a_0 - a_2 * x0**2
-            )
-
-        return param_guesses
+            inner_parameters["x0"].initialise(-a_1 / (2 * a_2))
+            inner_parameters["a_0"].initialisee(a_0 - a_2 * x0**2)
