@@ -9,8 +9,8 @@ authored by @tballance. It is still in the alpha phase and is likely to be renam
 
 ## Installation
 
-Install from `pypi` with `pip install fits` or add to your poetry project with `poetry
-add fits`.
+Install from `pypi` with `pip install ionics_fits` or add to your poetry project with
+`poetry add fits`.
 
 ## Example Usage
 
