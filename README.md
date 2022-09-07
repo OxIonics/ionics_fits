@@ -16,7 +16,7 @@ add fits`.
 
 ```python
 import numpy as np
-import fits
+import ionics_fits as fits
 
 a = 3.2
 y0 = -9

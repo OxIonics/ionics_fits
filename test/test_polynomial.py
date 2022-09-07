@@ -1,7 +1,7 @@
 import numpy as np
 import test
 from typing import Optional
-import fits
+import ionics_fits as fits
 
 
 def test_line():

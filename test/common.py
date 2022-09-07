@@ -7,7 +7,7 @@ import traceback
 from typing import Dict, Optional, Tuple, Type, TYPE_CHECKING
 import warnings
 
-import fits
+import ionics_fits as fits
 
 
 if TYPE_CHECKING:
