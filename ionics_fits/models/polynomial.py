@@ -76,13 +76,11 @@ class Power(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata.
         """
-        unknowns = set(
-            [
-                param
-                for param, param_data in model_parameters.items()
-                if param_data.fixed_to is None
-            ]
-        )
+        unknowns = {
+            param
+            for param, param_data in model_parameters.items()
+            if param_data.fixed_to is None
+        }
 
         x0 = model_parameters["x0"].get_initial_value(0)
         y0 = model_parameters["y0"].get_initial_value(0)
