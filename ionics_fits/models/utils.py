@@ -117,11 +117,6 @@ class MappedModel(Model):
             metadata.
         """
         inner_parameters = {
-            original_param: copy.deepcopy(value)
-            for new_param, original_param in self.mapped_args.items()
-            if (value := model_parameters.get(new_param)) is not None
-        }
-        inner_parameters = {
             original_param: copy.deepcopy(model_parameters[new_param])
             for new_param, original_param in self.mapped_args.items()
         }
