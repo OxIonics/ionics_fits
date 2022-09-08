@@ -446,8 +446,8 @@ class Fitter:
         self.initial_values = initial_values
         self.fit_significance = self._fit_significance()
 
+    @staticmethod
     def _fit(
-        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         sigma: Optional[Array[("num_samples",), np.float64]],

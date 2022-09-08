@@ -23,8 +23,8 @@ class NormalFitter(Fitter):
     good approximation of a true MLE estimator. YMMV...
     """
 
+    @staticmethod
     def _fit(
-        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         sigma: Optional[Array[("num_samples",), np.float64]],
@@ -46,12 +46,16 @@ class NormalFitter(Fitter):
         :returns: tuple of dictionaries mapping model parameter names to their fitted
             values and uncertainties.
         """
-        p0 = [parameters[param].initialised_to for param in self.free_parameters]
-        lower = [parameters[param].lower_bound for param in self.free_parameters]
-        upper = [parameters[param].upper_bound for param in self.free_parameters]
-        p0_dict = {
-            param: parameters[param].initialised_to for param in self.free_parameters
-        }
+        free_parameters = [
+            param_name
+            for param_name, param_data in parameters.items()
+            if param_data.fixed_to is None
+        ]
+
+        p0 = [parameters[param].initialised_to for param in free_parameters]
+        lower = [parameters[param].lower_bound for param in free_parameters]
+        upper = [parameters[param].upper_bound for param in free_parameters]
+        p0_dict = {param: parameters[param].initialised_to for param in free_parameters}
 
         assert x.dtype == np.float64
         assert y.dtype == np.float64
@@ -75,8 +79,8 @@ class NormalFitter(Fitter):
 
         p_err = np.sqrt(np.diag(p_cov))
 
-        p = {param: value for param, value in zip(self.free_parameters, p)}
-        p_err = {param: value for param, value in zip(self.free_parameters, p_err)}
+        p = {param: value for param, value in zip(free_parameters, p)}
+        p_err = {param: value for param, value in zip(free_parameters, p_err)}
 
         logger.debug(
             f"Least-squares fit complete: " f"{infodict}\n" f"{mesg}\n" f"{ier}"
