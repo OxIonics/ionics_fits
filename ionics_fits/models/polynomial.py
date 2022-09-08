@@ -11,6 +11,12 @@ if TYPE_CHECKING:
     num_values = float
 
 
+def _power_x_scale(x_scale: float, y_scale: float, model: Model) -> Optional[float]:
+    if model.parameters["n"].fixed_to is None:
+        return None
+    return y_scale / np.float_power(x_scale, model.parameters["n"].fixed_to)
+
+
 class Power(Model):
     """Single-power fit according to:
     y = a*(x-x0)^n + y0
@@ -37,15 +43,10 @@ class Power(Model):
         None
     """
 
-    def _x_scale(x_scale: float, y_scale: float, model: Model) -> Optional[float]:
-        if model.parameters["n"].fixed_to is None:
-            return None
-        return y_scale / np.float_power(x_scale, model.parameters["n"].fixed_to)
-
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        a: ModelParameter(fixed_to=1, scale_func=_x_scale),
+        a: ModelParameter(fixed_to=1, scale_func=_power_x_scale),
         x0: ModelParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
         y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
         n: ModelParameter(),
