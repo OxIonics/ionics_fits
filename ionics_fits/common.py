@@ -79,15 +79,22 @@ class ModelParameter:
     def get_initial_value(self, default: Optional[float] = None) -> Optional[float]:
         """If a value is known for this parameter prior to fitting -- either because an
         initial value has been set or because the parameter has been fixed -- we return
-        it, otherwise we return :param default:.
+        it, otherwise we return :param default:. The return value is clipped to lie
+        between the set lower and upper bounds.
 
         Does not mutate the parameter.
         """
         if self.fixed_to is not None:
-            return self.fixed_to
-        if self.initialised_to is not None:
-            return self.initialised_to
-        return default
+            value = self.fixed_to
+        elif self.initialised_to is not None:
+            value = self.initialised_to
+        else:
+            value = default
+
+        if value is not None:
+            value = np.clip(value, self.lower_bound, self.upper_bound)
+
+        return value
 
     def initialise(self, estimate: float) -> float:
         """Sets the parameter's initial value based on the supplied estimate. If an
@@ -102,11 +109,9 @@ class ModelParameter:
         :returns: the initialised value
         """
         self.initialised_to = self.get_initial_value(estimate)
+
         if self.initialised_to is None:
             raise ValueError("No valid initial value set for parameter")
-        self.initialised_to = np.clip(
-            self.initialised_to, self.lower_bound, self.upper_bound
-        )
 
         return self.initialised_to
 
