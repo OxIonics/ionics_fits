@@ -1,4 +1,5 @@
 import copy
+import dataclasses
 import numpy as np
 from typing import Dict, TYPE_CHECKING
 
@@ -8,6 +9,17 @@ from ..utils import Array
 
 if TYPE_CHECKING:
     num_samples = float
+
+
+@dataclasses.dataclass
+class PeriodicModelParameter(ModelParameter):
+    period: float = 1
+    offset: float = 0
+
+    def clip(self, value: float):
+        """Clip value to lie between lower and upper bounds."""
+        value = value - self.offset
+        return (value % self.period) + self.offset
 
 
 class MappedModel(Model):

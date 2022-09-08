@@ -1,6 +1,5 @@
-from typing import Dict, Optional, TYPE_CHECKING
-
 import numpy as np
+from typing import Dict, Optional, TYPE_CHECKING
 
 from .utils import MappedModel
 from .. import Model, ModelParameter
@@ -8,7 +7,6 @@ from ..utils import Array
 
 if TYPE_CHECKING:
     num_samples = float
-    num_values = float
 
 
 def _power_x_scale(x_scale: float, y_scale: float, model: Model) -> Optional[float]:

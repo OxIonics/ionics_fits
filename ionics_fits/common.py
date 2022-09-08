@@ -3,6 +3,7 @@ import dataclasses
 import copy
 import inspect
 import numpy as np
+from scipy import signal
 from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 from .utils import Array, ArrayLike
 
@@ -10,6 +11,7 @@ from .utils import Array, ArrayLike
 if TYPE_CHECKING:
     num_samples = float
     num_values = float
+    num_spectrum_samples = float
 
 
 @dataclasses.dataclass
@@ -31,7 +33,7 @@ class ModelParameter:
             for other model parameters where none has been explicitly given.
         scale_func: callable returning a scale factor which the parameter must be
             *multiplied* by if it was fitted using `x` / `y` data that has been
-            *divided* by the given scale factors. Scale factors are used to improve
+            *multiplied* by the given scale factors. Scale factors are used to improve
             numerical stability by avoiding asking the optimizer to work with very large
             or very small values of `x` and `y`. The callable takes three arguments: the
             x-axis and y-axis scale factors and the model instance. If any `scale_func`
@@ -74,6 +76,7 @@ class ModelParameter:
         self.upper_bound = _rescale(self.upper_bound)
         self.fixed_to = _rescale(self.fixed_to)
         self.initialised_to = _rescale(self.initialised_to)
+
         return scale_factor
 
     def get_initial_value(self, default: Optional[float] = None) -> Optional[float]:
@@ -92,9 +95,13 @@ class ModelParameter:
             value = default
 
         if value is not None:
-            value = np.clip(value, self.lower_bound, self.upper_bound)
+            value = self.clip(value)
 
         return value
+
+    def clip(self, value: float):
+        """Clip value to lie between lower and upper bounds."""
+        return np.clip(value, self.lower_bound, self.upper_bound)
 
     def initialise(self, estimate: float) -> float:
         """Sets the parameter's initial value based on the supplied estimate. If an
@@ -277,6 +284,59 @@ class Model:
         opt = np.argmin(costs)
         return float(scanned_param_values[opt]), float(costs[opt])
 
+    def get_spectrum(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+    ) -> Tuple[
+        Array[("num_spectrum_samples",), np.float64],
+        Array[("num_spectrum_samples",), np.float64],
+    ]:
+        """Returns the frequency spectrum (Fourier transform) of a dataset.
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :returns: tuple with the frequency axis (angular units) and Fourier transform of
+            the dataset.
+        """
+        dx = x.ptp() / x.size
+        n = x.size
+        freq = np.fft.fftfreq(n, dx)
+        y_f = np.fft.fft(y, norm="ortho") / np.sqrt(n)
+
+        y_f = y_f[: int(n / 2)]
+        freq = freq[: int(n / 2)]
+        return freq * (2 * np.pi), y_f
+
+    def get_power_spectrum(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+    ) -> Tuple[
+        Array[("num_spectrum_samples",), np.float64],
+        Array[("num_spectrum_samples",), np.float64],
+    ]:
+        """Returns a power spectrum (Fourier transform) of a dataset.
+
+        Based on the Lombe-Scargle periodogram (essentially least-squares fitting of
+        sinusoids at different frequencies).
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :returns: tuple with the frequency axis (angular units) and the power spectrum
+        """
+        min_step = np.min(np.diff(x))
+        duration = x.ptp()
+
+        # Nyquist limit does not apply to irregularly spaced data
+        # We'll use it as a starting point anyway...
+        f_max = 0.5 / min_step
+        f_min = 0.25 / duration
+
+        omega_list = 2 * np.pi * np.linspace(f_min, f_max, int(f_max / f_min))
+        pgram = signal.lombscargle(x, y, omega_list, precenter=True)
+        return omega_list, pgram
+
 
 class Fitter:
     """Base class for fitters.
@@ -353,12 +413,15 @@ class Fitter:
         y = y[inds]
         sigma = None if sigma is None else sigma[inds]
 
+        self.x = x
+        self.y = y
+
         # Rescale coordinates to improve numerics (optimizers need to do things like
         # calculate numerical derivatives which is easiest if x and y are O(1)).
         x_scale = np.max(np.abs(x))
         y_scale = np.max(np.abs(y))
 
-        parameters = dict(model.parameters)
+        parameters = copy.deepcopy(model.parameters)
         rescale_coords = all(
             [
                 param_data.can_rescale(x_scale, y_scale, model)
@@ -378,7 +441,6 @@ class Fitter:
 
         x = x / x_scale
         y = y / y_scale
-
         sigma = None if sigma is None else sigma / y_scale
 
         model.estimate_parameters(x, y, parameters)
@@ -443,8 +505,6 @@ class Fitter:
         model.post_fit(x, y, fitted_params, uncertainties)
 
         self.model = model
-        self.x = x
-        self.y = y
         self.sigma = sigma
         self.values = fitted_params
         self.uncertainties = uncertainties
