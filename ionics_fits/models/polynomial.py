@@ -112,7 +112,7 @@ class Power(Model):
             pass  # don't have a great heuristic for these cases
 
         else:
-            assert unknowns == set(["y0", "n"]), unknowns
+            assert unknowns == {"y0", "n"}, unknowns
 
             # Datasets normally taken such that they contain a value of y close to y0
             y0_guesses = np.array(
