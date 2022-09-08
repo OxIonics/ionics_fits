@@ -308,7 +308,7 @@ class Model:
         freq = freq[: int(n / 2)]
         return freq * (2 * np.pi), y_f
 
-    def get_power_spectrum(
+    def get_pgram(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
@@ -316,14 +316,14 @@ class Model:
         Array[("num_spectrum_samples",), np.float64],
         Array[("num_spectrum_samples",), np.float64],
     ]:
-        """Returns a power spectrum (Fourier transform) of a dataset.
+        """Returns a periodogram for a dataset, converted into amplitude units.
 
         Based on the Lombe-Scargle periodogram (essentially least-squares fitting of
         sinusoids at different frequencies).
 
         :param x: x-axis data
         :param y: y-axis data
-        :returns: tuple with the frequency axis (angular units) and the power spectrum
+        :returns: tuple with the frequency axis (angular units) and the periodogram
         """
         min_step = np.min(np.diff(x))
         duration = x.ptp()
@@ -335,6 +335,7 @@ class Model:
 
         omega_list = 2 * np.pi * np.linspace(f_min, f_max, int(f_max / f_min))
         pgram = signal.lombscargle(x, y, omega_list, precenter=True)
+        pgram = np.sqrt(pgram * 4 / len(y))
         return omega_list, pgram
 
 
