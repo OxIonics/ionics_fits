@@ -5,7 +5,6 @@ import numpy as np
 import pprint
 import traceback
 from typing import Dict, Optional, Tuple, Type, TYPE_CHECKING
-import warnings
 
 import ionics_fits as fits
 
@@ -16,7 +15,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-warnings.filterwarnings("error")  # Promote divide by zero etc to hard errors
 
 
 def is_close(
