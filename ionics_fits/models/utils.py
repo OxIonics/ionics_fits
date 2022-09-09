@@ -1,13 +1,34 @@
 import copy
+import dataclasses
 import numpy as np
-from typing import Dict, TYPE_CHECKING
-
+from scipy import signal
+from typing import Dict, Tuple, TYPE_CHECKING
 from ..common import Model, ModelParameter
 from ..utils import Array
 
 
 if TYPE_CHECKING:
     num_samples = float
+    num_spectrum_samples = float
+
+
+@dataclasses.dataclass
+class PeriodicModelParameter(ModelParameter):
+    period: float = 1
+    offset: float = 0
+    lower_bound: float = dataclasses.field(init=False)
+    upper_bound: float = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self.lower_bound = 1.5 * self.offset
+        self.upper_bound = 1.5 * (self.offset + self.period)
+
+    upper_bound = 1.5 * np.pi
+
+    def clip(self, value: float):
+        """Clip value to lie between lower and upper bounds."""
+        value = value - self.offset
+        return (value % self.period) + self.offset
 
 
 class MappedModel(Model):
@@ -135,3 +156,57 @@ class MappedModel(Model):
         for new_param, original_param in self.mapped_args.items():
             initial_value = inner_parameters[original_param].get_initial_value()
             model_parameters[new_param].initialise(initial_value)
+
+
+def get_spectrum(
+    x: Array[("num_samples",), np.float64],
+    y: Array[("num_samples",), np.float64],
+) -> Tuple[
+    Array[("num_spectrum_samples",), np.float64],
+    Array[("num_spectrum_samples",), np.float64],
+]:
+    """Returns the frequency spectrum (Fourier transform) of a dataset.
+
+    :param x: x-axis data
+    :param y: y-axis data
+    :returns: tuple with the frequency axis (angular units) and Fourier transform of
+        the dataset.
+    """
+    dx = x.ptp() / x.size
+    n = x.size
+    freq = np.fft.fftfreq(n, dx)
+    y_f = np.fft.fft(y, norm="ortho") / np.sqrt(n)
+
+    y_f = y_f[: int(n / 2)]
+    freq = freq[: int(n / 2)]
+    return freq * (2 * np.pi), y_f
+
+
+def get_pgram(
+    x: Array[("num_samples",), np.float64],
+    y: Array[("num_samples",), np.float64],
+) -> Tuple[
+    Array[("num_spectrum_samples",), np.float64],
+    Array[("num_spectrum_samples",), np.float64],
+]:
+    """Returns a periodogram for a dataset, converted into amplitude units.
+
+    Based on the Lombe-Scargle periodogram (essentially least-squares fitting of
+    sinusoids at different frequencies).
+
+    :param x: x-axis data
+    :param y: y-axis data
+    :returns: tuple with the frequency axis (angular units) and the periodogram
+    """
+    min_step = np.min(np.diff(x))
+    duration = x.ptp()
+
+    # Nyquist limit does not apply to irregularly spaced data
+    # We'll use it as a starting point anyway...
+    f_max = 0.5 / min_step
+    f_min = 0.25 / duration
+
+    omega_list = 2 * np.pi * np.linspace(f_min, f_max, int(f_max / f_min))
+    pgram = signal.lombscargle(x, y, omega_list, precenter=True)
+    pgram = np.sqrt(pgram * 4 / len(y))
+    return omega_list, pgram

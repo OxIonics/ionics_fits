@@ -31,7 +31,7 @@ class ModelParameter:
             for other model parameters where none has been explicitly given.
         scale_func: callable returning a scale factor which the parameter must be
             *multiplied* by if it was fitted using `x` / `y` data that has been
-            *divided* by the given scale factors. Scale factors are used to improve
+            *multiplied* by the given scale factors. Scale factors are used to improve
             numerical stability by avoiding asking the optimizer to work with very large
             or very small values of `x` and `y`. The callable takes three arguments: the
             x-axis and y-axis scale factors and the model instance. If any `scale_func`
@@ -74,6 +74,7 @@ class ModelParameter:
         self.upper_bound = _rescale(self.upper_bound)
         self.fixed_to = _rescale(self.fixed_to)
         self.initialised_to = _rescale(self.initialised_to)
+
         return scale_factor
 
     def get_initial_value(self, default: Optional[float] = None) -> Optional[float]:
@@ -92,9 +93,13 @@ class ModelParameter:
             value = default
 
         if value is not None:
-            value = np.clip(value, self.lower_bound, self.upper_bound)
+            value = self.clip(value)
 
         return value
+
+    def clip(self, value: float):
+        """Clip value to lie between lower and upper bounds."""
+        return np.clip(value, self.lower_bound, self.upper_bound)
 
     def initialise(self, estimate: float) -> float:
         """Sets the parameter's initial value based on the supplied estimate. If an
@@ -353,12 +358,15 @@ class Fitter:
         y = y[inds]
         sigma = None if sigma is None else sigma[inds]
 
+        self.x = x
+        self.y = y
+
         # Rescale coordinates to improve numerics (optimizers need to do things like
         # calculate numerical derivatives which is easiest if x and y are O(1)).
         x_scale = np.max(np.abs(x))
         y_scale = np.max(np.abs(y))
 
-        parameters = dict(model.parameters)
+        parameters = copy.deepcopy(model.parameters)
         rescale_coords = all(
             [
                 param_data.can_rescale(x_scale, y_scale, model)
@@ -378,7 +386,6 @@ class Fitter:
 
         x = x / x_scale
         y = y / y_scale
-
         sigma = None if sigma is None else sigma / y_scale
 
         model.estimate_parameters(x, y, parameters)
@@ -443,8 +450,6 @@ class Fitter:
         model.post_fit(x, y, fitted_params, uncertainties)
 
         self.model = model
-        self.x = x
-        self.y = y
         self.sigma = sigma
         self.values = fitted_params
         self.uncertainties = uncertainties

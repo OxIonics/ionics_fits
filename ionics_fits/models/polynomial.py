@@ -8,7 +8,6 @@ from ..utils import Array
 
 if TYPE_CHECKING:
     num_samples = float
-    num_values = float
 
 
 def _power_x_scale(x_scale: float, y_scale: float, model: Model) -> Optional[float]:

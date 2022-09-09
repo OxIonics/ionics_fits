@@ -86,7 +86,10 @@ def check_single_param_set(
     config = config or TestConfig()
 
     if set(test_params.keys()) != set(model.parameters.keys()):
-        raise ValueError("Test parameter sets must match the model parameters")
+        raise ValueError(
+            f"Test parameter set {set(test_params.keys())} must match the "
+            f"model parameters {set(model.parameters.keys())}"
+        )
 
     y = model.func(x, test_params)
 
@@ -97,6 +100,7 @@ def check_single_param_set(
     )
 
     fit = fitter_cls(x=x, y=y, sigma=None, model=model)
+    fit.values = {param: fit.values[param] for param in fit.model.parameters.keys()}
 
     params_str = pprint.pformat(test_params, indent=4)
     fitted_params_str = pprint.pformat(fit.values, indent=4)
@@ -141,16 +145,39 @@ def _plot_failure(
     if not config.plot_failures:
         return
 
-    plt.plot(fit.x, y_model, "-o", label="model")
-    plt.plot(*fit.evaluate(), "-.o", label="fit")
-    plt.plot(
+    _, ax = plt.subplots(1, 2)
+    ax[0].set_title("data")
+    ax[0].plot(fit.x, y_model, "-o", label="model")
+    ax[0].plot(*fit.evaluate(), "-.o", label="fit")
+    ax[0].plot(
         fit.x,
         fit.model.func(fit.x, fit.initial_values),
         "--o",
         label="heuristic",
     )
-    plt.grid()
-    plt.legend()
+    ax[0].set(xlabel="x", ylabel="y")
+    ax[0].grid()
+    ax[0].legend()
+
+    freq_model, y_f_model = fits.model.utils.get_spectrum(fit.x, y_model)
+    freq_fit, y_f_fit = fits.model.uitls.get_spectrum(*fit.evaluate())
+    freq_heuristic, y_f_heuristic = fit.model.get_spectrum(
+        fit.x, fit.model.func(fit.x, fit.initial_values)
+    )
+
+    ax[1].set_title("spectrum")
+    ax[1].plot(freq_model, np.abs(y_f_model), "-o", label="model")
+    ax[1].plot(freq_fit, np.abs(y_f_fit), "-.o", label="fit")
+    ax[1].plot(
+        freq_heuristic,
+        np.abs(y_f_heuristic),
+        "--o",
+        label="heuristic",
+    )
+    ax[1].set(xlabel="frequency (linear units)", ylabel="|FFT(y)|")
+    ax[1].grid()
+    ax[1].legend()
+
     plt.show()
 
 
