@@ -50,8 +50,6 @@ class Sinusoid(Model):
             lower_bound=0, scale_func=lambda x_scale, y_scale, _: 1 / x_scale
         ),
         phi: utils.PeriodicModelParameter(
-            lower_bound=-1.5 * np.pi,
-            upper_bound=1.5 * np.pi,
             period=2 * np.pi,
             offset=-np.pi,
         ),

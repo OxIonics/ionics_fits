@@ -16,6 +16,14 @@ if TYPE_CHECKING:
 class PeriodicModelParameter(ModelParameter):
     period: float = 1
     offset: float = 0
+    lower_bound: float = dataclasses.field(init=False)
+    upper_bound: float = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self.lower_bound = 1.5 * self.offset
+        self.upper_bound = 1.5 * (self.offset + self.period)
+
+    upper_bound = 1.5 * np.pi
 
     def clip(self, value: float):
         """Clip value to lie between lower and upper bounds."""
