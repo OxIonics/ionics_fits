@@ -208,5 +208,5 @@ def get_pgram(
 
     omega_list = 2 * np.pi * np.linspace(f_min, f_max, int(f_max / f_min))
     pgram = signal.lombscargle(x, y, omega_list, precenter=True)
-    pgram = np.sqrt(pgram * 4 / len(y))
+    pgram = np.sqrt(np.abs(pgram) * 4 / len(y))
     return omega_list, pgram

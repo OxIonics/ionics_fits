@@ -7,10 +7,10 @@ import ionics_fits as fits
 
 def test_sinusoid():
     """Test for sinusoid.Sinusoid"""
-    x = np.linspace(-5, 20, 1000) * 2 * np.pi
+    x = np.linspace(-5, 20, 1000)
     params = {
         "a": 2,
-        "omega": 1,
+        "omega": 1 / (2 * np.pi),
         "phi": 0.5,
         "y0": 1,
         "x0": 0,
@@ -24,10 +24,10 @@ def test_sinusoid():
 
 def test_sinusoid_x0():
     """Test for sinusoid.Sinusoid with `x0` floated instead of `phi`"""
-    x = np.linspace(-5, 20, 1000) * 2 * np.pi
+    x = np.linspace(-5, 20, 1000)
     params = {
         "a": 2,
-        "omega": 1,
+        "omega": 1 / (2 * np.pi),
         "phi": 0,
         "y0": 1,
         "x0": 1,
@@ -44,7 +44,7 @@ def fuzz_sinusoid(
     stop_at_failure: bool = True,
     test_config: Optional[test.common.TestConfig] = None,
 ) -> float:
-    x = np.linspace(-2, 4, 1000) * 2 * np.pi
+    x = np.linspace(-2, 4, 1000)
 
     dx = x.ptp() / x.size
     w_nyquist = 0.5 * (1 / dx) * 2 * np.pi

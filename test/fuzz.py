@@ -4,7 +4,7 @@ import logging
 import traceback
 
 import test
-from test import test_polynomial, test_sinusoid
+from test import test_polynomial, test_sinusoid, test_rectangle
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,7 @@ if __name__ == "__main__":
         "power": test_polynomial.fuzz_power,
         "polynomial": test_polynomial.fuzz_polynomial,
         "sinusoid": test_sinusoid.fuzz_sinusoid,
+        "rectangle": test_rectangle.fuzz_rectangle,
     }
 
     parser = argparse.ArgumentParser(
