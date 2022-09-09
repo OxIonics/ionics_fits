@@ -90,7 +90,7 @@ class Sinusoid(Model):
         model_parameters["y0"].initialise(np.mean(y))
         model_parameters["tau"].initialise(np.max(x))
 
-        omega, pgram = self.get_pgram(x, y)
+        omega, pgram = utils.get_pgram(x, y)
         peak = np.argmax(pgram)
 
         model_parameters["a"].initialise(pgram[peak])

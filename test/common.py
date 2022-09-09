@@ -159,8 +159,8 @@ def _plot_failure(
     ax[0].grid()
     ax[0].legend()
 
-    freq_model, y_f_model = fit.model.get_spectrum(fit.x, y_model)
-    freq_fit, y_f_fit = fit.model.get_spectrum(*fit.evaluate())
+    freq_model, y_f_model = fits.model.utils.get_spectrum(fit.x, y_model)
+    freq_fit, y_f_fit = fits.model.uitls.get_spectrum(*fit.evaluate())
     freq_heuristic, y_f_heuristic = fit.model.get_spectrum(
         fit.x, fit.model.func(fit.x, fit.initial_values)
     )
