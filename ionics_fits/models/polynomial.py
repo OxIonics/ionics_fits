@@ -1,5 +1,6 @@
-import numpy as np
 from typing import Dict, Optional, TYPE_CHECKING
+
+import numpy as np
 
 from .utils import MappedModel
 from .. import Model, ModelParameter
