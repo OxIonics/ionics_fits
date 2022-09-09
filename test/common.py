@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pprint
 import traceback
-from typing import Dict, Optional, Tuple, Type, TYPE_CHECKING
+from typing import Callable, Dict, Optional, Tuple, Type, TYPE_CHECKING
 
 import ionics_fits as fits
 
@@ -248,6 +248,9 @@ def fuzz(
     fitter_cls: Type[fits.common.Fitter] = fits.normal.NormalFitter,
     num_trials: int = 100,
     stop_at_failure: bool = True,
+    param_generator: Optional[
+        Callable[[Dict[str, Tuple[float, float]]], Dict[str, float]]
+    ] = None,
 ) -> float:
     """Validates the fit for a single set of x-axis data and multiple
     randomly-generated sets of parameter values.
@@ -264,8 +267,12 @@ def fuzz(
     :param fitter_cls: the fitter class to test with
     :param num_trials: number of random parameter sets to test
     :param stop_at_failure: if True we stop fuzzing the first time a test fails.
+    :param param_generator: Callable that takes a dictionary of fuzzed parameters and
+        returns a dictionary mapping names of fuzzed parameters to randomly generated
+        values. If `None` we use independent uniform distributions for all parameters.
     :returns: the number of failed runs
     """
+    param_generator = param_generator or generate_param_set
     fixed = set(
         [
             param
@@ -296,12 +303,7 @@ def fuzz(
     failures = 0
     for trial in range(num_trials):
         test_params = dict(static_params)
-        test_params.update(
-            {
-                param: np.random.uniform(*bounds)
-                for param, bounds in fuzzed_params.items()
-            }
-        )
+        test_params.update(param_generator(fuzzed_params))
 
         try:
             check_single_param_set(
@@ -319,3 +321,11 @@ def fuzz(
             logger.warning(f"failed...{traceback.format_exc()}")
 
     return failures
+
+
+def generate_param_set(
+    fuzzed_params: Dict[str, Tuple[float, float]]
+) -> Dict[str, float]:
+    return {
+        param: np.random.uniform(*bounds) for param, bounds in fuzzed_params.items()
+    }

@@ -1,5 +1,6 @@
-import numpy as np
+import copy
 from typing import Dict, Tuple, TYPE_CHECKING
+import numpy as np
 
 from .. import Model, ModelParameter
 from ..utils import Array
@@ -90,31 +91,70 @@ class Triangle(Model):
         x_max = x[max_ind]
 
         # Case 1: positive slope with peaks left and right of x_min above y_min
-        left_peak_ind = np.argmax(y[x <= x_min])
-        right_peak_ind = np.argmax(y[x >= x_min])
-        k_m_p = (y[left_peak_ind] - y_min) / (x_min - x[left_peak_ind])
-        k_p_p = (y[right_peak_ind] - y_min) / (x[right_peak_ind] - x_min)
+        x_l = x[x <= x_min]
+        x_r = x[x >= x_min]
+        y_l = y[x <= x_min]
+        y_r = y[x >= x_min]
 
-        positive_prominence = max(y[left_peak_ind], y[right_peak_ind]) - y_min
+        left_peak_ind = np.argmax(y_l)
+        right_peak_ind = np.argmax(y_r)
+
+        dx_l = x_min - x_l[left_peak_ind]
+        dx_r = x_r[right_peak_ind] - x_min
+
+        k_m = (y_l[left_peak_ind] - y_min) / dx_l if dx_l != 0 else 0
+        k_p = (y_r[right_peak_ind] - y_min) / dx_r if dx_r != 0 else 0
+
+        positive_parameters = copy.deepcopy(model_parameters)
+        positive_parameters["x0"].initialise(x_min)
+        positive_parameters["y0"].initialise(y_min)
+        positive_parameters["k"].initialise(0.5 * (k_p + k_m))
+        positive_parameters["dk"].initialise(0.5 * (k_p - k_m))
+
+        positive_parameters = {
+            param: param_data.get_initial_value()
+            for param, param_data in positive_parameters.items()
+        }
+        positive_residuals = np.sum(
+            np.power(y - self._func(x, **positive_parameters), 2)
+        )
 
         # Case 2: negative slope with peaks left and right of x_max below y_max
-        left_peak_ind = np.argmin(y[x <= x_max])
-        right_peak_ind = np.argmin(y[x >= x_max])
-        k_m_n = (y_max - y[left_peak_ind]) / (x_max - x[left_peak_ind])
-        k_p_n = (y_max - y[right_peak_ind]) / (x[right_peak_ind] - x_max)
+        x_l = x[x <= x_max]
+        x_r = x[x >= x_max]
+        y_l = y[x <= x_max]
+        y_r = y[x >= x_max]
 
-        negative_prominence = y_max - max(y[left_peak_ind], y[right_peak_ind])
+        left_peak_ind = np.argmin(y_l)
+        right_peak_ind = np.argmin(y_r)
 
-        if positive_prominence > negative_prominence:
-            model_parameters["x0"].initialise(x_min)
-            model_parameters["y0"].initialise(y_min)
-            model_parameters["k"].initialise(0.5 * (k_p_p + k_m_p))
-            model_parameters["dk"].initialise(0.5 * (k_p_p - k_m_p))
+        dx_l = x_max - x_l[left_peak_ind]
+        dx_r = x_r[right_peak_ind] - x_max
+
+        k_m = (y_l[left_peak_ind] - y_max) / dx_l if dx_l != 0 else 0
+        k_p = (y_r[right_peak_ind] - y_max) / dx_r if dx_r != 0 else 0
+
+        negative_parameters = copy.deepcopy(model_parameters)
+        negative_parameters["x0"].initialise(x_max)
+        negative_parameters["y0"].initialise(y_max)
+        negative_parameters["k"].initialise(0.5 * (k_p + k_m))
+        negative_parameters["dk"].initialise(0.5 * (k_p - k_m))
+
+        negative_parameters = {
+            param: param_data.get_initial_value()
+            for param, param_data in negative_parameters.items()
+        }
+        negative_residuals = np.sum(
+            np.power(y - self._func(x, **negative_parameters), 2)
+        )
+
+        if positive_residuals < negative_residuals:
+            best_params = positive_parameters
         else:
-            model_parameters["x0"].initialise(x_min)
-            model_parameters["y0"].initialise(y_min)
-            model_parameters["k"].initialise(0.5 * (k_p_n + k_m_n))
-            model_parameters["dk"].initialise(0.5 * (k_p_n - k_m_n))
+            best_params = negative_parameters
+
+        for param, value in best_params.items():
+            model_parameters[param].initialise(value)
 
     @staticmethod
     def calculate_derived_params(

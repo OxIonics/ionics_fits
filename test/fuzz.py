@@ -16,7 +16,7 @@ if __name__ == "__main__":
         "power": test_polynomial.fuzz_power,
         "rectangle": test_rectangle.fuzz_rectangle,
         "sinusoid": test_sinusoid.fuzz_sinusoid,
-        "triangle": test_triangle.fuzz_triangle
+        "triangle": test_triangle.fuzz_triangle,
     }
 
     parser = argparse.ArgumentParser(
