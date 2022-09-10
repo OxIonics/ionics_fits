@@ -146,7 +146,7 @@ def _plot_failure(
         return
 
     _, ax = plt.subplots(1, 2)
-    ax[0].set_title("data")
+    ax[0].set_title(fit.model.__class__.__name__)
     ax[0].plot(fit.x, y_model, "-o", label="model")
     ax[0].plot(*fit.evaluate(), "-.o", label="fit")
     ax[0].plot(
@@ -165,7 +165,7 @@ def _plot_failure(
         fit.x, fit.model.func(fit.x, fit.initial_values)
     )
 
-    ax[1].set_title("spectrum")
+    ax[1].set_title(f"{fit.model.__class__.__name__} spectrum")
     ax[1].plot(freq_model, np.abs(y_f_model), "-o", label="model")
     ax[1].plot(freq_fit, np.abs(y_f_fit), "-.o", label="fit")
     ax[1].plot(

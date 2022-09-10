@@ -4,7 +4,13 @@ import logging
 import traceback
 
 import test
-from test import test_polynomial, test_rectangle, test_sinusoid, test_triangle
+from test import (
+    test_exponential,
+    test_polynomial,
+    test_rectangle,
+    test_sinusoid,
+    test_triangle,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +18,7 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
 
     targets = {
+        "exponential": test_exponential.fuzz_exponential,
         "polynomial": test_polynomial.fuzz_polynomial,
         "power": test_polynomial.fuzz_power,
         "rectangle": test_rectangle.fuzz_rectangle,

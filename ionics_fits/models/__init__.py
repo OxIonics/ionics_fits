@@ -1,3 +1,4 @@
+from .exponential import Exponential
 from .polynomial import Power, Polynomial, Line, Parabola
 from .rectangle import Rectangle
 from .sinusoid import Sinusoid

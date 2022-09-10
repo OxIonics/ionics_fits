@@ -20,7 +20,7 @@ class Triangle(Model):
 
     Fit parameters (all floated by default unless stated otherwise):
       - x0: x-axis offset
-      - y0: y-axis y0
+      - y0: y-axis offset
       - k: average slope
       - dk: slope difference (asymmetry parameter, fixed to 0 by default)
       - y_min: minimum value of y (bound to -inf by default)

@@ -32,7 +32,7 @@ def triangle_param_generator(
         param: np.random.uniform(*fuzzed_params[param]) for param in ["x0", "y0", "k"]
     }
     k = fuzzed_param_values["k"]
-    fuzzed_param_values["dk"] = np.random.uniform(-0.5*k, +0.5*k)
+    fuzzed_param_values["dk"] = np.random.uniform(-0.5 * k, +0.5 * k)
 
     return fuzzed_param_values
 
