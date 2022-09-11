@@ -26,6 +26,11 @@ class Rectangle(Model):
     For `x_l = y0 = 0`, `x_r = inf` this is a Heaviside step function.
     """
 
+    def __init__(self, thresh: float = 0.5):
+        """threshold is used to configure the parameter estimator"""
+        self.thresh = thresh
+        super().__init__()
+
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -93,7 +98,7 @@ class Rectangle(Model):
         y0 = model_parameters["y0"].get_initial_value()
         a = model_parameters["a"].initialise(y[np.argmax(np.abs(y - y0))] - y0)
 
-        thresh = 0.5 * (y0 + (y0 + a))
+        thresh = self.thresh * (y0 + (y0 + a))
         inside = (y >= thresh) if a > 0 else (y < thresh)
 
         if x[inside].size == 0:

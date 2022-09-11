@@ -7,6 +7,7 @@ import test
 from test import (
     test_exponential,
     test_polynomial,
+    test_rabi,
     test_rectangle,
     test_sinc,
     test_sinusoid,
@@ -22,6 +23,7 @@ if __name__ == "__main__":
         "exponential": test_exponential.fuzz_exponential,
         "polynomial": test_polynomial.fuzz_polynomial,
         "power": test_polynomial.fuzz_power,
+        "rabi_freq": test_rabi.fuzz_rabi_freq,
         "rectangle": test_rectangle.fuzz_rectangle,
         "sinc": test_sinc.fuzz_sinc,
         "sinc2": test_sinc.fuzz_sinc2,
