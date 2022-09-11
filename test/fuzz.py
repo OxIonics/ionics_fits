@@ -8,6 +8,7 @@ from test import (
     test_exponential,
     test_polynomial,
     test_rectangle,
+    test_sinc,
     test_sinusoid,
     test_triangle,
 )
@@ -22,6 +23,8 @@ if __name__ == "__main__":
         "polynomial": test_polynomial.fuzz_polynomial,
         "power": test_polynomial.fuzz_power,
         "rectangle": test_rectangle.fuzz_rectangle,
+        "sinc": test_sinc.fuzz_sinc,
+        "sinc2": test_sinc.fuzz_sinc2,
         "sinusoid": test_sinusoid.fuzz_sinusoid,
         "triangle": test_triangle.fuzz_triangle,
     }
