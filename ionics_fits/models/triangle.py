@@ -39,7 +39,7 @@ class Triangle(Model):
         k: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale / x_scale),
         sym: ModelParameter(lower_bound=-1, upper_bound=1),
         y_min: ModelParameter(
-            fixed_to=-np.inf, scale_func=lambda x_scale, y_scale, _: None  # y_scale
+            fixed_to=-np.inf, scale_func=lambda x_scale, y_scale, _: y_scale
         ),
         y_max: ModelParameter(
             fixed_to=+np.inf, scale_func=lambda x_scale, y_scale, _: y_scale
