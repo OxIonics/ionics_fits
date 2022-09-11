@@ -15,14 +15,14 @@ class Triangle(Model):
     y(x<x0) = k_m*|x-x0| + y0
     y = max(y, y_min)
     y = min(y, m_max)
-    k = 0.5*(k_p + k_m)
-    dk = 0.5*(k_p - k_m)
+    k_p = (1 + sym) * k
+    k_m = (1 - sym) * k
 
     Fit parameters (all floated by default unless stated otherwise):
       - x0: x-axis offset
       - y0: y-axis offset
       - k: average slope
-      - dk: slope difference (asymmetry parameter, fixed to 0 by default)
+      - sym: symmetry parameter (fixed to 0 by default)
       - y_min: minimum value of y (bound to -inf by default)
       - y_max: maximum value of y (bound to +inf by default)
 
@@ -37,16 +37,16 @@ class Triangle(Model):
         x0: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
         y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
         k: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale / x_scale),
-        dk: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale / x_scale),
+        sym: ModelParameter(lower_bound=-1, upper_bound=1),
         y_min: ModelParameter(
-            fixed_to=-np.inf, scale_func=lambda x_scale, y_scale, _: y_scale
+            fixed_to=-np.inf, scale_func=lambda x_scale, y_scale, _: None  # y_scale
         ),
         y_max: ModelParameter(
             fixed_to=+np.inf, scale_func=lambda x_scale, y_scale, _: y_scale
         ),
     ) -> Array[("num_samples",), np.float64]:
-        k_p = k + dk
-        k_m = k - dk
+        k_p = k * (1 + sym)
+        k_m = k * (1 - sym)
 
         y_p = k_p * np.abs(x - x0) + y0
         y_m = k_m * np.abs(x - x0) + y0
@@ -104,12 +104,14 @@ class Triangle(Model):
 
         k_m = (y_l[left_peak_ind] - y_min) / dx_l if dx_l != 0 else 0
         k_p = (y_r[right_peak_ind] - y_min) / dx_r if dx_r != 0 else 0
+        alpha = 0 if k_m == 0 else k_p / k_m
 
         positive_parameters = copy.deepcopy(model_parameters)
         positive_parameters["x0"].initialise(x_min)
         positive_parameters["y0"].initialise(y_min)
+
         positive_parameters["k"].initialise(0.5 * (k_p + k_m))
-        positive_parameters["dk"].initialise(0.5 * (k_p - k_m))
+        positive_parameters["sym"].initialise((alpha - 1) / (1 + alpha))
 
         positive_parameters = {
             param: param_data.get_initial_value()
@@ -133,12 +135,13 @@ class Triangle(Model):
 
         k_m = (y_l[left_peak_ind] - y_max) / dx_l if dx_l != 0 else 0
         k_p = (y_r[right_peak_ind] - y_max) / dx_r if dx_r != 0 else 0
+        alpha = 0 if k_m == 0 else k_p / k_m
 
         negative_parameters = copy.deepcopy(model_parameters)
         negative_parameters["x0"].initialise(x_max)
         negative_parameters["y0"].initialise(y_max)
         negative_parameters["k"].initialise(0.5 * (k_p + k_m))
-        negative_parameters["dk"].initialise(0.5 * (k_p - k_m))
+        negative_parameters["sym"].initialise((alpha - 1) / (1 + alpha))
 
         negative_parameters = {
             param: param_data.get_initial_value()
@@ -174,13 +177,21 @@ class Triangle(Model):
             values and uncertainties.
         """
         derived_params = {}
-        derived_params["k_p"] = fitted_params["k"] + fitted_params["dk"]
-        derived_params["k_m"] = fitted_params["k"] - fitted_params["dk"]
+        k = fitted_params["k"]
+        sym = fitted_params["sym"]
+
+        k_err = fitted_params["k"]
+        sym_err = fitted_params["sym"]
+
+        derived_params["k_p"] = (1 + sym) * k
+        derived_params["k_m"] = (1 - sym) * k
 
         derived_uncertainties = {}
         derived_uncertainties["kp"] = np.sqrt(
-            fit_uncertainties["k"] ** 2 + fit_uncertainties["k"] ** 2
+            (k_err * (1 + sym)) ** 2 + (k * sym_err) ** 2
         )
-        derived_uncertainties["km"] = derived_uncertainties["kp"]
+        derived_uncertainties["km"] = np.sqrt(
+            (k_err * (1 - sym)) ** 2 + (k * sym_err) ** 2
+        )
 
         return derived_params, derived_uncertainties
