@@ -144,7 +144,9 @@ class Model:
                 assert isinstance(
                     spec.annotations[name], ModelParameter
                 ), "Model parameters must be instances of `ModelParameter`"
-            self.parameters = {name: spec.annotations[name] for name in spec.args[2:]}
+            self.parameters = {
+                name: copy.deepcopy(spec.annotations[name]) for name in spec.args[2:]
+            }
         else:
             self.parameters = parameters
 
@@ -282,6 +284,40 @@ class Model:
         opt = np.argmin(costs)
         return float(scanned_param_values[opt]), float(costs[opt])
 
+    def find_x_offset(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        parameters: Dict[str, ModelParameter],
+        width: float,
+        param_name: str = "x0",
+    ) -> Tuple[float, float]:
+        """Finds the x-axis offset of a dataset.
+
+        This method is typically called during parameter estimation after all other
+        model parameters have been estimated from the periodogram (which is not itself
+        sensitive to offsets).
+
+        There are a few ways we could have implemented this functionality: for strongly
+        peaked functions we could have used a simple peak search; we could have used an
+        FFT, fitted a line to the phase and used the Fourier Transform Shift Theorem.
+        Instead we take a brute-force approach and evaluate the model at a range of
+        offset values, picking the one that gives the lowest residuals. This decision is
+        driven by wanting the parameter estimation to be highly robust in the face of
+        noisy, irregularly sampled data.
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :param parameters: dictionary of model parameters
+        :param width: width of the feature we're trying to find (e.g. FWHMH). Used to
+            pick the spacing between offset values to try.
+        :param param_name: name of the x-axis offset parameter
+
+        :returns: an estimate of the x-axis offset
+        """
+        offsets = np.arange(min(x), max(x), width / 6)
+        return self.param_min_sqrs(x, y, parameters, param_name, offsets)[0]
+
 
 class Fitter:
     """Base class for fitters.
@@ -323,8 +359,8 @@ class Fitter:
         self,
         x: ArrayLike[("num_samples",), np.float64],
         y: ArrayLike[("num_samples",), np.float64],
-        sigma: Optional[ArrayLike[("num_samples",), np.float64]],
         model: Model,
+        sigma: Optional[ArrayLike[("num_samples",), np.float64]] = None,
     ):
         """Fits a model to a dataset and stores the results.
 
