@@ -111,6 +111,8 @@ This package uses both `unit test`s and `fuzzing`.
 ## Unit Tests
 
 - run using `poe test`
+- to run a subset of tests use the `-k` flag e.g. `poe test -k "rabi"` to run only tests
+  with the word `rabi` in their name
 - all tests must pass before a PR can be merged into master
 - PRs to add new models will only be merged once they have reasonable test coverage
 - unit tests aim to provide good coverage over the space of "reasonable datasets". There
