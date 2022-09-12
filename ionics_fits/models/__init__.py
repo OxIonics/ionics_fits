@@ -1,6 +1,6 @@
 from .exponential import Exponential
 from .polynomial import Power, Polynomial, Line, Parabola
-from .rabi import RabiFlopFreq
+from .rabi import RabiFlopFreq, RabiFlopTime
 from .rectangle import Rectangle
 from .sinc import Sinc, Sinc2
 from .sinusoid import Sinusoid
