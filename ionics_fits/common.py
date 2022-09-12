@@ -335,7 +335,12 @@ class Fitter:
             uncertainties. For sufficiently large datasets, well-formed problems and
             ignoring covariances these are the 1-sigma confidence intervals (roughly:
             there is a 1/3 chance that the real parameter values differ from their
-            fitted values by more than this much).
+            fitted values by more than this much)
+        derived_values: dictionary mapping names of derived parameters (parameters which
+            are not part of the fit, but are calculated by the model from the fitted
+            parameter values) to their values
+        derived_uncertainties: dictionary mapping names of derived parameters to their
+            fit uncertainties
         initial_values: dictionary mapping model parameter names to the initial values
             used to seed the fit.
         model: the fit model
@@ -350,6 +355,8 @@ class Fitter:
     sigma: Optional[Array[("num_samples",), np.float64]]
     values: Dict[str, float]
     uncertainties: Dict[str, float]
+    derived_values: Dict[str, float]
+    derived_uncertainties: Dict[str, float]
     initial_values: Dict[str, float]
     model: Model
     fit_significance: Optional[float]
@@ -477,11 +484,10 @@ class Fitter:
             for param, param_data in parameters.items()
         }
 
-        derived_params, derived_uncertainties = model.calculate_derived_params(
-            fitted_params, uncertainties
-        )
-        fitted_params.update(derived_params)
-        uncertainties.update(derived_uncertainties)
+        (
+            self.derived_params,
+            self.derived_uncertainties,
+        ) = model.calculate_derived_params(fitted_params, uncertainties)
 
         model.post_fit(x, y, fitted_params, uncertainties)
 
