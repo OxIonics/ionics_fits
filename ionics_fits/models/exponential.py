@@ -31,7 +31,9 @@ class Exponential(Model):
         ),
         y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
         y_inf: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        tau: ModelParameter(lower_bound=0, scale_func=lambda x_scale, y_scale, _: None),
+        tau: ModelParameter(
+            lower_bound=0, scale_func=lambda x_scale, y_scale, _: x_scale
+        ),
     ) -> Array[("num_samples",), np.float64]:
         y = y0 + (y_inf - y0) * (1 - np.exp(-(x - x_dead) / tau))
         y = np.where(x >= x_dead, y, y0)

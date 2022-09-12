@@ -249,7 +249,7 @@ class RabiFlopTime(RabiFlop):
         delta.lower_bound = 0
         omega.scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         t_dead.scale_func = lambda x_scale, y_scale, _: x_scale
-        tau.scale_func = lambda x_scale, y_scale, _: None  # 1 / x_scale
+        tau.scale_func = lambda x_scale, y_scale, _: 1 / x_scale
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
