@@ -14,6 +14,7 @@ Install from `pypi` with `pip install ionics_fits` or add to your poetry project
 
 ## Example Usage
 
+Basic usage
 ```python
 import numpy as np
 import ionics_fits as fits
@@ -26,6 +27,49 @@ y = a*x + y0
 
 fit = fits.NormalFitter(x, y, model=fits.models.Line())
 print(f"Fitted: y = {fit.values['a']:.3f} * x + {fit.values['y0']:.3f}")
+```
+
+The fit can be configured in various ways by modifying the model's `parameters`
+dictionary (see the `fits.common.ModelParameter` class for more information). This
+allows one to:
+- change the bounds for parameters
+- change which parameters are fixed to a constant value / floated
+- supply initial values for parameters instead of relying on the heuristics
+
+Example usage:
+```python
+import numpy as np
+from matplotlib import pyplot as plt
+import ionics_fits as fits
+
+# Example problem: fit the amplitude and phase of a sinusoid whose frequency is known
+# exactly
+
+omega = 2 * np.pi  # we know the frequency
+model = fits.models.Sinusoid()
+model.parameters["omega"].fixed_to = omega
+
+# generate synthetic data to fit
+params = {
+    "a": np.random.uniform(low=1, high=5),
+    "omega": omega,
+    "phi": np.random.uniform(-1, 1) * 2 * np.pi,
+    "y0": 0,
+    "x0": 0,
+    "tau": np.inf,
+}
+x = np.linspace(-3, 3, 100)
+y = model.func(x, params)
+
+fit = fits.NormalFitter(x, y, model=model)
+print(f"Amplitude: dataset = {params['a']:.3f}, fit = {fit.values['a']:.3f}")
+print(f"Phase: dataset = {params['phi']:.3f}, fit = {fit.values['phi']:.3f}")
+
+plt.plot(x, y, label="data")
+plt.plot(*fit.evaluate(), '-.o', label="fit")
+plt.grid()
+plt.legend()
+plt.show()
 ```
 
 # Developing
