@@ -24,6 +24,9 @@ class RabiFlop(Model):
         - c = 0.5 * (P_upper + P_lower)
         - W = sqrt(omega^2 + (detuning)^2)
 
+    This class is not intended to be instantiated directly, use one of the
+    :class RabiFlopFreq: or :class RabiFlopTime: sub-classes instead.
+
     For frequency scans, we set:
       - detuning = x + delta
       - t = t_pulse - t_dead
@@ -54,6 +57,10 @@ class RabiFlop(Model):
 
     def _func(
         self,
+        # Beware if you're sub-typing this!
+        # This is not the standard type for `x`; we rely on the implementation of `func`
+        # to change the type of `x` for us (see the RabiFlopFreq / RabiFlopTime
+        # implementations)
         x: Tuple[
             Array[("num_samples",), np.float64], Array[("num_samples",), np.float64]
         ],
