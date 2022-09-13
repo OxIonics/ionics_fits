@@ -359,4 +359,4 @@ class Parabola(MappedModel):
             a_2 = inner_parameters["a_2"].get_initial_value()
 
             x0 = inner_parameters["x0"].initialise(-a_1 / (2 * a_2))
-            inner_parameters["a_0"].initialisee(a_0 - a_2 * x0**2)
+            inner_parameters["a_0"].initialise(a_0 - a_2 * x0**2)
