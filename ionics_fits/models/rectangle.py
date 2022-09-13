@@ -95,7 +95,7 @@ class Rectangle(Model):
         else:
             outside = np.logical_or(x <= x_l, x >= x_r)
             inside = np.logical_and(x > x_l, x < x_r)
-            y0 = model_parameters["y0"].initilise(np.mean(y[outside]))
+            y0 = model_parameters["y0"].initialise(np.mean(y[outside]))
             model_parameters["a"].initialise(np.mean(y[outside] - y0))
 
         y0 = model_parameters["y0"].get_initial_value()
