@@ -88,10 +88,11 @@ class Sinusoid(Model):
         model_parameters["y0"].initialise(np.mean(y))
         model_parameters["tau"].initialise(np.max(x))
 
-        omega, pgram = utils.get_pgram(x, y)
-        peak = np.argmax(pgram)
+        omega, spectrum = utils.get_spectrum(x, y, density_units=False, trim_dc=True)
+        spectrum = np.abs(spectrum)
+        peak = np.argmax(spectrum)
 
-        model_parameters["a"].initialise(pgram[peak])
+        model_parameters["a"].initialise(spectrum[peak] * 2)
         model_parameters["omega"].initialise(omega[peak])
 
         phi_params = copy.deepcopy(model_parameters)

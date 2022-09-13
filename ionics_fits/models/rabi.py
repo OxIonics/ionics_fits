@@ -216,23 +216,17 @@ class RabiFlopFreq(RabiFlop):
             or model_parameters["omega"].get_initial_value() is None
         ):
             # there isn't a simple analytic form for the Fourier transform of a Rabi
-            # flop in the general case, but in the low pulse area limit it tends to a
-            # triangle function (transform of sinc^2)
-            #
+            # flop in the general case. However in the low pulse area limit (and
+            # ignoring decay etc) the Rabi flop function tends to the sinc^2 function:
+            #   (omega * t_pulse / 2) ^2 * sinc(delta*t_pulse/2)
             # This heuristic breaks down when: omega * t_pulse ~ pi
-            pgram_omega, pgram = fits.models.utils.get_pgram(x, y)
+            model = fits.models.Sinc2()
+            model.parameters["y0"].fixed_to = 1
+            fit = fits.NormalFitter(x, y, model)
 
-            tri = fits.models.triangle.Triangle()
-            tri.parameters["x0"].fixed_to = 0
-            tri.parameters["y0"].initialise(max(pgram))
-            tri.parameters["sym"].fixed_to = 0
-            tri.parameters["y_min"].fixed_to = 0
-
-            fit = fits.NormalFitter(pgram_omega, pgram, model=tri)
-            intercept = fit.values["y0"] / -fit.values["k"]
-
-            model_parameters["t_pulse"].initialise(intercept)
-            model_parameters["omega"].initialise(fit.values["y0"] / 2)
+            a = np.abs(fit.values["a"])
+            t_pulse = model_parameters["t_pulse"].initialise(fit.values["w"] * 2)
+            model_parameters["omega"].initialise(2 * np.sqrt(a) / t_pulse)
 
         if model_parameters["delta"].get_initial_value() is None:
             w = 2 * np.pi / model_parameters["t_pulse"].get_initial_value()
@@ -302,7 +296,8 @@ class RabiFlopTime(RabiFlop):
         # = 0.5 * (omega / W) ^ 2 * (1 - cos(W * t))
         W = fit.values["omega"]
         omega = np.sqrt(2 * fit.values["a"]) * W
-        delta = np.sqrt(np.power(W, 2) - np.power(omega, 2))
+        # avoid divide by zero errors from numerical noise when delta ~= 0
+        delta = 0 if omega >= W else np.sqrt(np.power(W, 2) - np.power(omega, 2))
 
         model_parameters["omega"].initialise(omega)
         model_parameters["delta"].initialise(delta)
