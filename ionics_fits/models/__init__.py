@@ -1,4 +1,5 @@
 from .exponential import Exponential
+from .gaussian import Gaussian
 from .polynomial import Power, Polynomial, Line, Parabola
 from .rabi import RabiFlopFreq, RabiFlopTime
 from .rectangle import Rectangle
