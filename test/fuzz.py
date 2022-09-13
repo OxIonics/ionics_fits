@@ -1,11 +1,13 @@
 """ Randomized testing of fitting code. run with: poe fuzz """
 import argparse
 import logging
+import time
 import traceback
 
 import test
 from test import (
     test_exponential,
+    test_gaussian,
     test_polynomial,
     test_rabi,
     test_rectangle,
@@ -21,6 +23,7 @@ if __name__ == "__main__":
 
     targets = {
         "exponential": test_exponential.fuzz_exponential,
+        "gaussian": test_gaussian.fuzz_gaussian,
         "polynomial": test_polynomial.fuzz_polynomial,
         "power": test_polynomial.fuzz_power,
         "rabi_freq": test_rabi.fuzz_rabi_freq,
@@ -81,6 +84,7 @@ if __name__ == "__main__":
     test_config = test.common.TestConfig(plot_failures=args.plot_failures)
     for target in args.targets:
         logger.info(f"Fuzzing {target}...")
+        t0 = time.time()
 
         target_fun = targets[target]
 
@@ -96,6 +100,9 @@ if __name__ == "__main__":
                     f"({(1 - failures/args.num_trials) * 100:.1f} % success rate)"
                 )
             else:
-                logger.info("success")
+                t_trial = time.time() - t0
+                logger.info(
+                    f"success (took {t_trial:.1f} s for {args.num_trials} trails)"
+                )
         except Exception:
             logger.warning(f"Failed with exception: {traceback.format_exc()}")
