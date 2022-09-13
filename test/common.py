@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pprint
 import traceback
-from typing import Callable, Dict, Optional, Tuple, Type, TYPE_CHECKING
+from typing import Callable, Dict, Optional, List, Tuple, Type, TYPE_CHECKING
 
 import ionics_fits as fits
 
