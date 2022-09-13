@@ -52,6 +52,9 @@ class MappedModel(Model):
         """
         inner_params = inner.parameters
 
+        if fixed_params is None:
+            fixed_params = {}
+
         if unknown_mapped_params := set(mapped_params.values()) - inner_params.keys():
             raise ValueError(
                 "The target of parameter mappings must be parameters of the inner "
