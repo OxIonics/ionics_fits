@@ -31,9 +31,9 @@ class Gaussian(Model):
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=lambda x_scale, y_scale, _: None),  # x_scale),
+        x0: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
         y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        a: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
+        a: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale * x_scale),
         sigma: ModelParameter(
             lower_bound=0, scale_func=lambda x_scale, y_scale, _: x_scale
         ),
@@ -71,22 +71,17 @@ class Gaussian(Model):
         #   F[A * exp(-(x/w)^2)](k) = A * sqrt(pi) * w * exp(-(pi*k*w)^2)
         #
         # Half-width at 1/e when k = 1/(pi*w)
-        # Peak value: A * sqrt(pi) * w = A * 2 * sqrt(pi) * sigma
-        #   where A = a / (sigma * np.sqrt(2*np.pi))
-        #   so peak is: a / (sigma * np.sqrt(2*np.pi)) * 2 * sqrt(pi) * sigma
-        #              = a * sqrt(2)
-        omega, pgram = fits.models.utils.get_pgram(x, y - np.mean(y))
+        omega, spectrum = fits.models.utils.get_spectrum(x, y, trim_dc=True)
+        spectrum = np.abs(spectrum)
+
         k = omega / (2 * np.pi)
 
-        peak = np.max(pgram)
+        peak = np.max(spectrum)
         W = peak / np.exp(1)
-        width = 1 / (np.pi * k[np.argmin(np.abs(pgram - W))])
+        width = 1 / (np.pi * k[np.argmin(np.abs(spectrum - W))])
 
-        # NB this (empirical) expression for a is not what I was expecting (factor of 2)
-        # I ran out of steam before tracking down where I went wrong...ahem...I mean
-        # "I left this as an exercise for the reader". Normalization of the pgram?
         sigma = width / 2
-        a = peak * 2 * np.sqrt(2)
+        a = peak * np.pi * np.sqrt(2)
 
         y0_guess = np.mean([y[0], y[-1]])
         peak_guess = y[np.argmax(np.abs(y - y0_guess))]

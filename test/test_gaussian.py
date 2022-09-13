@@ -7,7 +7,7 @@ import ionics_fits as fits
 
 def test_gaussian():
     """Test for gaussian.Gaussian"""
-    x = np.linspace(-5, 5, 500)
+    x = np.linspace(-10, 10, 500)
     params = {
         "x0": [0, 0.25],
         "y0": [-1, 0, 1],
@@ -28,12 +28,12 @@ def fuzz_gaussian(
     stop_at_failure: bool = True,
     test_config: Optional[test.common.TestConfig] = None,
 ) -> float:
-    x = np.linspace(-2, 2, 100)
+    x = np.linspace(-10, 10, 500)
     fuzzed_params = {
         "x0": [0, 0.25],
-        "y0": [-1, 1],
-        "a": [0, 5],
-        "sigma": [0.1, 1],
+        "y0": [-1, 0, 1],
+        "a": [-5, 5],
+        "sigma": [0.1, 0.25, 1],
     }
     static_params = {}
 
