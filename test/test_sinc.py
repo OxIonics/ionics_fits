@@ -86,7 +86,7 @@ def fuzz_sinc(
     stop_at_failure: bool = True,
     test_config: Optional[test.common.TestConfig] = None,
 ) -> float:
-    sinc_fuzzer(
+    return sinc_fuzzer(
         model=fits.models.sinc.Sinc(),
         num_trials=num_trials,
         stop_at_failure=stop_at_failure,
@@ -99,7 +99,7 @@ def fuzz_sinc2(
     stop_at_failure: bool = True,
     test_config: Optional[test.common.TestConfig] = None,
 ) -> float:
-    sinc_fuzzer(
+    return sinc_fuzzer(
         model=fits.models.sinc.Sinc2(),
         num_trials=num_trials,
         stop_at_failure=stop_at_failure,
