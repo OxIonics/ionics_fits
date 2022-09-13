@@ -210,7 +210,7 @@ def _plot(
 def check_multiple_param_sets(
     x: fits.utils.ArrayLike[("num_samples",), np.float64],
     model: fits.common.Model,
-    test_params: Dict[str, float],
+    test_params: Dict[str, List[float]],
     config: Optional[TestConfig] = None,
     fitter_cls: Type[fits.common.Fitter] = fits.normal.NormalFitter,
 ):
