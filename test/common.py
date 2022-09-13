@@ -174,7 +174,7 @@ def _plot_failure(
         "--o",
         label="heuristic",
     )
-    ax[1].set(xlabel="frequency (linear units)", ylabel="|FFT(y)|")
+    ax[1].set(xlabel="frequency (linear units)", ylabel="Spectral density")
     ax[1].grid()
     ax[1].legend()
 
