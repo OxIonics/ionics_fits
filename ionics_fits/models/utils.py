@@ -161,6 +161,8 @@ class MappedModel(Model):
 def get_spectrum(
     x: Array[("num_samples",), np.float64],
     y: Array[("num_samples",), np.float64],
+    density_units: bool = True,
+    trim_dc: bool = False,
 ) -> Tuple[
     Array[("num_spectrum_samples",), np.float64],
     Array[("num_spectrum_samples",), np.float64],
@@ -169,22 +171,33 @@ def get_spectrum(
 
     :param x: x-axis data
     :param y: y-axis data
-    :returns: tuple with the frequency axis (angular units) and Fourier transform of
-        the dataset.
+    :param density_units: if `False` we apply normalization for narrow-band signals. If
+        `True` we normalize for continuous distributions.
+    :param trim_dc: if `True` we do not return the DC component.
     """
     dx = x.ptp() / x.size
     n = x.size
-    freq = np.fft.fftfreq(n, dx)
+    omega = np.fft.fftfreq(n, dx) * (2 * np.pi)
     y_f = np.fft.fft(y, norm="ortho") / np.sqrt(n)
 
     y_f = y_f[: int(n / 2)]
-    freq = freq[: int(n / 2)]
-    return freq * (2 * np.pi), y_f
+    omega = omega[: int(n / 2)]
+
+    if density_units:
+        d_omega = 2 * np.pi / (n * dx)
+        y_f /= d_omega
+
+    if trim_dc:
+        omega = omega[1:]
+        y_f = y_f[1:]
+
+    return omega, y_f
 
 
 def get_pgram(
     x: Array[("num_samples",), np.float64],
     y: Array[("num_samples",), np.float64],
+    density_units: bool = True,
 ) -> Tuple[
     Array[("num_spectrum_samples",), np.float64],
     Array[("num_spectrum_samples",), np.float64],
@@ -196,17 +209,24 @@ def get_pgram(
 
     :param x: x-axis data
     :param y: y-axis data
+    :param density_units: if `False` (default) we apply normalization for narrow-band
+        signals. If `True` we normalize for continuous distributions.
     :returns: tuple with the frequency axis (angular units) and the periodogram
     """
-    min_step = np.min(np.diff(x))
+    dx = np.min(np.diff(x))
     duration = x.ptp()
+    n = int(duration / dx)
+    d_omega = 2 * np.pi / (n * dx)
 
     # Nyquist limit does not apply to irregularly spaced data
     # We'll use it as a starting point anyway...
-    f_max = 0.5 / min_step
-    f_min = 0.25 / duration
+    f_nyquist = 0.5 / dx
 
-    omega_list = 2 * np.pi * np.linspace(f_min, f_max, int(f_max / f_min))
+    omega_list = 2 * np.pi * np.linspace(d_omega, f_nyquist, n)
     pgram = signal.lombscargle(x, y, omega_list, precenter=True)
     pgram = np.sqrt(np.abs(pgram) * 4 / len(y))
+
+    if density_units:
+        pgram /= d_omega
+
     return omega_list, pgram
