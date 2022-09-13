@@ -271,7 +271,7 @@ def fuzz(
     static_params: Dict[str, float],
     fuzzed_params: Dict[str, Tuple[float, float]],
     test_config: Optional[TestConfig] = None,
-    fitter_cls: Type[fits.common.Fitter] = fits.normal.NormalFitter,
+    fitter_cls: Optional[Type[fits.common.Fitter]] = fits.normal.NormalFitter,
     num_trials: int = 100,
     stop_at_failure: bool = True,
     param_generator: Optional[
