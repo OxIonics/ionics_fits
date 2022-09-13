@@ -606,7 +606,7 @@ class Fitter:
             x_fit = np.linspace(np.min(self.x), np.max(self.x), x_fit)
 
         y_fit = self.model.func(x_fit, self.values)
-        return x_fit, y_fit
+        return x_fit, y_fit  # type: ignore
 
     def residuals(self) -> Array[("num_samples",), np.float64]:
         """Returns an array of fit residuals."""
