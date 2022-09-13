@@ -31,10 +31,10 @@ def fuzz_exponential(
 ) -> float:
     x = np.linspace(-2, 2, 100)
     fuzzed_params = {
-        "x_dead": [0, 0.5],
-        "y0": [-1, 1],
-        "y_inf": [2, 5],
-        "tau": [0.5, 5],
+        "x_dead": (0, 0.5),
+        "y0": (-1, 1),
+        "y_inf": (2, 5),
+        "tau": (0.5, 5),
     }
     static_params = {}
 

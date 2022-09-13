@@ -57,9 +57,9 @@ def fuzz_rectangle(
 ) -> float:
     x = np.linspace(-2, 2, 100)
     fuzzed_params = {
-        "a": [-2, 2],
-        "y0": [-1, +1],
-        "x_r": [1, 2.01],
+        "a": (-2, 2),
+        "y0": (-1, +1),
+        "x_r": (1, 2.01),
     }
     static_params = {"x_l": -1}
     model = fits.models.Rectangle()

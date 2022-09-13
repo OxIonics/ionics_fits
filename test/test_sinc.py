@@ -59,10 +59,10 @@ def sinc_fuzzer(
 ) -> float:
     x = np.linspace(-10, 20, 500)
     fuzzed_params = {
-        "x0": [-8, 15],
-        "y0": [-10, 10],
-        "a": [0.25, 4],
-        "w": [1, 10],
+        "x0": (-8, 15),
+        "y0": (-10, 10),
+        "a": (0.25, 4),
+        "w": (1, 10),
     }
     static_params = {}
     test_config = test_config or test.common.TestConfig()
