@@ -31,7 +31,7 @@ class Rectangle(Model):
         self.thresh = thresh
         super().__init__()
 
-    # pytype: disable=attribute-error
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -42,7 +42,7 @@ class Rectangle(Model):
     ) -> Array[("num_samples",), np.float64]:
         return np.where(np.logical_and(x_r > x, x > x_l), y0 + a, y0)
 
-    # pytype: enable=attribute-error
+    # pytype: enable=invalid-annotation
 
     def estimate_parameters(
         self,

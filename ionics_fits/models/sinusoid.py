@@ -40,7 +40,7 @@ class Sinusoid(Model):
     fixed at 0 and phi0 is floated.
     """
 
-    # pytype: disable=attribute-error
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -64,7 +64,7 @@ class Sinusoid(Model):
         y = Gamma * a * np.sin(omega * (x - x0) + phi) + y0
         return y
 
-    # pytype: enable=attribute-error
+    # pytype: enable=invalid-annotation
 
     def estimate_parameters(
         self,

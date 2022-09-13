@@ -42,7 +42,7 @@ class Power(Model):
         None
     """
 
-    # pytype: disable=attribute-error
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -56,7 +56,7 @@ class Power(Model):
         assert all(x - x0 >= 0), "`x - x0` must be > 0"
         return a * np.float_power(x - x0, n) + y0
 
-    # pytype: enable=attribute-error
+    # pytype: enable=invalid-annotation
 
     def estimate_parameters(
         self,

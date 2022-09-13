@@ -91,7 +91,7 @@ class Sinc2(Model):
       None
     """
 
-    # pytype: disable=attribute-error
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -106,7 +106,7 @@ class Sinc2(Model):
         y = a * np.power(np.sinc(x), 2) + y0
         return y
 
-    # pytype: enable=attribute-error
+    # pytype: enable=invalid-annotation
 
     def estimate_parameters(
         self,

@@ -23,7 +23,7 @@ class Exponential(Model):
       - x_1_e: x-axis value for 1/e decay including dead time (`x_1_e = x0 + tau`)
     """
 
-    # pytype: disable=attribute-error
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -40,7 +40,7 @@ class Exponential(Model):
         y = np.where(x >= x_dead, y, y0)
         return y
 
-    # pytype: enable=attribute-error
+    # pytype: enable=invalid-annotation
 
     def estimate_parameters(
         self,
