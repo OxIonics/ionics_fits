@@ -39,6 +39,7 @@ class Sinusoid(Model):
     other floated). At most one of them should be floated at once. By default, x0 is
     fixed at 0 and phi0 is floated.
     """
+
     # pytype: disable=attribute-error
     def _func(
         self,
@@ -62,6 +63,7 @@ class Sinusoid(Model):
         Gamma = np.exp(-x / tau)
         y = Gamma * a * np.sin(omega * (x - x0) + phi) + y0
         return y
+
     # pytype: enable=attribute-error
 
     def estimate_parameters(
