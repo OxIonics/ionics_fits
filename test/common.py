@@ -93,7 +93,7 @@ def check_single_param_set(
 
     y = model.func(x, test_params)
 
-    logger.info(
+    logger.debug(
         f"Testing {model.__class__.__name__} with dataset:\n"
         f"x={pprint.pformat(x, indent=4)}\n"
         f"y={pprint.pformat(y, indent=4)}"
