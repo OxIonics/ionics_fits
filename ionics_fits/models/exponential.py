@@ -28,12 +28,16 @@ class Exponential(Model):
         x: Array[("num_samples",), np.float64],
         x_dead: ModelParameter(
             lower_bound=0, fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale
-        ),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        y_inf: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
+        ),  # type: ignore
+        y0: ModelParameter(
+            scale_func=lambda x_scale, y_scale, _: y_scale
+        ),  # type: ignore
+        y_inf: ModelParameter(
+            scale_func=lambda x_scale, y_scale, _: y_scale
+        ),  # type: ignore
         tau: ModelParameter(
             lower_bound=0, scale_func=lambda x_scale, y_scale, _: x_scale
-        ),
+        ),  # type: ignore
     ) -> Array[("num_samples",), np.float64]:
         y = y0 + (y_inf - y0) * (1 - np.exp(-(x - x_dead) / tau))
         y = np.where(x >= x_dead, y, y0)
