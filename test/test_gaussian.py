@@ -7,9 +7,9 @@ import ionics_fits as fits
 
 def test_gaussian():
     """Test for gaussian.Gaussian"""
-    x = np.linspace(-10, 10, 500)
+    x = np.linspace(-10, 20, 500)
     params = {
-        "x0": [0, 0.25],
+        "x0": [-3, 1, 0, 0.25, 10],
         "y0": [-1, 0, 1],
         "a": [-5, 5],
         "sigma": [0.1, 0.25, 1],

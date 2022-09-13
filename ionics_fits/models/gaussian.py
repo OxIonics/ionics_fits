@@ -72,13 +72,13 @@ class Gaussian(Model):
         #
         # Half-width at 1/e when k = 1/(pi*w)
         omega, spectrum = fits.models.utils.get_spectrum(x, y, trim_dc=True)
-        spectrum = np.abs(spectrum)
+        abs_spectrum = np.abs(spectrum)
 
         k = omega / (2 * np.pi)
 
-        peak = np.max(spectrum)
+        peak = np.max(abs_spectrum)
         W = peak / np.exp(1)
-        width = 1 / (np.pi * k[np.argmin(np.abs(spectrum - W))])
+        width = 1 / (np.pi * k[np.argmin(np.abs(abs_spectrum - W))])
 
         sigma = width / 2
         a = peak * np.pi * np.sqrt(2)
@@ -91,8 +91,9 @@ class Gaussian(Model):
         model_parameters["sigma"].initialise(sigma)
         model_parameters["y0"].initialise(y0_guess)
 
+        cut_off = 2 * omega[np.argmin(np.abs(abs_spectrum - W))]
         model_parameters["x0"].initialise(
-            self.find_x_offset(x, y, model_parameters, sigma)
+            self.find_x_offset_fft(x, omega, spectrum, cut_off)
         )
 
     @staticmethod

@@ -9,7 +9,7 @@ def test_lorentzian():
     """Test for lorentzian.Lorentzian"""
     x = np.linspace(-4, 4, 1000)
     params = {
-        "x0": [0, 0.25],
+        "x0": [-1, 0, 0.25, 2],
         "y0": [-1, 0, 1],
         "a": [-5, 5],
         "fwhmh": [0.1, 0.25, 1],

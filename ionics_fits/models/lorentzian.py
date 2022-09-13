@@ -59,12 +59,12 @@ class Lorentzian(Model):
             metadata.
         """
         omega, spectrum = fits.models.utils.get_spectrum(x, y, trim_dc=True)
-        spectrum = np.abs(spectrum)
+        abs_spectrum = np.abs(spectrum)
 
         model = fits.models.Exponential()
-        model.parameters["y0"].initialise(np.max(spectrum))
+        model.parameters["y0"].initialise(np.max(abs_spectrum))
         model.parameters["y_inf"].initialise(0)
-        fit = fits.NormalFitter(omega, spectrum, model)
+        fit = fits.NormalFitter(omega, abs_spectrum, model)
 
         y0_guess = np.mean([y[0], y[-1]])
         peak_guess = y[np.argmax(np.abs(y - y0_guess))]
@@ -74,6 +74,7 @@ class Lorentzian(Model):
         fwhmh = model_parameters["fwhmh"].initialise(1 / fit.values["tau"])
         model_parameters["a"].initialise(fit.values["y0"] * sgn * 2 / fwhmh)
 
+        cut_off = 2 * fit.values["tau"]
         model_parameters["x0"].initialise(
-            self.find_x_offset(x, y, model_parameters, fwhmh)
+            self.find_x_offset_fft(x, omega, spectrum, cut_off)
         )

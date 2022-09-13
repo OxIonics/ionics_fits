@@ -61,22 +61,20 @@ class Sinc(Model):
         y0 = model_parameters["y0"].initialise(np.mean([y[0], y[-1]]))
 
         omega, spectrum = fits.models.utils.get_spectrum(x, y, trim_dc=True)
-        spectrum = np.abs(spectrum)
+        abs_spectrum = np.abs(spectrum)
 
         # Fourier transform of a sinc is a rectangle
         rect = fits.models.rectangle.Rectangle()
         rect.parameters["y0"].fixed_to = 0
         rect.parameters["x_l"].fixed_to = 0
-        rect.parameters["a"].initialise(max(spectrum))
+        rect.parameters["a"].initialise(max(abs_spectrum))
 
-        fit = NormalFitter(omega, spectrum, model=rect)
+        fit = NormalFitter(omega, abs_spectrum, model=rect)
 
         w = model_parameters["w"].initialise(fit.values["x_r"])
         sgn = 1 if y[np.argmax(np.abs(y - y0))] > y0 else -1
         model_parameters["a"].initialise(2 * w * fit.values["a"] * sgn)
-        model_parameters["x0"].initialise(
-            self.find_x_offset(x, y, model_parameters, 2 * np.pi / w)
-        )
+        model_parameters["x0"].initialise(self.find_x_offset_fft(x, omega, spectrum, w))
 
 
 class Sinc2(Model):
@@ -131,22 +129,23 @@ class Sinc2(Model):
         y0 = model_parameters["y0"].initialise(np.mean([y[0], y[-1]]))
 
         omega, spectrum = fits.models.utils.get_spectrum(x, y, trim_dc=True)
-        spectrum = np.abs(spectrum)
+        abs_spectrum = np.abs(spectrum)
 
         # Fourier transform of a sinc^2 is a triangle function
         tri = fits.models.triangle.Triangle()
         tri.parameters["x0"].fixed_to = 0
-        tri.parameters["y0"].initialise(max(spectrum))
+        tri.parameters["y0"].initialise(max(abs_spectrum))
         tri.parameters["sym"].fixed_to = 0
         tri.parameters["y_min"].fixed_to = 0
 
-        fit = NormalFitter(omega, spectrum, model=tri)
+        fit = NormalFitter(omega, abs_spectrum, model=tri)
 
         intercept = fit.values["y0"] / -fit.values["k"]
         sgn = 1 if y[np.argmax(np.abs(y - y0))] > y0 else -1
 
-        w = model_parameters["w"].initialise(0.5 * intercept)
+        model_parameters["w"].initialise(0.5 * intercept)
         model_parameters["a"].initialise(fit.values["y0"] * sgn * intercept)
+
         model_parameters["x0"].initialise(
-            self.find_x_offset(x, y, model_parameters, 2 * np.pi / w)
+            self.find_x_offset_fft(x, omega, spectrum, intercept)
         )

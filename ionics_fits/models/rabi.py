@@ -211,28 +211,19 @@ class RabiFlopFreq(RabiFlop):
         model_parameters["t_dead"].initialise(0)
         model_parameters["tau"].initialise(np.inf)
 
-        if (
-            model_parameters["t_pulse"].get_initial_value() is None
-            or model_parameters["omega"].get_initial_value() is None
-        ):
-            # there isn't a simple analytic form for the Fourier transform of a Rabi
-            # flop in the general case. However in the low pulse area limit (and
-            # ignoring decay etc) the Rabi flop function tends to the sinc^2 function:
-            #   (omega * t_pulse / 2) ^2 * sinc(delta*t_pulse/2)
-            # This heuristic breaks down when: omega * t_pulse ~ pi
-            model = fits.models.Sinc2()
-            model.parameters["y0"].fixed_to = 1
-            fit = fits.NormalFitter(x, y, model)
+        # there isn't a simple analytic form for the Fourier transform of a Rabi
+        # flop in the general case. However in the low pulse area limit (and
+        # ignoring decay etc) the Rabi flop function tends to the sinc^2 function:
+        #   (omega * t_pulse / 2) ^2 * sinc(delta*t_pulse/2)
+        # This heuristic breaks down when: omega * t_pulse ~ pi
+        model = fits.models.Sinc2()
+        model.parameters["y0"].fixed_to = 1
+        fit = fits.NormalFitter(x, y, model)
 
-            a = np.abs(fit.values["a"])
-            t_pulse = model_parameters["t_pulse"].initialise(fit.values["w"] * 2)
-            model_parameters["omega"].initialise(2 * np.sqrt(a) / t_pulse)
-
-        if model_parameters["delta"].get_initial_value() is None:
-            w = 2 * np.pi / model_parameters["t_pulse"].get_initial_value()
-            model_parameters["delta"].initialise(
-                self.find_x_offset(x, y, model_parameters, w, "delta")
-            )
+        a = np.abs(fit.values["a"])
+        t_pulse = model_parameters["t_pulse"].initialise(fit.values["w"] * 2)
+        model_parameters["omega"].initialise(2 * np.sqrt(a) / t_pulse)
+        model_parameters["delta"].initialise(-fit.values["x0"])
 
 
 class RabiFlopTime(RabiFlop):

@@ -8,9 +8,9 @@ import ionics_fits as fits
 
 def test_sinc():
     """Test for sinc.Sinc"""
-    x = np.linspace(-10, 10, 100)
+    x = np.linspace(-20, 10, 200)
     params = {
-        "x0": [-3, 0, 1, 5],
+        "x0": [-13, -1, 0, 1, 5],
         "y0": [-1, 0, 10],
         "a": [-1, 4],
         "w": [1, 3, 10],
@@ -26,9 +26,9 @@ def test_sinc():
 
 def test_sinc2():
     """Test for sinc.Sinc2"""
-    x = np.linspace(-10, 10, 100)
+    x = np.linspace(-10, 20, 400)
     params = {
-        "x0": [-3, 0, 1, 5],
+        "x0": [-8, -1, 0, 1, 5, 15],
         "y0": [-1, 0, 10],
         "a": [-1, 4],
         "w": [1, 3, 10],
@@ -57,9 +57,9 @@ def sinc_fuzzer(
     stop_at_failure: bool = True,
     test_config: Optional[test.common.TestConfig] = None,
 ) -> float:
-    x = np.linspace(-10, 10, 100)
+    x = np.linspace(-10, 20, 500)
     fuzzed_params = {
-        "x0": [-5, 5],
+        "x0": [-8, 15],
         "y0": [-10, 10],
         "a": [0.25, 4],
         "w": [1, 10],
