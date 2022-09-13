@@ -55,6 +55,7 @@ class RabiFlop(Model):
     All phases are in radians, detunings are in angular units.
     """
 
+    # pytype: disable=attribute-error
     def _func(
         self,
         # Beware if you're sub-typing this!
@@ -121,6 +122,8 @@ class RabiFlop(Model):
 
         y = P0 * y0 + P1 * y1
         return y
+
+    # pytype: enable=attribute-error
 
     @staticmethod
     def calculate_derived_params(

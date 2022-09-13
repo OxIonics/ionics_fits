@@ -31,6 +31,7 @@ class Rectangle(Model):
         self.thresh = thresh
         super().__init__()
 
+    # pytype: disable=attribute-error
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -40,6 +41,8 @@ class Rectangle(Model):
         x_r: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
     ) -> Array[("num_samples",), np.float64]:
         return np.where(np.logical_and(x_r > x, x > x_l), y0 + a, y0)
+
+    # pytype: enable=attribute-error
 
     def estimate_parameters(
         self,

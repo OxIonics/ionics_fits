@@ -91,6 +91,7 @@ class Sinc2(Model):
       None
     """
 
+    # pytype: disable=attribute-error
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -104,6 +105,8 @@ class Sinc2(Model):
         x = w * (x - x0) / np.pi  # np.sinc(x) = sin(pi*x) / (pi*x)
         y = a * np.power(np.sinc(x), 2) + y0
         return y
+
+    # pytype: enable=attribute-error
 
     def estimate_parameters(
         self,

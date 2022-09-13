@@ -31,6 +31,7 @@ class Triangle(Model):
       - k_p: slope for x >= x0
     """
 
+    # pytype: disable=attribute-error
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -56,6 +57,7 @@ class Triangle(Model):
 
         return y
 
+    # pytype: enable=attribute-error
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
