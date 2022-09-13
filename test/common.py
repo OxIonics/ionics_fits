@@ -93,13 +93,21 @@ def check_single_param_set(
 
     y = model.func(x, test_params)
 
-    logger.debug(
+    logger.info(
         f"Testing {model.__class__.__name__} with dataset:\n"
         f"x={pprint.pformat(x, indent=4)}\n"
         f"y={pprint.pformat(y, indent=4)}"
     )
 
-    fit = fitter_cls(x=x, y=y, sigma=None, model=model)
+    try:
+        fit = fitter_cls(x=x, y=y, sigma=None, model=model)
+    except RuntimeError:
+        logger.exception(
+            f"{model.__class__.__name__} fit failed! Parameters were:\n"
+            f"{pprint.pformat(test_params, indent=4)}\n"
+        )
+        raise
+
     fit.values = {param: fit.values[param] for param in fit.model.parameters.keys()}
 
     params_str = pprint.pformat(test_params, indent=4)
