@@ -23,6 +23,7 @@ class Sinc(Model):
       None
     """
 
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -37,6 +38,7 @@ class Sinc(Model):
         y = a * np.sinc(x) + y0
         return y
 
+    # pytype: enable=invalid-annotation
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
