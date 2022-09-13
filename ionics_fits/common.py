@@ -105,7 +105,7 @@ class ModelParameter:
         """Clip value to lie between lower and upper bounds."""
         return np.clip(value, self.lower_bound, self.upper_bound)
 
-    def initialise(self, estimate: float) -> float:
+    def initialise(self, estimate: Optional[float] = None) -> float:
         """Sets the parameter's initial value based on the supplied estimate. If an
         initial value is already known for this parameter (see :meth get_initial_value:)
         we use that instead of the supplied estimate. The value is clipped to lie
