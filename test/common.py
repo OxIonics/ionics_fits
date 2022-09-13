@@ -145,7 +145,7 @@ def check_single_param_set(
 
         raise ValueError(
             f"Fit significance too low: {fit.fit_significance:.2f} < "
-            f"{config.p_thresh:.2f}",
+            f"{config.residual_tol:.2f}",
         )
 
     if config.residual_tol is not None and not is_close(
