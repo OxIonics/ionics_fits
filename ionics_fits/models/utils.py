@@ -2,7 +2,7 @@ import copy
 import dataclasses
 import numpy as np
 from scipy import signal
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, Optional, Tuple, TYPE_CHECKING
 from ..common import Model, ModelParameter
 from ..utils import Array
 
@@ -38,7 +38,7 @@ class MappedModel(Model):
         self,
         inner: Model,
         mapped_params: Dict[str, str],
-        fixed_params: Dict[str, float] = None,
+        fixed_params: Optional[Dict[str, float]] = None,
     ):
         """Init
 
