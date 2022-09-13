@@ -185,7 +185,9 @@ class RabiFlopFreq(RabiFlop):
     ) -> Array[("num_samples",), np.float64]:
         t = param_values["t_pulse"] - param_values["t_dead"]
         detuning = x + param_values["delta"]
-        return super().func((t, detuning), param_values)
+        return super().func(
+            (t, detuning), param_values
+        )  # pytype: disable=wrong-arg-types
 
     def estimate_parameters(
         self,
@@ -251,7 +253,9 @@ class RabiFlopTime(RabiFlop):
     ) -> Array[("num_samples",), np.float64]:
         t = x - param_values["t_dead"]
         detuning = param_values["delta"]
-        return super().func((t, detuning), param_values)
+        return super().func(
+            (t, detuning), param_values
+        )  # pytype: disable=wrong-arg-types
 
     def estimate_parameters(
         self,
