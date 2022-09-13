@@ -57,12 +57,15 @@ class TestConfig:
         :param p_tol: tolerance to check fit significance against
         :param residual_tol: tolerance to check fit residuals against
         :param plot_failures: if `True` we plot the dataset/fit results for failed tests
+        :param plot_all: if `True` we plot every run, not just failures (used in
+            debugging)
     """
 
     param_tol: Optional[float] = 1e-3
     significance_tol: Optional[float] = None
     residual_tol: Optional[float] = None
     plot_failures: bool = True
+    plot_all: bool = False
 
 
 def check_single_param_set(
@@ -116,7 +119,12 @@ def check_single_param_set(
     if config.param_tol is not None and not params_close(
         test_params, fit.values, config.param_tol
     ):
-        _plot_failure(fit, y, config)
+        if config.plot_failures:
+            _plot(
+                fit,
+                y,
+            )
+
         raise ValueError(
             "Error in parameter values is too large:\n"
             f"test parameter set was: {params_str}\n"
@@ -128,7 +136,12 @@ def check_single_param_set(
         and fit.fit_significance is not None
         and fit.fit_significance < config.significance_tol
     ):
-        _plot_failure(fit, y, config)
+        if config.plot_failures:
+            _plot(
+                fit,
+                y,
+            )
+
         raise ValueError(
             f"Fit significance too low: {fit.fit_significance:.2f} < "
             f"{config.p_thresh:.2f}",
@@ -137,22 +150,26 @@ def check_single_param_set(
     if config.residual_tol is not None and not is_close(
         y, fit.evaluate()[1], config.residual_tol
     ):
-        _plot_failure(fit, y, config)
+        if config.plot_failures:
+            _plot(
+                fit,
+                y,
+            )
+
         raise ValueError(
             "Fitted data not close to model:\n"
             f"actual parameter set was {params_str}\n"
             f"fitted parameters were: {fitted_params_str}"
         )
 
+    if config.plot_all:
+        _plot(fit, y)
 
-def _plot_failure(
+
+def _plot(
     fit: fits.common.Fitter,
     y_model: fits.utils.Array[("num_samples",), np.float64],
-    config: TestConfig,
 ):
-    if not config.plot_failures:
-        return
-
     _, ax = plt.subplots(1, 2)
     ax[0].set_title(fit.model.__class__.__name__)
     ax[0].plot(fit.x, y_model, "-o", label="model")
