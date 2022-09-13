@@ -354,9 +354,9 @@ class Parabola(MappedModel):
         super()._inner_estimate_parameters(x, y, inner_parameters)
 
         if inner_parameters["x0"].get_initial_value() is None:
-            a_0 = inner_parameters["a_0"].get_initial_value()
-            a_1 = inner_parameters["a_1"].get_initial_value()
-            a_2 = inner_parameters["a_2"].get_initial_value()
+            a_0 = inner_parameters["a_0"].initialise()
+            a_1 = inner_parameters["a_1"].initialise()
+            a_2 = inner_parameters["a_2"].initialise()
 
             x0 = inner_parameters["x0"].initialise(-a_1 / (2 * a_2))
             inner_parameters["a_0"].initialise(a_0 - a_2 * x0**2)
