@@ -10,6 +10,7 @@ from .utils import Array, ArrayLike
 if TYPE_CHECKING:
     num_samples = float
     num_values = float
+    num_spectrum_pts = float
 
 
 @dataclasses.dataclass
@@ -284,27 +285,29 @@ class Model:
         opt = np.argmin(costs)
         return float(scanned_param_values[opt]), float(costs[opt])
 
-    def find_x_offset(
+    def find_x_offset_sampling(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         parameters: Dict[str, ModelParameter],
         width: float,
         param_name: str = "x0",
-    ) -> Tuple[float, float]:
-        """Finds the x-axis offset of a dataset.
+    ) -> float:
+        """Finds the x-axis offset of a dataset by stepping through a range of potential
+        offset values and picking the one that gives the lowest residuals.
 
         This method is typically called during parameter estimation after all other
         model parameters have been estimated from the periodogram (which is not itself
         sensitive to offsets).
 
-        There are a few ways we could have implemented this functionality: for strongly
+        There are a few ways one can implemented this functionality: for strongly
         peaked functions we could have used a simple peak search; we could have used an
         FFT, fitted a line to the phase and used the Fourier Transform Shift Theorem.
-        Instead we take a brute-force approach and evaluate the model at a range of
-        offset values, picking the one that gives the lowest residuals. This decision is
-        driven by wanting the parameter estimation to be highly robust in the face of
-        noisy, irregularly sampled data.
+
+        This function takes a more brute-force approach by evaluating the model at a
+        range of offset values, picking the one that gives the lowest residuals. This
+        may be appropriate where one needs the estimate to be highly robust in the face
+        of noisy, irregularly sampled data.
 
         :param x: x-axis data
         :param y: y-axis data
@@ -317,6 +320,39 @@ class Model:
         """
         offsets = np.arange(min(x), max(x), width / 6)
         return self.param_min_sqrs(x, y, parameters, param_name, offsets)[0]
+
+    def find_x_offset_fft(
+        self,
+        x: Array[("num_samples",), np.float64],
+        omega: Array[("num_spectrum_pts",), np.float64],
+        spectrum: Array[("num_spectrum_pts",), np.float64],
+        omega_cut_off: float,
+    ) -> float:
+        """Finds the x-axis offset of a dataset from the phase of an FFT.
+
+        This method is typically called during parameter estimation after all other
+        model parameters have been estimated from the periodogram (which is not itself
+        sensitive to offsets).
+
+        This method uses the FFT shift theorem to extract the offset from the phase
+        slope of an FFT.
+
+        :param omega: FFT frequency axis
+        :param spectrum: complex FFT data
+        :param omega_cut_off: highest value of omega to use in offset estimation
+
+        :returns: an estimate of the x-axis offset
+        """
+        keep = omega < omega_cut_off
+        omega = omega[keep]
+        phi = np.unwrap(np.angle(spectrum[keep]))
+        phi -= phi[0]
+
+        p = np.polyfit(omega, phi, deg=1)
+
+        x0 = min(x) - p[0]
+        x0 = x0 if x0 > min(x) else x0 + x.ptp()
+        return x0
 
     def get_initial_values(
         self, model_parameters: Optional[Dict[str, ModelParameter]] = None
