@@ -66,6 +66,9 @@ class ModelParameter:
         """
         scale_factor = self.scale_func(x_scale, y_scale, model)
 
+        if scale_factor is None:
+            raise ValueError("Scale factor must not be None during rescale")
+
         def _rescale(attr):
             if attr is None:
                 return None
