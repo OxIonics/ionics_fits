@@ -8,6 +8,7 @@ import test
 from test import (
     test_exponential,
     test_gaussian,
+    test_lorentzian,
     test_polynomial,
     test_rabi,
     test_rectangle,
@@ -24,6 +25,7 @@ if __name__ == "__main__":
     targets = {
         "exponential": test_exponential.fuzz_exponential,
         "gaussian": test_gaussian.fuzz_gaussian,
+        "lorentzian": test_lorentzian.fuzz_lorentzian,
         "polynomial": test_polynomial.fuzz_polynomial,
         "power": test_polynomial.fuzz_power,
         "rabi_freq": test_rabi.fuzz_rabi_freq,

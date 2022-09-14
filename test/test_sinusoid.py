@@ -7,17 +7,17 @@ import ionics_fits as fits
 
 def test_sinusoid():
     """Test for sinusoid.Sinusoid"""
-    x = np.linspace(-5, 20, 1000)
+    x = np.linspace(-10, 10, 1000)
     params = {
         "a": 2,
-        "omega": 1 / (2 * np.pi),
+        "omega": [1 / (2 * np.pi), 5 / (2 * np.pi), 10 / (2 * np.pi)],
         "phi": 0.5,
         "y0": 1,
         "x0": 0,
         "tau": np.inf,
     }
     model = fits.models.Sinusoid()
-    test.common.check_single_param_set(
+    test.common.check_multiple_param_sets(
         x, model, params, test.common.TestConfig(plot_failures=True)
     )
 

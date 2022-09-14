@@ -13,7 +13,7 @@ def test_rabi_freq():
         "P_upper": 1,
         "P_lower": 0,
         "delta": 0.5e6 * 2 * np.pi,
-        "omega": [0.25 * np.pi / 5e-6, np.pi / 5e-6],
+        "omega": np.array([0.1, 0.25, 1]) * np.pi / 5e-6,
         "t_pulse": 5e-6,
         "t_dead": 0,
         "tau": np.inf,
@@ -89,7 +89,7 @@ def fuzz_rabi_time(
     stop_at_failure: bool = True,
     test_config: Optional[test.common.TestConfig] = None,
 ) -> float:
-    t = np.linspace(0, 20e-6, 100) * 2 * np.pi
+    t = np.linspace(0, 20e-6, 400) * 2 * np.pi
     fuzzed_params = {
         "delta": [0, 0.3e6 * 2 * np.pi],
         "omega": [0.25 * np.pi / 5e-6, np.pi / 5e-6],
