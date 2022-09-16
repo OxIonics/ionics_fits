@@ -30,10 +30,10 @@ def fuzz_gaussian(
 ) -> float:
     x = np.linspace(-10, 10, 500)
     fuzzed_params = {
-        "x0": [0, 0.25],
-        "y0": [-1, 0, 1],
-        "a": [-5, 5],
-        "sigma": [0.1, 0.25, 1],
+        "x0": (0, 0.25),
+        "y0": (-1, 0, 1),
+        "a": (-5, 5),
+        "sigma": (0.1, 0.25, 1),
     }
     static_params = {}
 

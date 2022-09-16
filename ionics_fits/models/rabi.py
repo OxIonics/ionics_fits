@@ -55,6 +55,7 @@ class RabiFlop(Model):
     All phases are in radians, detunings are in angular units.
     """
 
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         # Beware if you're sub-typing this!
@@ -122,6 +123,8 @@ class RabiFlop(Model):
         y = P0 * y0 + P1 * y1
         return y
 
+    # pytype: enable=invalid-annotation
+
     @staticmethod
     def calculate_derived_params(
         fitted_params: Dict[str, float], fit_uncertainties: Dict[str, float]
@@ -182,7 +185,9 @@ class RabiFlopFreq(RabiFlop):
     ) -> Array[("num_samples",), np.float64]:
         t = param_values["t_pulse"] - param_values["t_dead"]
         detuning = x + param_values["delta"]
-        return super().func((t, detuning), param_values)
+        return super().func(
+            (t, detuning), param_values
+        )  # pytype: disable=wrong-arg-types
 
     def estimate_parameters(
         self,
@@ -248,7 +253,9 @@ class RabiFlopTime(RabiFlop):
     ) -> Array[("num_samples",), np.float64]:
         t = x - param_values["t_dead"]
         detuning = param_values["delta"]
-        return super().func((t, detuning), param_values)
+        return super().func(
+            (t, detuning), param_values
+        )  # pytype: disable=wrong-arg-types
 
     def estimate_parameters(
         self,

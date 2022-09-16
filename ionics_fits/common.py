@@ -66,6 +66,9 @@ class ModelParameter:
         """
         scale_factor = self.scale_func(x_scale, y_scale, model)
 
+        if scale_factor is None:
+            raise ValueError("Scale factor must not be None during rescale")
+
         def _rescale(attr):
             if attr is None:
                 return None
@@ -102,7 +105,7 @@ class ModelParameter:
         """Clip value to lie between lower and upper bounds."""
         return np.clip(value, self.lower_bound, self.upper_bound)
 
-    def initialise(self, estimate: float) -> float:
+    def initialise(self, estimate: Optional[float] = None) -> float:
         """Sets the parameter's initial value based on the supplied estimate. If an
         initial value is already known for this parameter (see :meth get_initial_value:)
         we use that instead of the supplied estimate. The value is clipped to lie
@@ -606,7 +609,7 @@ class Fitter:
             x_fit = np.linspace(np.min(self.x), np.max(self.x), x_fit)
 
         y_fit = self.model.func(x_fit, self.values)
-        return x_fit, y_fit
+        return x_fit, y_fit  # type: ignore
 
     def residuals(self) -> Array[("num_samples",), np.float64]:
         """Returns an array of fit residuals."""

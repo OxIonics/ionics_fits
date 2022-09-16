@@ -30,10 +30,10 @@ def fuzz_lorentzian(
 ) -> float:
     x = np.linspace(-4, 4, 1000)
     fuzzed_params = {
-        "x0": [0, 0.25],
-        "y0": [-1, 1],
-        "a": [-5, 5],
-        "fwhmh": [0.1, 1],
+        "x0": (0, 0.25),
+        "y0": (-1, 1),
+        "a": (-5, 5),
+        "fwhmh": (0.1, 1),
     }
     static_params = {}
 

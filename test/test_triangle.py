@@ -32,10 +32,10 @@ def fuzz_triangle(
 ) -> float:
     x = np.linspace(-2, 2, 100)
     fuzzed_params = {
-        "x0": [-1, +1],
-        "y0": [-1, +1],
-        "k": [-5, +5],
-        "sym": [-0.5, 0.5],
+        "x0": (-1, +1),
+        "y0": (-1, +1),
+        "k": (-5, +5),
+        "sym": (-0.5, 0.5),
     }
     static_params = {"y_min": -np.inf, "y_max": +np.inf}
 

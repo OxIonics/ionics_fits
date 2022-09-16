@@ -16,6 +16,7 @@ poethepoet = "^0.12.1"
 flake8 = "^4.0.1"
 black = "^22.6.0"
 matplotlib = "^3.5.3"
+pytype = {version = "^2022.4.15", markers = "os_name == 'posix'"}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -30,3 +31,4 @@ fmt-test = "black --check ."
 fmt = "black ."
 flake = "flake8 ."
 fuzz = "python -m test.fuzz"
+types = { script = "run_pytype:main" }

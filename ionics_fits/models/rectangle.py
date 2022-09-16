@@ -31,6 +31,7 @@ class Rectangle(Model):
         self.thresh = thresh
         super().__init__()
 
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -40,6 +41,8 @@ class Rectangle(Model):
         x_r: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
     ) -> Array[("num_samples",), np.float64]:
         return np.where(np.logical_and(x_r > x, x > x_l), y0 + a, y0)
+
+    # pytype: enable=invalid-annotation
 
     def estimate_parameters(
         self,
@@ -73,7 +76,7 @@ class Rectangle(Model):
             model_parameters["y0"].initialise(0.5 * (y[0] + y[-1]))
 
         elif "x_l" not in unknowns:
-            x_l = model_parameters["x_l"].get_initial_value()
+            x_l = model_parameters["x_l"].initialise()
 
             if min(x) < x_l:
                 model_parameters["y0"].initialise(np.mean(y[x < x_l]))
@@ -82,7 +85,7 @@ class Rectangle(Model):
                 model_parameters["a"].initialise(y[0] - y0)
 
         elif "x_r" not in unknowns:
-            x_r = model_parameters["x_r"].get_initial_value()
+            x_r = model_parameters["x_r"].initialise()
             if max(x) > x_r:
                 model_parameters["y0"].initialise(np.mean(y[x > x_r]))
             else:
@@ -90,9 +93,12 @@ class Rectangle(Model):
                 model_parameters["a"].initialise(y[-1] - y0)
 
         else:
+            x_l = model_parameters["x_l"].initialise()
+            x_r = model_parameters["x_r"].initialise()
+
             outside = np.logical_or(x <= x_l, x >= x_r)
             inside = np.logical_and(x > x_l, x < x_r)
-            y0 = model_parameters["y0"].initilise(np.mean(y[outside]))
+            y0 = model_parameters["y0"].initialise(np.mean(y[outside]))
             model_parameters["a"].initialise(np.mean(y[outside] - y0))
 
         y0 = model_parameters["y0"].get_initial_value()

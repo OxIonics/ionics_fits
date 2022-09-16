@@ -42,6 +42,7 @@ class Power(Model):
         None
     """
 
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -54,6 +55,8 @@ class Power(Model):
         parameter values and returns the result."""
         assert all(x - x0 >= 0), "`x - x0` must be > 0"
         return a * np.float_power(x - x0, n) + y0
+
+    # pytype: enable=invalid-annotation
 
     def estimate_parameters(
         self,
@@ -351,9 +354,9 @@ class Parabola(MappedModel):
         super()._inner_estimate_parameters(x, y, inner_parameters)
 
         if inner_parameters["x0"].get_initial_value() is None:
-            a_0 = inner_parameters["a_0"].get_initial_value()
-            a_1 = inner_parameters["a_1"].get_initial_value()
-            a_2 = inner_parameters["a_2"].get_initial_value()
+            a_0 = inner_parameters["a_0"].initialise()
+            a_1 = inner_parameters["a_1"].initialise()
+            a_2 = inner_parameters["a_2"].initialise()
 
             x0 = inner_parameters["x0"].initialise(-a_1 / (2 * a_2))
-            inner_parameters["a_0"].initialisee(a_0 - a_2 * x0**2)
+            inner_parameters["a_0"].initialise(a_0 - a_2 * x0**2)

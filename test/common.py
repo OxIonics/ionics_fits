@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pprint
 import traceback
-from typing import Callable, Dict, Optional, Tuple, Type, TYPE_CHECKING
+from typing import Callable, Dict, Optional, List, Tuple, Type, TYPE_CHECKING
 
 import ionics_fits as fits
 
@@ -144,7 +144,7 @@ def check_single_param_set(
 
         raise ValueError(
             f"Fit significance too low: {fit.fit_significance:.2f} < "
-            f"{config.p_thresh:.2f}",
+            f"{config.residual_tol:.2f}",
         )
 
     if config.residual_tol is not None and not is_close(
@@ -209,7 +209,7 @@ def _plot(
 def check_multiple_param_sets(
     x: fits.utils.ArrayLike[("num_samples",), np.float64],
     model: fits.common.Model,
-    test_params: Dict[str, float],
+    test_params: Dict[str, List[float]],
     config: Optional[TestConfig] = None,
     fitter_cls: Type[fits.common.Fitter] = fits.normal.NormalFitter,
 ):
@@ -270,7 +270,7 @@ def fuzz(
     static_params: Dict[str, float],
     fuzzed_params: Dict[str, Tuple[float, float]],
     test_config: Optional[TestConfig] = None,
-    fitter_cls: Type[fits.common.Fitter] = fits.normal.NormalFitter,
+    fitter_cls: Optional[Type[fits.common.Fitter]] = fits.normal.NormalFitter,
     num_trials: int = 100,
     stop_at_failure: bool = True,
     param_generator: Optional[

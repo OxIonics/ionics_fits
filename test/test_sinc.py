@@ -59,10 +59,10 @@ def sinc_fuzzer(
 ) -> float:
     x = np.linspace(-10, 20, 500)
     fuzzed_params = {
-        "x0": [-8, 15],
-        "y0": [-10, 10],
-        "a": [0.25, 4],
-        "w": [1, 10],
+        "x0": (-8, 15),
+        "y0": (-10, 10),
+        "a": (0.25, 4),
+        "w": (1, 10),
     }
     static_params = {}
     test_config = test_config or test.common.TestConfig()
@@ -86,7 +86,7 @@ def fuzz_sinc(
     stop_at_failure: bool = True,
     test_config: Optional[test.common.TestConfig] = None,
 ) -> float:
-    sinc_fuzzer(
+    return sinc_fuzzer(
         model=fits.models.sinc.Sinc(),
         num_trials=num_trials,
         stop_at_failure=stop_at_failure,
@@ -99,7 +99,7 @@ def fuzz_sinc2(
     stop_at_failure: bool = True,
     test_config: Optional[test.common.TestConfig] = None,
 ) -> float:
-    sinc_fuzzer(
+    return sinc_fuzzer(
         model=fits.models.sinc.Sinc2(),
         num_trials=num_trials,
         stop_at_failure=stop_at_failure,

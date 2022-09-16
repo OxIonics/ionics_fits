@@ -24,6 +24,7 @@ class Lorentzian(Model):
         None
     """
 
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -36,6 +37,8 @@ class Lorentzian(Model):
     ) -> Array[("num_samples",), np.float64]:
         y = a * fwhmh**2 / ((x - x0) ** 2 + fwhmh**2) + y0
         return y
+
+    # pytype: enable=invalid-annotation
 
     def estimate_parameters(
         self,
