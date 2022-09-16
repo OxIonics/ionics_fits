@@ -65,7 +65,7 @@ class NormalFitter(Fitter):
             f"{pprint.pformat(p0_dict)}"
         )
 
-        p, p_cov, infodict, mesg, ier = optimize.curve_fit(
+        p, p_cov = optimize.curve_fit(
             f=free_func,
             xdata=x,
             ydata=y,
@@ -74,17 +74,12 @@ class NormalFitter(Fitter):
             absolute_sigma=sigma is not None,
             bounds=(lower, upper),
             method="trf",
-            full_output=True,
         )
 
         p_err = np.sqrt(np.diag(p_cov))
 
         p = {param: value for param, value in zip(free_parameters, p)}
         p_err = {param: value for param, value in zip(free_parameters, p_err)}
-
-        logger.debug(
-            f"Least-squares fit complete: " f"{infodict}\n" f"{mesg}\n" f"{ier}"
-        )
 
         return p, p_err
 
