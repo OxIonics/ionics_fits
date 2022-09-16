@@ -538,7 +538,7 @@ class Fitter:
         }
 
         (
-            self.derived_params,
+            self.derived_values,
             self.derived_uncertainties,
         ) = model.calculate_derived_params(fitted_params, uncertainties)
 
