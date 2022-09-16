@@ -568,7 +568,7 @@ typing-extensions = ">=3.7.4"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <3.11"
-content-hash = "e1aecb27038ce9afb6a9fb758e1914cf41e47761edafef5b77401e1529ca48e3"
+content-hash = "b60fdc894d3d55d774bb66d0b1783b54d363381938e8250e01947448e1e03e11"
 
 [metadata.files]
 atomicwrites = []
