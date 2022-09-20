@@ -127,7 +127,10 @@ class RabiFlop(Model):
 
     @staticmethod
     def calculate_derived_params(
-        fitted_params: Dict[str, float], fit_uncertainties: Dict[str, float]
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float]
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """
         Returns dictionaries of values and uncertainties for the derived model
@@ -135,6 +138,8 @@ class RabiFlop(Model):
         being directly part of the fit) based on values of the fitted parameters and
         their uncertainties.
 
+        :param x: x-axis data
+        :param y: y-axis data
         :param: fitted_params: dictionary mapping model parameter names to their
             fitted values.
         :param fit_uncertainties: dictionary mapping model parameter names to
