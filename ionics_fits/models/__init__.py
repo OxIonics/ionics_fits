@@ -1,5 +1,12 @@
 from .exponential import Exponential
 from .gaussian import Gaussian
+from .laser_rabi import (
+    LaserFlop,
+    LaserFlopCoherent,
+    LaserFlopThermal,
+    LaserFlopTimeCoherent,
+    LaserFlopTimeThermal,
+)
 from .lorentzian import Lorentzian
 from .polynomial import Power, Polynomial, Line, Parabola
 from .rabi import RabiFlopFreq, RabiFlopTime
