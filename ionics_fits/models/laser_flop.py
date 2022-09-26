@@ -37,7 +37,7 @@ def matrix_element_displacement_operator(m: int, n: int, alpha: float) -> float:
         k = -np.conjugate(alpha)
 
     if m == n:
-        r = 1.0 
+        r = 1.0
     else:
         r = 1 / np.prod(np.sqrt(np.arange(n_g, n_l, -1)))
 
@@ -138,7 +138,7 @@ def fock_transition_probability(
     :param sb: Change in motional state for the sideband addressed by the
         driving field, -1 for first-order red sideband...
     """
-    if type(sb) is not int:
+    if not isinstance(sb, int):
         raise ValueError("Sideband variable must be integer.")
 
     t_arr = np.atleast_1d(t)
@@ -146,7 +146,7 @@ def fock_transition_probability(
     n_arr = np.atleast_1d(n)
 
     # Array to contain effective Rabi frequency for each Fock state
-    omega_arr = np.zeros(n_arr.shape)
+    omega_arr = np.zeros_like(n_arr, dtype=np.float64)
     for i in range(n_arr.shape[-1]):
         # If the array_like parameter n has been passed correctly, all
         # elements of the slice should be equal, so just pick one of them
