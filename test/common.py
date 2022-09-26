@@ -228,13 +228,13 @@ def check_multiple_param_sets(
         [
             param
             for param, param_data in model.parameters.items()
-            if param_data.fixed_to is None
+            if param_data.fixed_to is not None
         ]
     )
 
     assert input_params.union(fixed_params) == model_params, (
-        f"Input parameters ({input_params}) + fixed parameters ({fixed_params}) match "
-        f"the set of model parameters ({model_params})"
+        f"Input parameters ({input_params}) + fixed parameters ({fixed_params}) must "
+        f" match the set of model parameters ({model_params})"
     )
 
     test_params = dict(test_params)

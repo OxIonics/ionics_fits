@@ -143,14 +143,8 @@ class Model:
             behaviour during fitting (e.g. to change the bounds, fixed parameters, etc).
         """
         if parameters is None:
-            spec = inspect.getfullargspec(self._func)
-            for name in spec.args[2:]:
-                assert isinstance(
-                    spec.annotations[name], ModelParameter
-                ), "Model parameters must be instances of `ModelParameter`"
-            self.parameters = {
-                name: copy.deepcopy(spec.annotations[name]) for name in spec.args[2:]
-            }
+            self.parameters = {}
+            self._extend_parameters(self._func, skip=2)
         else:
             self.parameters = parameters
 
@@ -192,6 +186,27 @@ class Model:
         :returns: array of model values
         """
         raise NotImplementedError
+
+    def _extend_parameters(self, function: Callable, skip: int):
+        """Extends `self.parameters` by adding the arguments of `function`.
+
+        The first `skip` arguments of `function` are ignored, all other arguments must
+        be annotated with instances of :class ModelParameter:.
+        """
+        spec = inspect.getfullargspec(function)
+        for name in spec.args[skip:]:
+            assert isinstance(
+                spec.annotations[name], ModelParameter
+            ), "Model parameters must be instances of `ModelParameter`"
+
+        new_params = {
+            name: copy.deepcopy(spec.annotations[name]) for name in spec.args[skip:]
+        }
+
+        duplicates = set(new_params.keys()).intersection(self.parameters.keys())
+        assert not duplicates, f"Duplicate model parameters: {duplicates}"
+
+        self.parameters.update(new_params)
 
     def estimate_parameters(
         self,
