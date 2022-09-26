@@ -105,6 +105,7 @@ def check_single_param_set(
     try:
         fit = fitter_cls(x=x, y=y, sigma=None, model=model)
     except RuntimeError as ex:
+        print(ex)
         raise RuntimeError(
             f"{model.__class__.__name__} fit failed! Parameters were:\n"
             f"{pprint.pformat(test_params, indent=4)}\n"

@@ -19,7 +19,7 @@ def thermal_distribution(
     state of mean occupancy :param n_bar:, truncated at a maximum Fock state of |n_max>
     """
     n = np.arange(n_max + 1)
-    return n / (n_bar + 1) * (n_bar / (n_bar + 1))
+    return 1 / (n_bar + 1) * (n_bar / (n_bar + 1)) ** n
 
 
 def thermal_state_estimator(
@@ -27,6 +27,11 @@ def thermal_state_estimator(
     y: Array[("num_samples",), np.float64],
     model_parameters: Dict[str, ModelParameter],
 ):
+    # TODO: is this how we want to structure this? Do we need different time / detuning
+    # estimators? If so, this is perhaps better done through inheritance...
+    # This is also pretty fragile. If we want to improve we could probably
+    # get a decent guess for n_bar + omega based on the dephasing rate but is it worth
+    # the effort?
     model_parameters["n_bar"].initialise(0)
 
 
@@ -69,15 +74,15 @@ class LaserFlop(fits.Model):
         n_i = np.arange(self.n_max + 1)
         n_f = n_i + self.sideband
 
-        omega_vec = omega_0 * np.exp(-(eta**2 / 2))
 
+        # TODO: fix this section!
+        omega_vec = omega_0 * np.exp(-(eta**2 / 2)) * eval_genlaguerre(n_i, np.abs(self.sideband), eta**2)
         if self.sideband != 0:
-            omega_vec = np.divide(
-                omega_vec * eta * eval_genlaguerre(n_i, 1, eta**2),
-                np.sqrt(n_f),
-                out=np.zeros_like(n_i),
-                where=n_f > 0,
-            )
+            omega_vec *= np.power(eta, np.abs(self.sideband))
+            if sideband == +1:
+                omega_vec /= np.sqrt(n_f)
+            else:
+                omega_vec *= np.sqrt(n_i)
 
         t_vec = np.clip(np.asarray(x[0]) - t_dead, a_min=0, a_max=None)
         detuning_vec = np.asarray(x[1])
@@ -119,7 +124,7 @@ class LaserFlopTime(LaserFlop):
 
         self.parameters["delta"] = ModelParameter()
 
-        self.parameters["delta"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
+        self.parameters["delta"].scale_func = lambda x_scale, y_scale, _: None #1 / x_scale
         self.parameters["omega_0"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         self.parameters["t_dead"].scale_func = lambda x_scale, y_scale, _: x_scale
 
