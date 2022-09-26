@@ -1,6 +1,6 @@
 from .exponential import Exponential
 from .gaussian import Gaussian
-from .laser_rabi import (
+from .laser_flop import (
     LaserFlop,
     LaserFlopCoherent,
     LaserFlopThermal,
