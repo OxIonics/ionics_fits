@@ -4,8 +4,8 @@ import logging
 import time
 import traceback
 
-import test
-from test import (
+from . import (
+    common,
     test_exponential,
     test_gaussian,
     test_lorentzian,
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     args.targets = args.targets or targets.keys()
     args.targets = [args.targets] if isinstance(args.targets, str) else args.targets
 
-    test_config = test.common.TestConfig(plot_failures=args.plot_failures)
+    test_config = common.TestConfig(plot_failures=args.plot_failures)
     for target in args.targets:
         logger.info(f"Fuzzing {target}...")
         t0 = time.time()
