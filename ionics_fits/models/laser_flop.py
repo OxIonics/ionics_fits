@@ -12,28 +12,31 @@ if TYPE_CHECKING:
     num_fock_states = float
 
 
-def thermal_distribution(
+def thermal_state_probs(
     n_max: int, n_bar: ModelParameter(lower_bound=0)
 ) -> Array[("num_fock_states",), np.float64]:
-    """Returns an array with the Fock state occupation probabilities for a thermal
+    """ Returns an array with the Fock state occupation probabilities for a thermal
     state of mean occupancy :param n_bar:, truncated at a maximum Fock state of |n_max>
     """
     n = np.arange(n_max + 1)
     return 1 / (n_bar + 1) * (n_bar / (n_bar + 1)) ** n
 
 
-def thermal_state_estimator(
-    x: Array[("num_samples",), np.float64],
-    y: Array[("num_samples",), np.float64],
-    model_parameters: Dict[str, ModelParameter],
-):
-    # TODO: is this how we want to structure this? Do we need different time / detuning
-    # estimators? If so, this is perhaps better done through inheritance...
-    # This is also pretty fragile. If we want to improve we could probably
-    # get a decent guess for n_bar + omega based on the dephasing rate but is it worth
-    # the effort?
-    model_parameters["n_bar"].initialise(0)
+def coherent_state_probs(n_max: int, alpha: ModelParameter(lower_bound=0)
+) -> Array[("num_fock_states",), np.float64]:
+    """Returns an array with the Fock state occupation probabilities for a coherent
+    state described by :param alpha:, truncated at a maximum Fock state of |n_max>
+    """
+    # TODO: check this and maybe tidy up
+    n = np.arange(n_max + 1)
+    if alpha == 0.0:
+        P_arr = np.zeros(n_arr.size)
+        P_arr[np.nonzero(n_arr == 0)] = 1.0
+        return P_arr
 
+    return np.exp(-np.abs(alpha) ** 2) * np.exp(
+        n_arr * np.log(np.abs(alpha) ** 2) - gammaln(n_arr + 1)
+    )
 
 class LaserFlop(fits.Model):
     """Add note here that we split the dynamics into decoupled two-state systems etc"""
@@ -41,7 +44,6 @@ class LaserFlop(fits.Model):
     def __init__(
         self,
         prob_fun: Callable,
-        param_estimator: Callable,
         sideband: int,
         n_max: int,
         prepare_excited: bool = True,
@@ -57,7 +59,6 @@ class LaserFlop(fits.Model):
         self.n_max = n_max
         self.prepare_excited = True
         self.prob_fun = prob_fun
-        self.param_estimator = param_estimator
 
     def _func(
         self,
@@ -115,17 +116,31 @@ class LaserFlop(fits.Model):
 
         return P
 
+    def estimate_parameters(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        model_parameters: Dict[str, ModelParameter],
+    ):
+        """ Estimates the common parameters. Subcalsses should extend this method to add
+        heuristics for parameters associated with time / detuning scans and particular
+        Fock state distributions.
+        """
+        model_parameters["eta"].initialise(0.0)
+        model_parameters["P_readout_g"].initialise(0.0)
+        model_parameters["P_readout_e"].initialise(1.0)
+        model_parameters["t_dead"].initialise(0.0)
+
 
 class LaserFlopTime(LaserFlop):
     def __init__(
         self,
         prob_fun: Callable,
-        param_estimator: Callable,
         sideband: int,
         n_max: int,
         prepare_excited: bool = True,
     ):
-        super().__init__(prob_fun, param_estimator, sideband, n_max, prepare_excited)
+        super().__init__(prob_fun, sideband, n_max, prepare_excited)
 
         self.parameters["delta"] = ModelParameter()
 
@@ -147,44 +162,60 @@ class LaserFlopTime(LaserFlop):
         delta = param_values.pop("delta")  # TODO: think more about handling of this...
         return super().func((t, delta), param_values)
 
+
+class LaserFlopTimeThermal(LaserFlopTime):
+    def __init__(self, sideband, n_max, prepare_excited: bool = True):
+        super().__init__(
+            thermal_state_probs,
+            sideband,
+            n_max,
+            prepare_excited,
+        )
+
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """
-        Sets initial values for model parameters based on heuristics. Typically
-        called during `Fitter.fit`.
-        Heuristic results should be stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
-        :param x: x-axis data
-        :param y: y-axis data
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
-        """
+        super().estimate_parameters(x, y, model_parameters)
         model_parameters["delta"].initialise(0.0)
-        model_parameters["eta"].initialise(0.0)
-        model_parameters["P_readout_g"].initialise(0.0)
-        model_parameters["P_readout_e"].initialise(1.0)
-        model_parameters["t_dead"].initialise(0.0)
 
         if model_parameters["omega_0"].get_initial_value() is None:
-            fit = fits.NormalFitter(x, y, fits.models.Sinusoid())
-            model_parameters["omega_0"].initialise(fit.values["omega"])
+            sinusoud = fits.models.Sinusoid()
+            model.estimate_parameters(x, y, model.parameters)
+            omega_0 = model.parameters["omega"].get_initial_value()
+            model_parameters["omega_0"].initialise(omega_0)
 
-        self.param_estimator(x, y, model_parameters)
+        # TODO: this is a bit fragile and could be improved.
+        # Idea: float decay in the sinusoid fit and pull an estimate for omega_0 and
+        # n_bar out of the sinusoid rabi frequency / decay constant?
+        model_parameters["n_bar"].initialise(1.0)
 
 
-class LaserFlopTimeThermal(LaserFlopTime):
+class LaserFlopTimeCoherent(LaserFlopTime):
     def __init__(self, sideband, n_max, prepare_excited: bool = True):
         super().__init__(
-            thermal_distribution,
-            thermal_state_estimator,
+            coherent_state_probs,
             sideband,
             n_max,
             prepare_excited,
         )
+
+    def estimate_parameters(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        model_parameters: Dict[str, ModelParameter],
+    ):
+        super().estimate_parameters(x, y, model_parameters)
+        model_parameters["delta"].initialise(0.0)
+
+        if model_parameters["omega_0"].get_initial_value() is None:
+            sinusoud = fits.models.Sinusoid()
+            model.estimate_parameters(x, y, model.parameters)
+            omega_0 = model.parameters["omega"].get_initial_value()
+            model_parameters["omega_0"].initialise(omega_0)
+
+        # TODO: this is a bit fragile and could be improved.
+        model_parameters["alpha"].initialise(0.)
