@@ -1,7 +1,7 @@
 from typing import Callable, Dict, TYPE_CHECKING, Tuple
 
 import numpy as np
-from scipy.special import eval_genlaguerre
+from scipy.special import eval_genlaguerre, factorial, gammaln
 
 from ionics_fits.common import Array, ModelParameter
 import ionics_fits as fits
@@ -18,8 +18,8 @@ def thermal_state_probs(
     """ Returns an array with the Fock state occupation probabilities for a thermal
     state of mean occupancy :param n_bar:, truncated at a maximum Fock state of |n_max>
     """
-    n = np.arange(n_max + 1)
-    return 1 / (n_bar + 1) * (n_bar / (n_bar + 1)) ** n
+    n = np.arange(n_max + 1, dtype=int)
+    return 1 / (n_bar + 1) * np.power((n_bar / (n_bar + 1)), n)
 
 
 def coherent_state_probs(n_max: int, alpha: ModelParameter(lower_bound=0)
@@ -27,15 +27,10 @@ def coherent_state_probs(n_max: int, alpha: ModelParameter(lower_bound=0)
     """Returns an array with the Fock state occupation probabilities for a coherent
     state described by :param alpha:, truncated at a maximum Fock state of |n_max>
     """
-    # TODO: check this and maybe tidy up
-    n = np.arange(n_max + 1)
-    if alpha == 0.0:
-        P_arr = np.zeros(n_arr.size)
-        P_arr[np.nonzero(n_arr == 0)] = 1.0
-        return P_arr
-
+    n = np.arange(n_max + 1, dtype=int)
+    # return np.exp(-0.5*alpha**2) * np.power(alpha, n) / np.sqrt(factorial(n))
     return np.exp(-np.abs(alpha) ** 2) * np.exp(
-        n_arr * np.log(np.abs(alpha) ** 2) - gammaln(n_arr + 1)
+        n * np.log(np.abs(alpha) ** 2) - gammaln(n + 1)
     )
 
 class LaserFlop(fits.Model):
@@ -181,16 +176,14 @@ class LaserFlopTimeThermal(LaserFlopTime):
         super().estimate_parameters(x, y, model_parameters)
         model_parameters["delta"].initialise(0.0)
 
-        if model_parameters["omega_0"].get_initial_value() is None:
-            sinusoud = fits.models.Sinusoid()
-            model.estimate_parameters(x, y, model.parameters)
-            omega_0 = model.parameters["omega"].get_initial_value()
-            model_parameters["omega_0"].initialise(omega_0)
+        sinusoid = fits.models.Sinusoid()
+        sinusoid.parameters["tau"].fixed_to = None
+        fit = fits.NormalFitter(x, y, sinusoid)
+        model_parameters["omega_0"].initialise(fit.values["omega"])
 
-        # TODO: this is a bit fragile and could be improved.
-        # Idea: float decay in the sinusoid fit and pull an estimate for omega_0 and
-        # n_bar out of the sinusoid rabi frequency / decay constant?
-        model_parameters["n_bar"].initialise(1.0)
+        tau = fit.values["tau"] * fit.values["omega"]
+        n_bar = 2*np.log(700 / (tau - 15))
+        model_parameters["n_bar"].initialise(n_bar)
 
 
 class LaserFlopTimeCoherent(LaserFlopTime):
