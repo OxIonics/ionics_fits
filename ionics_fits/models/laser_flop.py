@@ -71,18 +71,23 @@ class LaserFlop(fits.Model):
         t_dead: ModelParameter(lower_bound=0.0, fixed_to=0),
         **kwargs,
     ):
-        n_i = np.arange(self.n_max + 1)
-        n_f = n_i + self.sideband
+        n = np.arange(self.n_max + 1)
+        n_min = n - np.abs(self.sideband)
+        n_max = n + np.abs(self.sideband)
 
+        omega_vec = (
+            omega_0
+            * np.exp(-0.5 * eta**2)
+            * eval_genlaguerre(n_min, np.abs(self.sideband), eta**2)
+        )
 
-        # TODO: fix this section!
-        omega_vec = omega_0 * np.exp(-(eta**2 / 2)) * eval_genlaguerre(n_i, np.abs(self.sideband), eta**2)
         if self.sideband != 0:
-            omega_vec *= np.power(eta, np.abs(self.sideband))
-            if sideband == +1:
-                omega_vec /= np.sqrt(n_f)
-            else:
-                omega_vec *= np.sqrt(n_i)
+            omega_vec = np.divide(
+                omega_vec * np.power(eta, np.abs(self.sideband)),
+                np.sqrt(n_max),
+                out=np.zeros_like(omega_vec),
+                where=n_max > 0,
+            )
 
         t_vec = np.clip(np.asarray(x[0]) - t_dead, a_min=0, a_max=None)
         detuning_vec = np.asarray(x[1])
@@ -124,7 +129,9 @@ class LaserFlopTime(LaserFlop):
 
         self.parameters["delta"] = ModelParameter()
 
-        self.parameters["delta"].scale_func = lambda x_scale, y_scale, _: None #1 / x_scale
+        self.parameters[
+            "delta"
+        ].scale_func = lambda x_scale, y_scale, _: None  # 1 / x_scale
         self.parameters["omega_0"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         self.parameters["t_dead"].scale_func = lambda x_scale, y_scale, _: x_scale
 
@@ -161,8 +168,8 @@ class LaserFlopTime(LaserFlop):
         """
         model_parameters["delta"].initialise(0.0)
         model_parameters["eta"].initialise(0.0)
-        model_parameters["P_readout_g"].initialise(0.)
-        model_parameters["P_readout_e"].initialise(1.)
+        model_parameters["P_readout_g"].initialise(0.0)
+        model_parameters["P_readout_e"].initialise(1.0)
         model_parameters["t_dead"].initialise(0.0)
 
         if model_parameters["omega_0"].get_initial_value() is None:
@@ -170,6 +177,7 @@ class LaserFlopTime(LaserFlop):
             model_parameters["omega_0"].initialise(fit.values["omega"])
 
         self.param_estimator(x, y, model_parameters)
+
 
 class LaserFlopTimeThermal(LaserFlopTime):
     def __init__(self, sideband, n_max, prepare_excited: bool = True):
