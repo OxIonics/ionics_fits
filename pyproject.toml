@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ionics_fits"
-version = "0.0.1"
+version = "0.1"
 description = "Lightweight Python data fitting library with an emphasis on AMO/Quantum Information"
 authors = ["hartytp <thomas.peter.harty@gmail.com>"]
 
