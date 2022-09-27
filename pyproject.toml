@@ -18,8 +18,15 @@ black = "^22.6.0"
 matplotlib = "^3.5.3"
 pytype = {version = "^2022.4.15", markers = "os_name == 'posix'"}
 
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+style = "pep440"
+format-jinja = "{{ base }}.{{ distance }}+g{{ commit }}"
+pattern = "^(?P<base>\\d+(\\.\\d+)*)"
+
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
