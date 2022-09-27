@@ -132,14 +132,14 @@ probably better suited to your own codebase.
 
 The library is designed to be extensible and ergonomic to user. Want to use different
 statistics? Easy, just provide a new class that inherits from `FitBase`. Want to do some
-custom post-fit processing? Override the `post_fit` method. Want to tweak the parameter
-estimator for a model? Create a new model class that inherits from the original model
-and modify away. If you're struggling to do what you want, it's probably a bug in the
-library so report it.
+custom post-fit processing? Override the `calculate_derived_parameters` method. Want to
+tweak the parameter estimator for a model? Create a new model class that inherits from
+the original model and modify away. If you're struggling to do what you want, it's
+probably a bug in the library so report it.
 
-At present the library is still an MVP. While we do provide some hooks like `post_fit`
-there aren't many. The addition of further hooks will be driven by use cases, so please
-open an issue if you find you can't easily extend the library in the way you want.
+At present the library is still an MVP. While we do provide some hooks there aren't
+many. The addition of further hooks will be driven by use cases, so please open an issue
+if you find you can't easily extend the library in the way you want.
 
 # Ontology
 
