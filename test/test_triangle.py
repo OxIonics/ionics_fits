@@ -17,6 +17,8 @@ def test_triangle():
         "y_max": +np.inf,
     }
     model = fits.models.Triangle()
+    model.parameters["sym"].fixed_to = None
+
     common.check_multiple_param_sets(
         x,
         model,
@@ -40,6 +42,8 @@ def fuzz_triangle(
     static_params = {"y_min": -np.inf, "y_max": +np.inf}
 
     model = fits.models.Triangle()
+    model.parameters["sym"].fixed_to = None
+
     test_config = test_config or common.TestConfig()
     test_config.plot_failures = True
 
