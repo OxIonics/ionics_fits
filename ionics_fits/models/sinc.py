@@ -1,9 +1,11 @@
 from typing import Dict, TYPE_CHECKING
 import numpy as np
 
+from .rectangle import Rectangle
+from .triangle import Triangle
+from .utils import get_spectrum
 from .. import NormalFitter, Model, ModelParameter
 from ..utils import Array
-import ionics_fits as fits
 
 if TYPE_CHECKING:
     num_samples = float
@@ -62,11 +64,11 @@ class Sinc(Model):
         """
         y0 = model_parameters["y0"].initialise(np.mean([y[0], y[-1]]))
 
-        omega, spectrum = fits.models.utils.get_spectrum(x, y, trim_dc=True)
+        omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
 
         # Fourier transform of a sinc is a rectangle
-        rect = fits.models.rectangle.Rectangle()
+        rect = Rectangle()
         rect.parameters["y0"].fixed_to = 0
         rect.parameters["x_l"].fixed_to = 0
         rect.parameters["a"].initialise(max(abs_spectrum))
@@ -133,11 +135,11 @@ class Sinc2(Model):
         """
         y0 = model_parameters["y0"].initialise(np.mean([y[0], y[-1]]))
 
-        omega, spectrum = fits.models.utils.get_spectrum(x, y, trim_dc=True)
+        omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
 
         # Fourier transform of a sinc^2 is a triangle function
-        tri = fits.models.triangle.Triangle()
+        tri = Triangle()
         tri.parameters["x0"].fixed_to = 0
         tri.parameters["y0"].initialise(max(abs_spectrum))
         tri.parameters["sym"].fixed_to = 0

@@ -1,8 +1,8 @@
 from typing import Optional
 import numpy as np
-import test
 
 import ionics_fits as fits
+from . import common
 
 
 def test_rabi_freq():
@@ -20,11 +20,11 @@ def test_rabi_freq():
     }
 
     model = fits.models.RabiFlopFreq()
-    test.common.check_multiple_param_sets(
+    common.check_multiple_param_sets(
         delta,
         model,
         params,
-        test.common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=True),
     )
 
 
@@ -41,18 +41,18 @@ def test_rabi_time():
         "tau": np.inf,
     }
     model = fits.models.RabiFlopTime()
-    test.common.check_multiple_param_sets(
+    common.check_multiple_param_sets(
         t,
         model,
         params,
-        test.common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
+        common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
     )
 
 
 def fuzz_rabi_freq(
     num_trials: int = 100,
     stop_at_failure: bool = True,
-    test_config: Optional[test.common.TestConfig] = None,
+    test_config: Optional[common.TestConfig] = None,
 ) -> float:
     delta = np.linspace(-2e6, 2e6, 200) * 2 * np.pi
     fuzzed_params = {
@@ -69,10 +69,10 @@ def fuzz_rabi_freq(
         "tau": np.inf,
     }
     model = fits.models.RabiFlopFreq()
-    test_config = test_config or test.common.TestConfig()
+    test_config = test_config or common.TestConfig()
     test_config.plot_failures = True
 
-    return test.common.fuzz(
+    return common.fuzz(
         x=delta,
         model=model,
         static_params=static_params,
@@ -87,7 +87,7 @@ def fuzz_rabi_freq(
 def fuzz_rabi_time(
     num_trials: int = 100,
     stop_at_failure: bool = True,
-    test_config: Optional[test.common.TestConfig] = None,
+    test_config: Optional[common.TestConfig] = None,
 ) -> float:
     t = np.linspace(0, 20e-6, 400) * 2 * np.pi
     fuzzed_params = {
@@ -103,10 +103,10 @@ def fuzz_rabi_time(
         "tau": np.inf,
     }
     model = fits.models.RabiFlopTime()
-    test_config = test_config or test.common.TestConfig()
+    test_config = test_config or common.TestConfig()
     test_config.plot_failures = True
 
-    return test.common.fuzz(
+    return common.fuzz(
         x=t,
         model=model,
         static_params=static_params,

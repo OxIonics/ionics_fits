@@ -1,9 +1,10 @@
 from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
 
-from .. import Model, ModelParameter
+from .sinc import Sinc2
+from .sinusoid import Sinusoid
+from .. import NormalFitter, Model, ModelParameter
 from ..utils import Array
-import ionics_fits as fits
 
 if TYPE_CHECKING:
     num_samples = float
@@ -127,7 +128,10 @@ class RabiFlop(Model):
 
     @staticmethod
     def calculate_derived_params(
-        fitted_params: Dict[str, float], fit_uncertainties: Dict[str, float]
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """
         Returns dictionaries of values and uncertainties for the derived model
@@ -135,6 +139,8 @@ class RabiFlop(Model):
         being directly part of the fit) based on values of the fitted parameters and
         their uncertainties.
 
+        :param x: x-axis data
+        :param y: y-axis data
         :param: fitted_params: dictionary mapping model parameter names to their
             fitted values.
         :param fit_uncertainties: dictionary mapping model parameter names to
@@ -221,9 +227,9 @@ class RabiFlopFreq(RabiFlop):
         # ignoring decay etc) the Rabi flop function tends to the sinc^2 function:
         #   (omega * t_pulse / 2) ^2 * sinc(delta*t_pulse/2)
         # This heuristic breaks down when: omega * t_pulse ~ pi
-        model = fits.models.Sinc2()
+        model = Sinc2()
         model.parameters["y0"].fixed_to = 1
-        fit = fits.NormalFitter(x, y, model)
+        fit = NormalFitter(x, y, model)
 
         a = np.abs(fit.values["a"])
         t_pulse = model_parameters["t_pulse"].initialise(fit.values["w"] * 2)
@@ -286,9 +292,9 @@ class RabiFlopTime(RabiFlop):
         model_parameters["t_dead"].initialise(0)
         model_parameters["tau"].initialise(np.inf)
 
-        model = fits.models.Sinusoid()
+        model = Sinusoid()
         model.parameters["phi"].fixed_to = np.pi / 2 if P1 == 1 else 0
-        fit = fits.NormalFitter(x, y, model)
+        fit = NormalFitter(x, y, model)
 
         # (omega / W) ^ 2 * sin(0.5 * W * t) ^ 2
         # = 0.5 * (omega / W) ^ 2 * (1 - cos(W * t))

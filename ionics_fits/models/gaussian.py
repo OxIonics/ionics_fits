@@ -1,9 +1,9 @@
 from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
 
+from .utils import get_spectrum
 from .. import Model, ModelParameter
 from ..utils import Array
-import ionics_fits as fits
 
 
 if TYPE_CHECKING:
@@ -74,7 +74,7 @@ class Gaussian(Model):
         #   F[A * exp(-(x/w)^2)](k) = A * sqrt(pi) * w * exp(-(pi*k*w)^2)
         #
         # Half-width at 1/e when k = 1/(pi*w)
-        omega, spectrum = fits.models.utils.get_spectrum(x, y, trim_dc=True)
+        omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
 
         k = omega / (2 * np.pi)
@@ -101,7 +101,10 @@ class Gaussian(Model):
 
     @staticmethod
     def calculate_derived_params(
-        fitted_params: Dict[str, float], fit_uncertainties: Dict[str, float]
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """
         Returns dictionaries of values and uncertainties for the derived model
@@ -109,6 +112,8 @@ class Gaussian(Model):
         being directly part of the fit) based on values of the fitted parameters and
         their uncertainties.
 
+        :param x: x-axis data
+        :param y: y-axis data
         :param: fitted_params: dictionary mapping model parameter names to their
             fitted values.
         :param fit_uncertainties: dictionary mapping model parameter names to

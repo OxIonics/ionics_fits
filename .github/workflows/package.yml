@@ -1,0 +1,16 @@
+name: Package
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  build_and_upload_wheel:
+    uses: OxIonics/common-workflows/.github/workflows/package.yml@master
+    secrets:
+      PYPI_SERVER: ${{ secrets.PYPI_SERVER }}
+      PYPI_LOGIN: ${{ secrets.PYPI_LOGIN }}
+      PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}

@@ -218,7 +218,10 @@ class Model:
 
     @staticmethod
     def calculate_derived_params(
-        fitted_params: Dict[str, float], fit_uncertainties: Dict[str, float]
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """
         Returns dictionaries of values and uncertainties for the derived model
@@ -226,6 +229,8 @@ class Model:
         being directly part of the fit) based on values of the fitted parameters and
         their uncertainties.
 
+        :param x: x-axis data
+        :param y: y-axis data
         :param: fitted_params: dictionary mapping model parameter names to their
             fitted values.
         :param fit_uncertainties: dictionary mapping model parameter names to
@@ -234,24 +239,6 @@ class Model:
             values and uncertainties.
         """
         return {}, {}
-
-    def post_fit(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-        fitted_params: Dict[str, float],
-        fit_uncertainties: Dict[str, float],
-    ):
-        """Hook called post-fit. Override to implement custom functionality.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param fitted_params: dictionary mapping model parameter names to their fitted
-            values
-        :param fit_uncertainties: dictionary mapping model parameter names to
-            the fit uncertainties (`0` for fixed parameters).
-        """
-        pass
 
     def param_min_sqrs(
         self,
@@ -540,9 +527,7 @@ class Fitter:
         (
             self.derived_values,
             self.derived_uncertainties,
-        ) = model.calculate_derived_params(fitted_params, uncertainties)
-
-        model.post_fit(x, y, fitted_params, uncertainties)
+        ) = model.calculate_derived_params(self.x, self.y, fitted_params, uncertainties)
 
         self.model = model
         self.sigma = sigma
