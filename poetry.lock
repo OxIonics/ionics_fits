@@ -218,7 +218,7 @@ test = ["pytest (>=7.1)", "pytest-cov (>=3.0)", "codecov (>=2.1)"]
 
 [[package]]
 name = "ninja"
-version = "1.10.2.3"
+version = "1.10.2.4"
 description = "Ninja is a small build system with a focus on speed"
 category = "dev"
 optional = false
@@ -427,7 +427,7 @@ six = ">=1.5"
 
 [[package]]
 name = "pytype"
-version = "2022.9.19"
+version = "2022.9.27"
 description = "Python type inferencer"
 category = "dev"
 optional = false
@@ -435,7 +435,7 @@ python-versions = "<3.11,>=3.7"
 
 [package.dependencies]
 attrs = ">=21.4.0"
-importlab = ">=0.7"
+importlab = ">=0.8"
 libcst = ">=0.4.5"
 networkx = "<2.8.4"
 ninja = ">=1.10.0.post2"
