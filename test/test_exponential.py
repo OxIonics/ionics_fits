@@ -1,8 +1,8 @@
 from typing import Optional
 import numpy as np
-import test
 
 import ionics_fits as fits
+from . import common
 
 
 def test_exponential():
@@ -16,18 +16,18 @@ def test_exponential():
     }
     model = fits.models.Exponential()
     model.parameters["x_dead"].fixed_to = None
-    test.common.check_multiple_param_sets(
+    common.check_multiple_param_sets(
         x,
         model,
         params,
-        test.common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=True),
     )
 
 
 def fuzz_exponential(
     num_trials: int = 100,
     stop_at_failure: bool = True,
-    test_config: Optional[test.common.TestConfig] = None,
+    test_config: Optional[common.TestConfig] = None,
 ) -> float:
     x = np.linspace(-2, 2, 100)
     fuzzed_params = {
@@ -40,10 +40,10 @@ def fuzz_exponential(
 
     model = fits.models.Exponential()
     model.parameters["x_dead"].fixed_to = None
-    test_config = test_config or test.common.TestConfig()
+    test_config = test_config or common.TestConfig()
     test_config.plot_failures = True
 
-    return test.common.fuzz(
+    return common.fuzz(
         x=x,
         model=model,
         static_params=static_params,

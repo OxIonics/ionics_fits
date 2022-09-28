@@ -1,7 +1,8 @@
-import numpy as np
-import test
 from typing import Optional
+import numpy as np
+
 import ionics_fits as fits
+from . import common
 
 
 def test_line():
@@ -13,7 +14,7 @@ def test_line():
     x = np.linspace(-10, 10)
     params = {"a": 3.2, "y0": -9}
     model = fits.models.Line()
-    test.common.check_single_param_set(x, model, params)
+    common.check_single_param_set(x, model, params)
 
 
 def test_parabola():
@@ -25,7 +26,7 @@ def test_parabola():
     x = np.linspace(-10, 10)
     params = {"k": -9, "y0": +4, "x0": -3}
     model = fits.models.Parabola()
-    test.common.check_single_param_set(x, model, params)
+    common.check_single_param_set(x, model, params)
 
 
 def test_power_n():
@@ -39,7 +40,7 @@ def test_power_n():
     model = fits.models.Power()
     model.parameters["x0"].fixed_to = params["x0"]
     model.parameters["a"].fixed_to = params["a"]
-    test.common.check_multiple_param_sets(x, model, params)
+    common.check_multiple_param_sets(x, model, params)
 
 
 def test_power_a():
@@ -54,20 +55,20 @@ def test_power_a():
     model.parameters["a"].fixed_to = None
     model.parameters["x0"].fixed_to = params["x0"]
     model.parameters["n"].fixed_to = params["n"]
-    test.common.check_multiple_param_sets(x, model, params)
+    common.check_multiple_param_sets(x, model, params)
 
 
 def fuzz_power(
     num_trials: int = 100,
     stop_at_failure: bool = True,
-    test_config: Optional[test.common.TestConfig] = None,
+    test_config: Optional[common.TestConfig] = None,
 ) -> float:
     x = np.linspace(0.1, 15)
 
     static_params = {"x0": 0, "a": 1}
     fuzzed_params = {"n": (-3, 3), "y0": (-10, 10)}
     model = fits.models.Power()
-    return test.common.fuzz(
+    return common.fuzz(
         x=x,
         model=model,
         static_params=static_params,
@@ -84,7 +85,7 @@ def test_polynomial():
     x = np.linspace(-5, 5)
     params = {"x0": 0, "a_0": 1, "a_1": 50, "a_2": 10, "a_3": 2}
     model = fits.models.Polynomial(poly_degree=3)
-    test.common.check_single_param_set(x, model, params)
+    common.check_single_param_set(x, model, params)
 
 
 def test_x0():
@@ -96,14 +97,14 @@ def test_x0():
     params = {"x0": -10, "a_0": 1, "a_1": 50, "a_2": 10}
     model = fits.models.Polynomial(poly_degree=2)
     model.parameters["x0"].fixed_to = None
-    config = test.common.TestConfig(residual_tol=1e-6, param_tol=None)
-    test.common.check_single_param_set(x, model, params, config=config)
+    config = common.TestConfig(residual_tol=1e-6, param_tol=None)
+    common.check_single_param_set(x, model, params, config=config)
 
 
 def fuzz_polynomial(
     num_trials: int = 100,
     stop_at_failure: bool = True,
-    test_config: Optional[test.common.TestConfig] = None,
+    test_config: Optional[common.TestConfig] = None,
 ) -> float:
     x = np.linspace(-5, 50) * 1e-3
 
@@ -112,7 +113,7 @@ def fuzz_polynomial(
 
     model = fits.models.Polynomial(poly_degree=3)
 
-    return test.common.fuzz(
+    return common.fuzz(
         x=x,
         model=model,
         static_params=static_params,

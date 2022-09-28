@@ -1,9 +1,9 @@
 import random
 from typing import Dict, Optional, Tuple
 import numpy as np
-import test
 
 import ionics_fits as fits
+from . import common
 
 
 def test_sinc():
@@ -16,11 +16,11 @@ def test_sinc():
         "w": [1, 3, 10],
     }
     model = fits.models.Sinc()
-    test.common.check_multiple_param_sets(
+    common.check_multiple_param_sets(
         x,
         model,
         params,
-        test.common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=True),
     )
 
 
@@ -34,18 +34,18 @@ def test_sinc2():
         "w": [1, 3, 10],
     }
     model = fits.models.Sinc2()
-    test.common.check_multiple_param_sets(
+    common.check_multiple_param_sets(
         x,
         model,
         params,
-        test.common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=True),
     )
 
 
 def sinc_param_generator(
     fuzzed_params: Dict[str, Tuple[float, float]]
 ) -> Dict[str, float]:
-    values = test.common.generate_param_set(fuzzed_params)
+    values = common.generate_param_set(fuzzed_params)
     if random.choice([True, False]):
         values["a"] = -values["a"]
     return values
@@ -55,7 +55,7 @@ def sinc_fuzzer(
     model,
     num_trials: int = 100,
     stop_at_failure: bool = True,
-    test_config: Optional[test.common.TestConfig] = None,
+    test_config: Optional[common.TestConfig] = None,
 ) -> float:
     x = np.linspace(-10, 20, 500)
     fuzzed_params = {
@@ -65,10 +65,10 @@ def sinc_fuzzer(
         "w": (1, 10),
     }
     static_params = {}
-    test_config = test_config or test.common.TestConfig()
+    test_config = test_config or common.TestConfig()
     test_config.plot_failures = True
 
-    return test.common.fuzz(
+    return common.fuzz(
         x=x,
         model=model,
         static_params=static_params,
@@ -84,7 +84,7 @@ def sinc_fuzzer(
 def fuzz_sinc(
     num_trials: int = 100,
     stop_at_failure: bool = True,
-    test_config: Optional[test.common.TestConfig] = None,
+    test_config: Optional[common.TestConfig] = None,
 ) -> float:
     return sinc_fuzzer(
         model=fits.models.sinc.Sinc(),
@@ -97,7 +97,7 @@ def fuzz_sinc(
 def fuzz_sinc2(
     num_trials: int = 100,
     stop_at_failure: bool = True,
-    test_config: Optional[test.common.TestConfig] = None,
+    test_config: Optional[common.TestConfig] = None,
 ) -> float:
     return sinc_fuzzer(
         model=fits.models.sinc.Sinc2(),

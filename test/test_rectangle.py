@@ -1,8 +1,8 @@
-import numpy as np
-import test
 from typing import Optional
+import numpy as np
 
 import ionics_fits as fits
+from . import common
 
 
 def test_rectangle():
@@ -22,38 +22,38 @@ def test_rectangle():
     model = fits.models.Rectangle()
 
     model.parameters["x_l"].fixed_to = params["x_l"]
-    test.common.check_multiple_param_sets(
+    common.check_multiple_param_sets(
         x,
         model,
         params,
-        test.common.TestConfig(plot_failures=True, param_tol=5e-2),
+        common.TestConfig(plot_failures=True, param_tol=5e-2),
     )
 
     params["x_l"] = -10
     params["x_r"] = 1
     model.parameters["x_l"].fixed_to = params["x_l"]
-    test.common.check_multiple_param_sets(
+    common.check_multiple_param_sets(
         x,
         model,
         params,
-        test.common.TestConfig(plot_failures=True, param_tol=5e-2),
+        common.TestConfig(plot_failures=True, param_tol=5e-2),
     )
 
     params["x_l"] = [-2.01, -1]
     params["x_r"] = 1
     model.parameters["x_l"].fixed_to = None
-    test.common.check_multiple_param_sets(
+    common.check_multiple_param_sets(
         x,
         model,
         params,
-        test.common.TestConfig(plot_failures=True, param_tol=5e-2),
+        common.TestConfig(plot_failures=True, param_tol=5e-2),
     )
 
 
 def fuzz_rectangle(
     num_trials: int = 100,
     stop_at_failure: bool = True,
-    test_config: Optional[test.common.TestConfig] = None,
+    test_config: Optional[common.TestConfig] = None,
 ) -> float:
     x = np.linspace(-2, 2, 100)
     fuzzed_params = {
@@ -64,11 +64,11 @@ def fuzz_rectangle(
     static_params = {"x_l": -1}
     model = fits.models.Rectangle()
     model.parameters["x_l"].fixed_to = static_params["x_l"]
-    test_config = test_config or test.common.TestConfig()
+    test_config = test_config or common.TestConfig()
     test_config.plot_failures = True
     test_config.param_tol = 5e-2
 
-    return test.common.fuzz(
+    return common.fuzz(
         x=x,
         model=model,
         static_params=static_params,

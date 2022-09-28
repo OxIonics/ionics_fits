@@ -1,9 +1,10 @@
 from typing import Dict, TYPE_CHECKING
 import numpy as np
 
-from .. import Model, ModelParameter
+from .exponential import Exponential
+from .utils import get_spectrum
+from .. import NormalFitter, Model, ModelParameter
 from ..utils import Array
-import ionics_fits as fits
 
 
 if TYPE_CHECKING:
@@ -61,13 +62,13 @@ class Lorentzian(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata.
         """
-        omega, spectrum = fits.models.utils.get_spectrum(x, y, trim_dc=True)
+        omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
 
-        model = fits.models.Exponential()
+        model = Exponential()
         model.parameters["y0"].initialise(np.max(abs_spectrum))
         model.parameters["y_inf"].initialise(0)
-        fit = fits.NormalFitter(omega, abs_spectrum, model)
+        fit = NormalFitter(omega, abs_spectrum, model)
 
         y0_guess = np.mean([y[0], y[-1]])
         peak_guess = y[np.argmax(np.abs(y - y0_guess))]

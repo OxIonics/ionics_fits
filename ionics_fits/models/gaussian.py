@@ -1,9 +1,9 @@
 from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
 
+from .utils import get_spectrum
 from .. import Model, ModelParameter
 from ..utils import Array
-import ionics_fits as fits
 
 
 if TYPE_CHECKING:
@@ -74,7 +74,7 @@ class Gaussian(Model):
         #   F[A * exp(-(x/w)^2)](k) = A * sqrt(pi) * w * exp(-(pi*k*w)^2)
         #
         # Half-width at 1/e when k = 1/(pi*w)
-        omega, spectrum = fits.models.utils.get_spectrum(x, y, trim_dc=True)
+        omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
 
         k = omega / (2 * np.pi)
