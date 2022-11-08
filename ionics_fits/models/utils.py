@@ -158,7 +158,7 @@ class MappedModel(Model):
 
         for new_param, original_param in self.mapped_args.items():
             initial_value = inner_parameters[original_param].get_initial_value()
-            model_parameters[new_param].initialise(initial_value)
+            model_parameters[new_param].heuristic = initial_value
 
 
 def get_spectrum(

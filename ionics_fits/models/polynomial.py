@@ -64,12 +64,12 @@ class Power(Model):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Sets initial values for model parameters based on heuristics. Typically
+        """Set initial values for model parameters based on heuristics. Typically
         called during `Fitter.fit`.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Heuristic results should be stored in :param model_parameters: using the
+        `ModelParameter`'s `heuristic` attribute. This ensures that all information
+        passed in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -85,10 +85,10 @@ class Power(Model):
             if param_data.fixed_to is None
         }
 
-        x0 = model_parameters["x0"].get_initial_value(0)
-        y0 = model_parameters["y0"].get_initial_value(0)
-        a = model_parameters["a"].get_initial_value(1)
-        n = model_parameters["n"].get_initial_value(1)
+        x0 = model_parameters["x0"].heuristic = 0.0
+        y0 = model_parameters["y0"].heuristic = 0.0
+        a = model_parameters["a"].heuristic = 1.0
+        n = model_parameters["n"].heuristic = 1.0
 
         if len(unknowns) == 0 or "x0" in unknowns or len(unknowns) > 2:
             # No heuristic needed / we don't have a good heuristic for this case
@@ -100,16 +100,16 @@ class Power(Model):
             y = y - y0
             a = y / np.float_power(x, n)
             a = self.param_min_sqrs(x, y, model_parameters, "a", a)[0]
-            model_parameters["a"].initialise(a)
+            model_parameters["a"].heuristic = a
 
         elif unknowns == {"n"}:
             n = self.optimal_n(x, y, model_parameters)[0]
-            model_parameters["m"].initialise(n)
+            model_parameters["m"].heuristic = n
 
         elif unknowns == {"y0"}:
             y0 = y - a * np.float_power(x - x0, n)
             y0 = self.param_min_sqrs(x, y, model_parameters, "y0", y0)[0]
-            model_parameters["y0"].initialise(y0)
+            model_parameters["y0"].heuristic = y0
 
         elif "a" in unknowns:
             pass  # don't have a great heuristic for these cases
@@ -136,18 +136,18 @@ class Power(Model):
             ns = np.zeros_like(y0_guesses)
             costs = np.zeros_like(y0_guesses)
             for idx, y0 in np.ndenumerate(y0_guesses):
-                model_parameters["y0"].initialise(y0)
+                model_parameters["y0"].heuristic = y0
                 ns[idx], costs[idx] = self.optimal_n(x, y, model_parameters)
                 model_parameters["y0"].initialised_to = None
 
-            model_parameters["n"].initialise(float(ns[np.argmin(costs)]))
-            model_parameters["y0"].initialise(float(y0_guesses[np.argmin(costs)]))
+            model_parameters["n"].heuristic = float(ns[np.argmin(costs)])
+            model_parameters["y0"].heuristic = float(y0_guesses[np.argmin(costs)])
 
         # apply fallbacks for any parameters we haven't already set
-        model_parameters["x0"].initialise(x0)
-        model_parameters["y0"].initialise(y0)
-        model_parameters["a"].initialise(a)
-        model_parameters["n"].initialise(n)
+        model_parameters["x0"].heuristic = x0
+        model_parameters["y0"].heuristic = y0
+        model_parameters["a"].heuristic = a
+        model_parameters["n"].heuristic = n
 
     def optimal_n(self, x, y, model_parameters):
         """Find the optimal (in the least-squared residuals sense) value of `n`
@@ -259,9 +259,9 @@ class Polynomial(Model):
         """Sets initial values for model parameters based on heuristics. Typically
         called during `Fitter.fit`.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Heuristic results should be stored in :param model_parameters: using the
+        `ModelParameter`'s `heuristic` attribute. This ensures that all information
+        passed in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -271,7 +271,7 @@ class Polynomial(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata.
         """
-        x0 = model_parameters["x0"].initialise(0)
+        x0 = model_parameters["x0"].heuristic = 0.0
 
         free = [
             n
@@ -285,7 +285,7 @@ class Polynomial(Model):
 
         p = np.polyfit(x - x0, y, deg)
         for idx in range(deg + 1):
-            model_parameters[f"a_{idx}"].initialise(p[deg - idx])
+            model_parameters[f"a_{idx}"].heuristic = p[deg - idx]
 
 
 class Line(MappedModel):
@@ -354,9 +354,9 @@ class Parabola(MappedModel):
         super()._inner_estimate_parameters(x, y, inner_parameters)
 
         if inner_parameters["x0"].get_initial_value() is None:
-            a_0 = inner_parameters["a_0"].initialise()
-            a_1 = inner_parameters["a_1"].initialise()
-            a_2 = inner_parameters["a_2"].initialise()
+            a_0 = inner_parameters["a_0"].get_initial_value()
+            a_1 = inner_parameters["a_1"].get_initial_value()
+            a_2 = inner_parameters["a_2"].get_initial_value()
 
-            x0 = inner_parameters["x0"].initialise(-a_1 / (2 * a_2))
-            inner_parameters["a_0"].initialise(a_0 - a_2 * x0**2)
+            x0 = inner_parameters["x0"].heuristic = -a_1 / (2 * a_2)
+            inner_parameters["a_0"].heuristic = a_0 - a_2 * x0**2

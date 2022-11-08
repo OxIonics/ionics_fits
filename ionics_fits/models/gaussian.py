@@ -58,9 +58,9 @@ class Gaussian(Model):
         """Sets initial values for model parameters based on heuristics. Typically
         called during `Fitter.fit`.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Heuristic results should be stored in :param model_parameters: using the
+        `ModelParameter`'s `heuristic` attribute. This ensures that all information
+        passed in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -90,13 +90,13 @@ class Gaussian(Model):
         peak_guess = y[np.argmax(np.abs(y - y0_guess))]
         sgn = 1 if peak_guess > y0_guess else -1
 
-        model_parameters["a"].initialise(a * sgn)
-        model_parameters["sigma"].initialise(sigma)
-        model_parameters["y0"].initialise(y0_guess)
+        model_parameters["a"].heuristic = a * sgn
+        model_parameters["sigma"].heuristic = sigma
+        model_parameters["y0"].heuristic = y0_guess
 
         cut_off = 2 * omega[np.argmin(np.abs(abs_spectrum - W))]
-        model_parameters["x0"].initialise(
-            self.find_x_offset_fft(x, omega, spectrum, cut_off)
+        model_parameters["x0"].heuristic = self.find_x_offset_fft(
+            x, omega, spectrum, cut_off
         )
 
     @staticmethod

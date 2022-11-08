@@ -53,9 +53,9 @@ class Rectangle(Model):
         """Sets initial values for model parameters based on heuristics. Typically
         called during `Fitter.fit`.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Heuristic results should be stored in :param model_parameters: using the
+        `ModelParameter`'s `heuristic` attribute. This ensures that all information
+        passed in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -73,36 +73,36 @@ class Rectangle(Model):
         }
 
         if {"x_l", "x_r"}.issubset(unknowns):
-            model_parameters["y0"].initialise(0.5 * (y[0] + y[-1]))
+            model_parameters["y0"].heuristic = 0.5 * (y[0] + y[-1])
 
         elif "x_l" not in unknowns:
-            x_l = model_parameters["x_l"].initialise()
+            x_l = model_parameters["x_l"].get_initial_value()
 
             if min(x) < x_l:
-                model_parameters["y0"].initialise(np.mean(y[x < x_l]))
+                model_parameters["y0"].heuristic = np.mean(y[x < x_l])
             else:
-                y0 = model_parameters["y0"].initialise(y[-1])
-                model_parameters["a"].initialise(y[0] - y0)
+                y0 = model_parameters["y0"].heuristic = y[-1]
+                model_parameters["a"].heuristic = y[0] - y0
 
         elif "x_r" not in unknowns:
-            x_r = model_parameters["x_r"].initialise()
+            x_r = model_parameters["x_r"].get_initial_value()
             if max(x) > x_r:
-                model_parameters["y0"].initialise(np.mean(y[x > x_r]))
+                model_parameters["y0"].heuristic = np.mean(y[x > x_r])
             else:
-                y0 = model_parameters["y0"].initialise(y[0])
-                model_parameters["a"].initialise(y[-1] - y0)
+                y0 = model_parameters["y0"].heuristic = y[0]
+                model_parameters["a"].heuristic = y[-1] - y0
 
         else:
-            x_l = model_parameters["x_l"].initialise()
-            x_r = model_parameters["x_r"].initialise()
+            x_l = model_parameters["x_l"].get_initial_value()
+            x_r = model_parameters["x_r"].get_initial_value()
 
             outside = np.logical_or(x <= x_l, x >= x_r)
             inside = np.logical_and(x > x_l, x < x_r)
-            y0 = model_parameters["y0"].initialise(np.mean(y[outside]))
-            model_parameters["a"].initialise(np.mean(y[outside] - y0))
+            y0 = model_parameters["y0"].heuristic = np.mean(y[outside])
+            model_parameters["a"].heuristic = np.mean(y[outside] - y0)
 
         y0 = model_parameters["y0"].get_initial_value()
-        a = model_parameters["a"].initialise(y[np.argmax(np.abs(y - y0))] - y0)
+        a = model_parameters["a"].heuristic = y[np.argmax(np.abs(y - y0))] - y0
 
         thresh = self.thresh * (y0 + (y0 + a))
         inside = (y >= thresh) if a > 0 else (y < thresh)
@@ -114,5 +114,5 @@ class Rectangle(Model):
             x_l = min(x[inside])
             x_r = max(x[inside])
 
-        model_parameters["x_l"].initialise(x_l)
-        model_parameters["x_r"].initialise(x_r)
+        model_parameters["x_l"].heuristic = x_l
+        model_parameters["x_r"].heuristic = x_r

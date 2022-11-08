@@ -30,6 +30,8 @@ class ModelParameter:
             fitting rather than obtaining a value from the heuristics. This value may
             additionally be used by the heuristics to help find good initial conditions
             for other model parameters where none has been explicitly given.
+        heuristic: if both of `fixed_to` and `initialised_to` are `None`, this value
+            is used as an initial value during fitting.
         scale_func: callable returning a scale factor which the parameter must be
             *multiplied* by if it was fitted using `x` / `y` data that has been
             *multiplied* by the given scale factors. Scale factors are used to improve
@@ -44,6 +46,7 @@ class ModelParameter:
     upper_bound: float = np.inf
     fixed_to: Optional[float] = None
     initialised_to: Optional[float] = None
+    heuristic: Optional[float] = None
     scale_func: Callable[
         [
             float,
@@ -78,51 +81,36 @@ class ModelParameter:
         self.upper_bound = _rescale(self.upper_bound)
         self.fixed_to = _rescale(self.fixed_to)
         self.initialised_to = _rescale(self.initialised_to)
+        self.heuristic = _rescale(self.heuristic)
 
         return scale_factor
 
-    def get_initial_value(self, default: Optional[float] = None) -> Optional[float]:
-        """If a value is known for this parameter prior to fitting -- either because an
-        initial value has been set or because the parameter has been fixed -- we return
-        it, otherwise we return :param default:. The return value is clipped to lie
-        between the set lower and upper bounds.
+    def get_initial_value(self) -> Optional[float]:
+        """
+        Get initial value for parameter.
 
-        Does not mutate the parameter.
+        The initial value is retrieved from attributes of the parameter in the
+        following order of precedence:
+            1) fixed_to
+            2) initialised_to
+            3) heuristic
         """
         if self.fixed_to is not None:
             value = self.fixed_to
+            self.initialised_to = value
         elif self.initialised_to is not None:
             value = self.initialised_to
+        elif self.heuristic is not None:
+            value = self.heuristic
+            self.initialised_to = value
         else:
-            value = default
-
-        if value is not None:
-            value = self.clip(value)
+            return None
 
         return value
 
     def clip(self, value: float):
         """Clip value to lie between lower and upper bounds."""
         return np.clip(value, self.lower_bound, self.upper_bound)
-
-    def initialise(self, estimate: Optional[float] = None) -> float:
-        """Sets the parameter's initial value based on the supplied estimate. If an
-        initial value is already known for this parameter (see :meth get_initial_value:)
-        we use that instead of the supplied estimate. The value is clipped to lie
-        between the set lower and upper bounds.
-
-        After this method, :attribute initialised_to: the parameter either has a valid
-        initial value (i.e. one that is not `None` and lies between the set bounds) or
-        a `ValueError` be raised.
-
-        :returns: the initialised value
-        """
-        self.initialised_to = self.get_initial_value(estimate)
-
-        if self.initialised_to is None:
-            raise ValueError("No valid initial value set for parameter")
-
-        return self.initialised_to
 
 
 class Model:
@@ -199,12 +187,12 @@ class Model:
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Sets initial values for model parameters based on heuristics. Typically
+        """Set initial values for model parameters. Typically
         called during `Fitter.fit`.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Heuristic results should be stored in :param model_parameters: using the
+        `ModelParameter`'s `heuristic` attribute. This ensures that all information
+        passed in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -420,7 +408,7 @@ class Fitter:
         """
         model = copy.deepcopy(model)
 
-        # sanitize input dataset
+        # Sanitize input dataset
         x = np.array(x, dtype=np.float64, copy=True)
         y = np.array(y, dtype=np.float64, copy=True)
         sigma = None if sigma is None else np.array(sigma, dtype=np.float64, copy=True)
@@ -473,14 +461,22 @@ class Fitter:
 
         model.estimate_parameters(x, y, parameters)
 
-        # raises an exception if any parameter has not been initialised
-        try:
-            for param, param_data in parameters.items():
-                param_data.initialise(None)
-        except ValueError:
-            raise Exception(f"No initial value found for parameter {param}.")
+        for param, param_data in parameters.items():
+            initial_value = param_data.get_initial_value()
+            if initial_value is None:
+                raise RuntimeError(
+                    "No fixed_to, initialised_to or heuristic specified"
+                    f" for parameter `{param}`."
+                )
+            if (
+                initial_value < param_data.lower_bound
+                or initial_value > param_data.upper_bound
+            ):
+                raise RuntimeError(
+                    f"Initial value for parameter `{param}` outside bounds."
+                )
 
-        fixed_params = {
+        self.fixed_parameters = {
             param_name: param_data.fixed_to
             for param_name, param_data in parameters.items()
             if param_data.fixed_to is not None
@@ -502,14 +498,16 @@ class Fitter:
                 param: value
                 for param, value in zip(self.free_parameters, list(free_param_values))
             }
-            params.update(fixed_params)
+            params.update(self.fixed_parameters)
             y = model.func(x, params)
             return y
 
         fitted_params, uncertainties = self._fit(x, y, sigma, parameters, free_func)
 
-        fitted_params.update({param: value for param, value in fixed_params.items()})
-        uncertainties.update({param: 0 for param in fixed_params.keys()})
+        fitted_params.update(
+            {param: value for param, value in self.fixed_parameters.items()}
+        )
+        uncertainties.update({param: 0 for param in self.fixed_parameters.keys()})
 
         fitted_params = {
             param: value * scale_factors[param]

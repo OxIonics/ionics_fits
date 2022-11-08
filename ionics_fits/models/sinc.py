@@ -50,9 +50,9 @@ class Sinc(Model):
         """Sets initial values for model parameters based on heuristics. Typically
         called during `Fitter.fit`.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Heuristic results should be stored in :param model_parameters: using the
+        `ModelParameter`'s `heuristic` attribute. This ensures that all information
+        passed in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -62,7 +62,7 @@ class Sinc(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata.
         """
-        y0 = model_parameters["y0"].initialise(np.mean([y[0], y[-1]]))
+        y0 = model_parameters["y0"].heuristic = np.mean([y[0], y[-1]])
 
         omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
@@ -71,14 +71,14 @@ class Sinc(Model):
         rect = Rectangle()
         rect.parameters["y0"].fixed_to = 0
         rect.parameters["x_l"].fixed_to = 0
-        rect.parameters["a"].initialise(max(abs_spectrum))
+        rect.parameters["a"].heuristic = max(abs_spectrum)
 
         fit = NormalFitter(omega, abs_spectrum, model=rect)
 
-        w = model_parameters["w"].initialise(fit.values["x_r"])
+        w = model_parameters["w"].heuristic = fit.values["x_r"]
         sgn = 1 if y[np.argmax(np.abs(y - y0))] > y0 else -1
-        model_parameters["a"].initialise(2 * w * fit.values["a"] * sgn)
-        model_parameters["x0"].initialise(self.find_x_offset_fft(x, omega, spectrum, w))
+        model_parameters["a"].heuristic = 2 * w * fit.values["a"] * sgn
+        model_parameters["x0"].heuristic = self.find_x_offset_fft(x, omega, spectrum, w)
 
 
 class Sinc2(Model):
@@ -133,7 +133,7 @@ class Sinc2(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata.
         """
-        y0 = model_parameters["y0"].initialise(np.mean([y[0], y[-1]]))
+        y0 = model_parameters["y0"].heuristic = np.mean([y[0], y[-1]])
 
         omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
@@ -141,7 +141,7 @@ class Sinc2(Model):
         # Fourier transform of a sinc^2 is a triangle function
         tri = Triangle()
         tri.parameters["x0"].fixed_to = 0
-        tri.parameters["y0"].initialise(max(abs_spectrum))
+        tri.parameters["y0"].heuristic = max(abs_spectrum)
         tri.parameters["sym"].fixed_to = 0
         tri.parameters["y_min"].fixed_to = 0
 
@@ -150,9 +150,9 @@ class Sinc2(Model):
         intercept = fit.values["y0"] / -fit.values["k"]
         sgn = 1 if y[np.argmax(np.abs(y - y0))] > y0 else -1
 
-        model_parameters["w"].initialise(0.5 * intercept)
-        model_parameters["a"].initialise(fit.values["y0"] * sgn * intercept)
+        model_parameters["w"].heuristic = 0.5 * intercept
+        model_parameters["a"].heuristic = fit.values["y0"] * sgn * intercept
 
-        model_parameters["x0"].initialise(
-            self.find_x_offset_fft(x, omega, spectrum, intercept)
+        model_parameters["x0"].heuristic = self.find_x_offset_fft(
+            x, omega, spectrum, intercept
         )

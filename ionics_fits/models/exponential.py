@@ -51,9 +51,9 @@ class Exponential(Model):
         """Sets initial values for model parameters based on heuristics. Typically
         called during `Fitter.fit`.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Heuristic results should be stored in :param model_parameters: using the
+        `ModelParameter`'s `heuristic` attribute. This ensures that all information
+        passed in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -64,10 +64,10 @@ class Exponential(Model):
             metadata.
         """
         # Exponentials are generally pretty easy to fit so we keep the estimator simple
-        model_parameters["x_dead"].initialise(0)
-        model_parameters["y0"].initialise(y[0])
-        model_parameters["y_inf"].initialise(y[-1])
-        model_parameters["tau"].initialise(x.ptp())
+        model_parameters["x_dead"].heuristic = 0
+        model_parameters["y0"].heuristic = y[0]
+        model_parameters["y_inf"].heuristic = y[-1]
+        model_parameters["tau"].heuristic = x.ptp()
 
     @staticmethod
     def calculate_derived_params(
