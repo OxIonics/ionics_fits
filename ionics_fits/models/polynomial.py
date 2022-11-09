@@ -357,5 +357,6 @@ class Parabola(MappedModel):
             a_1 = inner_parameters["a_1"].get_initial_value()
             a_2 = inner_parameters["a_2"].get_initial_value()
 
-            x0 = inner_parameters["x0"].heuristic = -a_1 / (2 * a_2)
+            x0 = -a_1 / (2 * a_2)
+            inner_parameters["x0"].heuristic = x0
             inner_parameters["a_0"].heuristic = a_0 - a_2 * x0**2
