@@ -24,14 +24,19 @@ class ModelParameter:
         upper_bound: upper bound for the parameter. Fitted values are guaranteed to be
             lower than or equal to the upper bound. Parameter bounds may be used by
             fit heuristics to help find good starting points for the optimizer.
-        fixed_to: if not `None` the model parameter is fixed to this value during
-            fitting instead of being floated.
-        initialised_to: if not `None` this value is used as an initial value during
-            fitting rather than obtaining a value from the heuristics. This value may
-            additionally be used by the heuristics to help find good initial conditions
-            for other model parameters where none has been explicitly given.
-        heuristic: if both of `fixed_to` and `initialised_to` are `None`, this value
-            is used as an initial value during fitting.
+        fixed_to: if not `None`, the model parameter is fixed to this value during
+            fitting instead of being floated. This value may additionally be used by
+            the heuristics to help find good initial values for other model parameters
+            for which none have been provided by the user. The value of `fixed_to` must
+            lie within the bounds of the parameter.
+        initialised_to: if not `None` and the parameter is not fixed, this value is
+            used as an initial value during fitting rather than obtaining a value from
+            the heuristics. This value may additionally be used by the heuristics to
+            help find good initial values for other model parameters for which none
+            have been provided by the user. The value of `initialised_to` must lie
+            within the bounds of the parameter.
+        heuristic: if both of `fixed_to` and `initialised_to` are `None`, this value is
+            used as an initial value during fitting.
         scale_func: callable returning a scale factor which the parameter must be
             *multiplied* by if it was fitted using `x` / `y` data that has been
             *multiplied* by the given scale factors. Scale factors are used to improve
@@ -81,34 +86,33 @@ class ModelParameter:
         self.upper_bound = _rescale(self.upper_bound)
         self.fixed_to = _rescale(self.fixed_to)
         self.initialised_to = _rescale(self.initialised_to)
-        self.heuristic = _rescale(self.heuristic)
 
         return scale_factor
 
     def get_initial_value(self) -> Optional[float]:
         """
-        Get initial value for parameter.
+        Get initial value.
 
-        The initial value is retrieved from attributes of the parameter in the
-        following order of precedence:
-            1) fixed_to
-            2) initialised_to
-            3) heuristic
+        For fixed parameters, this is the value the parameter is fixed to. For floated
+        parameters, it is the value used to seed the fit. In the latter case, the
+        initial value is retrieved from `initialised_to` if that attribute is not
+        `None`, otherwise `heuristic` is used.
         """
         if self.fixed_to is not None:
             value = self.fixed_to
-            self.initialised_to = value
         elif self.initialised_to is not None:
             value = self.initialised_to
         elif self.heuristic is not None:
-            value = self.heuristic
-            self.initialised_to = value
+            value = self.clip(self.heuristic)
         else:
             return None
 
+        if value < self.lower_bound or value > self.upper_bound:
+            raise ValueError(f"Initial value outside bounds.")
+
         return value
 
-    def clip(self, value: float):
+    def clip(self, value: float) -> float:
         """Clip value to lie between lower and upper bounds."""
         return np.clip(value, self.lower_bound, self.upper_bound)
 
@@ -187,20 +191,21 @@ class Model:
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Set initial values for model parameters. Typically
-        called during `Fitter.fit`.
+        """Set heuristic values for model parameters.
 
-        Heuristic results should be stored in :param model_parameters: using the
-        `ModelParameter`'s `heuristic` attribute. This ensures that all information
-        passed in by the user (fixed values, initial values, bounds) is used correctly.
+        Typically called during `Fitter.fit`. This method may make use of initial
+        values that have explicitly been provided by the user for some parameters (via
+        the `fixed_to` or `initialised_to` attributes) to find initial guesses for
+        other parameters.
 
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
+        The datasets must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values. If all parameters of the model allow
+        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data, rescaled if allowed.
+        :param y: y-axis data, rescaled if allowed.
         :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
+            metadata, rescaled if allowed.
         """
         raise NotImplementedError
 
@@ -248,10 +253,10 @@ class Model:
         :returns: tuple with the value from :param scanned_param_values: which results
         in lowest residuals and the root-sum-squared residuals for that value.
         """
+        parameters.pop(scanned_param)
         param_values = {
-            param: value
+            param: param_data.get_initial_value()
             for param, param_data in parameters.items()
-            if (value := param_data.get_initial_value()) is not None
         }
 
         scanned_param_values = np.asarray(scanned_param_values)
@@ -468,13 +473,6 @@ class Fitter:
                     "No fixed_to, initialised_to or heuristic specified"
                     f" for parameter `{param}`."
                 )
-            if (
-                initial_value < param_data.lower_bound
-                or initial_value > param_data.upper_bound
-            ):
-                raise RuntimeError(
-                    f"Initial value for parameter `{param}` outside bounds."
-                )
 
         self.fixed_parameters = {
             param_name: param_data.fixed_to
@@ -518,7 +516,7 @@ class Fitter:
             for param, value in uncertainties.items()
         }
         initial_values = {
-            param: param_data.initialised_to * scale_factors[param]
+            param: param_data.get_initial_value() * scale_factors[param]
             for param, param_data in parameters.items()
         }
 

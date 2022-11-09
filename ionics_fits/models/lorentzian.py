@@ -75,7 +75,8 @@ class Lorentzian(Model):
         sgn = 1 if peak_guess > y0_guess else -1
 
         model_parameters["y0"].heuristic = y0_guess
-        fwhmh = model_parameters["fwhmh"].heuristic = 1 / fit.values["tau"]
+        model_parameters["fwhmh"].heuristic = 1 / fit.values["tau"]
+        fwhmh = model_parameters["fwhmh"].get_initial_value()
         model_parameters["a"].heuristic = fit.values["y0"] * sgn * 2 / fwhmh
 
         cut_off = 2 * fit.values["tau"]

@@ -52,7 +52,7 @@ class NormalFitter(Fitter):
             if param_data.fixed_to is None
         ]
 
-        p0 = [parameters[param].initialised_to for param in free_parameters]
+        p0 = [parameters[param].get_initial_value() for param in free_parameters]
         lower = [parameters[param].lower_bound for param in free_parameters]
         upper = [parameters[param].upper_bound for param in free_parameters]
         p0_dict = {param: parameters[param].initialised_to for param in free_parameters}

@@ -85,10 +85,15 @@ class Power(Model):
             if param_data.fixed_to is None
         }
 
-        x0 = model_parameters["x0"].heuristic = 0.0
-        y0 = model_parameters["y0"].heuristic = 0.0
-        a = model_parameters["a"].heuristic = 1.0
-        n = model_parameters["n"].heuristic = 1.0
+        model_parameters["x0"].heuristic = 0.0
+        model_parameters["y0"].heuristic = 0.0
+        model_parameters["a"].heuristic = 1.0
+        model_parameters["n"].heuristic = 1.0
+        
+        x0 = model_parameters["x0"].get_initial_value()
+        y0 = model_parameters["y0"].get_initial_value()
+        a = model_parameters["a"].get_initial_value()
+        n = model_parameters["n"].get_initial_value()
 
         if len(unknowns) == 0 or "x0" in unknowns or len(unknowns) > 2:
             # No heuristic needed / we don't have a good heuristic for this case
@@ -138,16 +143,9 @@ class Power(Model):
             for idx, y0 in np.ndenumerate(y0_guesses):
                 model_parameters["y0"].heuristic = y0
                 ns[idx], costs[idx] = self.optimal_n(x, y, model_parameters)
-                model_parameters["y0"].initialised_to = None
 
             model_parameters["n"].heuristic = float(ns[np.argmin(costs)])
             model_parameters["y0"].heuristic = float(y0_guesses[np.argmin(costs)])
-
-        # apply fallbacks for any parameters we haven't already set
-        model_parameters["x0"].heuristic = x0
-        model_parameters["y0"].heuristic = y0
-        model_parameters["a"].heuristic = a
-        model_parameters["n"].heuristic = n
 
     def optimal_n(self, x, y, model_parameters):
         """Find the optimal (in the least-squared residuals sense) value of `n`
@@ -168,7 +166,7 @@ class Power(Model):
         y_pr = y - y0
         y_pr = y_pr / a
 
-        # avoid divide by zero errors
+        # Avoid divide by zero errors
         valid = np.argwhere(np.logical_and(y_pr != 0, x_pr != 1))
 
         if len(valid) == 0:
@@ -177,7 +175,7 @@ class Power(Model):
         n = np.log(np.abs(y_pr[valid])) / np.log(np.abs(x_pr[valid]))
         n = n.squeeze()
 
-        # don't look for silly values of n
+        # Don't look for silly values of n
         n_min = max(-10, model_parameters["n"].lower_bound)
         n_max = min(10, model_parameters["n"].upper_bound)
 
