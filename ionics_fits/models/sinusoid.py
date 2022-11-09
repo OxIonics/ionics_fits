@@ -72,34 +72,34 @@ class Sinusoid(Model):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Sets initial values for model parameters based on heuristics. Typically
-        called during `Fitter.fit`.
+        """Set heuristic values for model parameters.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Typically called during `Fitter.fit`. This method may make use of information
+        supplied by the user for some parameters (via the `fixed_to` or
+        `user_estimate` attributes) to find initial guesses for other parameters.
 
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
+        The datasets must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values. If all parameters of the model allow
+        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data, rescaled if allowed.
+        :param y: y-axis data, rescaled if allowed.
         :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
+            metadata, rescaled if allowed.
         """
         # We don't have good heuristics for these parameters
-        model_parameters["y0"].initialise(np.mean(y))
-        model_parameters["tau"].initialise(np.max(x))
+        model_parameters["y0"].heuristic = np.mean(y)
+        model_parameters["tau"].heuristic = np.max(x)
 
         omega, spectrum = utils.get_spectrum(x, y, density_units=False, trim_dc=True)
         spectrum = np.abs(spectrum)
         peak = np.argmax(spectrum)
 
-        model_parameters["a"].initialise(spectrum[peak] * 2)
-        model_parameters["omega"].initialise(omega[peak])
+        model_parameters["a"].heuristic = spectrum[peak] * 2
+        model_parameters["omega"].heuristic = omega[peak]
 
         phi_params = copy.deepcopy(model_parameters)
-        phi_params["x0"].initialise(0)
+        phi_params["x0"].heuristic = 0.0
         phi, _ = self.param_min_sqrs(
             x=x,
             y=y,
@@ -113,13 +113,13 @@ class Sinusoid(Model):
             if model_parameters["phi"].fixed_to is None:
                 raise ValueError("Only one of 'x0' and 'phi' may be floated at once")
 
-            model_parameters["phi"].initialise(0)
-            model_parameters["x0"].initialise(
+            model_parameters["phi"].heuristic = 0
+            model_parameters["x0"].heuristic = (
                 -phi / model_parameters["omega"].get_initial_value()
             )
         else:
-            model_parameters["phi"].initialise(phi)
-            model_parameters["x0"].initialise(0)
+            model_parameters["phi"].heuristic = phi
+            model_parameters["x0"].heuristic = 0.0
 
     @staticmethod
     def calculate_derived_params(

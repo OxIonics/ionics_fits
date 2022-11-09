@@ -201,26 +201,26 @@ class RabiFlopFreq(RabiFlop):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Sets initial values for model parameters based on heuristics. Typically
-        called during `Fitter.fit`.
+        """Set heuristic values for model parameters.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Typically called during `Fitter.fit`. This method may make use of information
+        supplied by the user for some parameters (via the `fixed_to` or
+        `user_estimate` attributes) to find initial guesses for other parameters.
 
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
+        The datasets must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values. If all parameters of the model allow
+        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data, rescaled if allowed.
+        :param y: y-axis data, rescaled if allowed.
         :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
+            metadata, rescaled if allowed.
         """
-        model_parameters["P1"].initialise(1 if y[0] > 0.5 else 0)
-        model_parameters["P_upper"].initialise(1)
-        model_parameters["P_lower"].initialise(0)
-        model_parameters["t_dead"].initialise(0)
-        model_parameters["tau"].initialise(np.inf)
+        model_parameters["P1"].heuristic = 1 if y[0] > 0.5 else 0
+        model_parameters["P_upper"].heuristic = 1
+        model_parameters["P_lower"].heuristic = 0
+        model_parameters["t_dead"].heuristic = 0
+        model_parameters["tau"].heuristic = np.inf
 
         # there isn't a simple analytic form for the Fourier transform of a Rabi
         # flop in the general case. However in the low pulse area limit (and
@@ -232,9 +232,9 @@ class RabiFlopFreq(RabiFlop):
         fit = NormalFitter(x, y, model)
 
         a = np.abs(fit.values["a"])
-        t_pulse = model_parameters["t_pulse"].initialise(fit.values["w"] * 2)
-        model_parameters["omega"].initialise(2 * np.sqrt(a) / t_pulse)
-        model_parameters["delta"].initialise(-fit.values["x0"])
+        t_pulse = model_parameters["t_pulse"].heuristic = fit.values["w"] * 2
+        model_parameters["omega"].heuristic = 2 * np.sqrt(a) / t_pulse
+        model_parameters["delta"].heuristic = -fit.values["x0"]
 
 
 class RabiFlopTime(RabiFlop):
@@ -269,28 +269,28 @@ class RabiFlopTime(RabiFlop):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Sets initial values for model parameters based on heuristics. Typically
-        called during `Fitter.fit`.
+        """Set heuristic values for model parameters.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Typically called during `Fitter.fit`. This method may make use of information
+        supplied by the user for some parameters (via the `fixed_to` or
+        `user_estimate` attributes) to find initial guesses for other parameters.
 
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
+        The datasets must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values. If all parameters of the model allow
+        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data, rescaled if allowed.
+        :param y: y-axis data, rescaled if allowed.
         :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
+            metadata, rescaled if allowed.
         """
         # Could back P1 out from the phase of the sinusoid, but keeping it simple
         # for now...
-        P1 = model_parameters["P1"].initialise(1 if y[0] > 0.5 else 0)
-        model_parameters["P_upper"].initialise(1)
-        model_parameters["P_lower"].initialise(0)
-        model_parameters["t_dead"].initialise(0)
-        model_parameters["tau"].initialise(np.inf)
+        P1 = model_parameters["P1"].heuristic = 1 if y[0] > 0.5 else 0
+        model_parameters["P_upper"].heuristic = 1
+        model_parameters["P_lower"].heuristic = 0
+        model_parameters["t_dead"].heuristic = 0
+        model_parameters["tau"].heuristic = np.inf
 
         model = Sinusoid()
         model.parameters["phi"].fixed_to = np.pi / 2 if P1 == 1 else 0
@@ -303,5 +303,5 @@ class RabiFlopTime(RabiFlop):
         # avoid divide by zero errors from numerical noise when delta ~= 0
         delta = 0 if omega >= W else np.sqrt(np.power(W, 2) - np.power(omega, 2))
 
-        model_parameters["omega"].initialise(omega)
-        model_parameters["delta"].initialise(delta)
+        model_parameters["omega"].heuristic = omega
+        model_parameters["delta"].heuristic = delta

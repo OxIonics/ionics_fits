@@ -24,12 +24,21 @@ class ModelParameter:
         upper_bound: upper bound for the parameter. Fitted values are guaranteed to be
             lower than or equal to the upper bound. Parameter bounds may be used by
             fit heuristics to help find good starting points for the optimizer.
-        fixed_to: if not `None` the model parameter is fixed to this value during
-            fitting instead of being floated.
-        initialised_to: if not `None` this value is used as an initial value during
-            fitting rather than obtaining a value from the heuristics. This value may
-            additionally be used by the heuristics to help find good initial conditions
-            for other model parameters where none has been explicitly given.
+        fixed_to: if not `None`, the model parameter is fixed to this value during
+            fitting instead of being floated. This value may additionally be used by
+            the heuristics to help find good initial values for other model parameters
+            for which none have been provided by the user. The value of `fixed_to` must
+            lie within the bounds of the parameter.
+        user_estimate: if not `None` and the parameter is not fixed, this value is
+            used as an initial value during fitting rather than obtaining a value from
+            the heuristics. This value may additionally be used by the heuristics to
+            help find good initial values for other model parameters for which none
+            have been provided by the user. The value of `user_estimate` must lie
+            within the bounds of the parameter.
+        heuristic: if both of `fixed_to` and `user_estimate` are `None`, this value is
+            used as an initial value during fitting. It is set by the
+            `estimate_parameters` method of the model in which the parameter is used
+            and should not be set by the user.
         scale_func: callable returning a scale factor which the parameter must be
             *multiplied* by if it was fitted using `x` / `y` data that has been
             *multiplied* by the given scale factors. Scale factors are used to improve
@@ -43,7 +52,8 @@ class ModelParameter:
     lower_bound: float = -np.inf
     upper_bound: float = np.inf
     fixed_to: Optional[float] = None
-    initialised_to: Optional[float] = None
+    user_estimate: Optional[float] = None
+    heuristic: Optional[float] = None
     scale_func: Callable[
         [
             float,
@@ -77,52 +87,36 @@ class ModelParameter:
         self.lower_bound = _rescale(self.lower_bound)
         self.upper_bound = _rescale(self.upper_bound)
         self.fixed_to = _rescale(self.fixed_to)
-        self.initialised_to = _rescale(self.initialised_to)
+        self.user_estimate = _rescale(self.user_estimate)
 
         return scale_factor
 
-    def get_initial_value(self, default: Optional[float] = None) -> Optional[float]:
-        """If a value is known for this parameter prior to fitting -- either because an
-        initial value has been set or because the parameter has been fixed -- we return
-        it, otherwise we return :param default:. The return value is clipped to lie
-        between the set lower and upper bounds.
+    def get_initial_value(self) -> Optional[float]:
+        """
+        Get initial value.
 
-        Does not mutate the parameter.
+        For fixed parameters, this is the value the parameter is fixed to. For floated
+        parameters, it is the value used to seed the fit. In the latter case, the
+        initial value is retrieved from `user_estimate` if that attribute is not
+        `None`, otherwise `heuristic` is used.
         """
         if self.fixed_to is not None:
             value = self.fixed_to
-        elif self.initialised_to is not None:
-            value = self.initialised_to
+        elif self.user_estimate is not None:
+            value = self.user_estimate
+        elif self.heuristic is not None:
+            value = self.clip(self.heuristic)
         else:
-            value = default
+            return None
 
-        if value is not None:
-            value = self.clip(value)
+        if value < self.lower_bound or value > self.upper_bound:
+            raise ValueError("Initial value outside bounds.")
 
         return value
 
-    def clip(self, value: float):
+    def clip(self, value: float) -> float:
         """Clip value to lie between lower and upper bounds."""
         return np.clip(value, self.lower_bound, self.upper_bound)
-
-    def initialise(self, estimate: Optional[float] = None) -> float:
-        """Sets the parameter's initial value based on the supplied estimate. If an
-        initial value is already known for this parameter (see :meth get_initial_value:)
-        we use that instead of the supplied estimate. The value is clipped to lie
-        between the set lower and upper bounds.
-
-        After this method, :attribute initialised_to: the parameter either has a valid
-        initial value (i.e. one that is not `None` and lies between the set bounds) or
-        a `ValueError` be raised.
-
-        :returns: the initialised value
-        """
-        self.initialised_to = self.get_initial_value(estimate)
-
-        if self.initialised_to is None:
-            raise ValueError("No valid initial value set for parameter")
-
-        return self.initialised_to
 
 
 class Model:
@@ -199,20 +193,20 @@ class Model:
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Sets initial values for model parameters based on heuristics. Typically
-        called during `Fitter.fit`.
+        """Set heuristic values for model parameters.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Typically called during `Fitter.fit`. This method may make use of information
+        supplied by the user for some parameters (via the `fixed_to` or
+        `user_estimate` attributes) to find initial guesses for other parameters.
 
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
+        The datasets must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values. If all parameters of the model allow
+        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data, rescaled if allowed.
+        :param y: y-axis data, rescaled if allowed.
         :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
+            metadata, rescaled if allowed.
         """
         raise NotImplementedError
 
@@ -260,10 +254,10 @@ class Model:
         :returns: tuple with the value from :param scanned_param_values: which results
         in lowest residuals and the root-sum-squared residuals for that value.
         """
+        parameters.pop(scanned_param)
         param_values = {
-            param: value
+            param: param_data.get_initial_value()
             for param, param_data in parameters.items()
-            if (value := param_data.get_initial_value()) is not None
         }
 
         scanned_param_values = np.asarray(scanned_param_values)
@@ -420,7 +414,7 @@ class Fitter:
         """
         model = copy.deepcopy(model)
 
-        # sanitize input dataset
+        # Sanitize input dataset
         x = np.array(x, dtype=np.float64, copy=True)
         y = np.array(y, dtype=np.float64, copy=True)
         sigma = None if sigma is None else np.array(sigma, dtype=np.float64, copy=True)
@@ -473,14 +467,15 @@ class Fitter:
 
         model.estimate_parameters(x, y, parameters)
 
-        # raises an exception if any parameter has not been initialised
-        try:
-            for param, param_data in parameters.items():
-                param_data.initialise(None)
-        except ValueError:
-            raise Exception(f"No initial value found for parameter {param}.")
+        for param, param_data in parameters.items():
+            initial_value = param_data.get_initial_value()
+            if initial_value is None:
+                raise RuntimeError(
+                    "No fixed_to, user_estimate or heuristic specified"
+                    f" for parameter `{param}`."
+                )
 
-        fixed_params = {
+        self.fixed_parameters = {
             param_name: param_data.fixed_to
             for param_name, param_data in parameters.items()
             if param_data.fixed_to is not None
@@ -502,14 +497,16 @@ class Fitter:
                 param: value
                 for param, value in zip(self.free_parameters, list(free_param_values))
             }
-            params.update(fixed_params)
+            params.update(self.fixed_parameters)
             y = model.func(x, params)
             return y
 
         fitted_params, uncertainties = self._fit(x, y, sigma, parameters, free_func)
 
-        fitted_params.update({param: value for param, value in fixed_params.items()})
-        uncertainties.update({param: 0 for param in fixed_params.keys()})
+        fitted_params.update(
+            {param: value for param, value in self.fixed_parameters.items()}
+        )
+        uncertainties.update({param: 0 for param in self.fixed_parameters.keys()})
 
         fitted_params = {
             param: value * scale_factors[param]
@@ -520,7 +517,7 @@ class Fitter:
             for param, value in uncertainties.items()
         }
         initial_values = {
-            param: param_data.initialised_to * scale_factors[param]
+            param: param_data.get_initial_value() * scale_factors[param]
             for param, param_data in parameters.items()
         }
 

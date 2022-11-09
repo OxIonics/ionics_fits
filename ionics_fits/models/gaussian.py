@@ -55,20 +55,20 @@ class Gaussian(Model):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Sets initial values for model parameters based on heuristics. Typically
-        called during `Fitter.fit`.
+        """Set heuristic values for model parameters.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Typically called during `Fitter.fit`. This method may make use of information
+        supplied by the user for some parameters (via the `fixed_to` or
+        `user_estimate` attributes) to find initial guesses for other parameters.
 
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
+        The datasets must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values. If all parameters of the model allow
+        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data, rescaled if allowed.
+        :param y: y-axis data, rescaled if allowed.
         :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
+            metadata, rescaled if allowed.
         """
         # Gaussian Fourier Transform:
         #   F[A * exp(-(x/w)^2)](k) = A * sqrt(pi) * w * exp(-(pi*k*w)^2)
@@ -90,13 +90,13 @@ class Gaussian(Model):
         peak_guess = y[np.argmax(np.abs(y - y0_guess))]
         sgn = 1 if peak_guess > y0_guess else -1
 
-        model_parameters["a"].initialise(a * sgn)
-        model_parameters["sigma"].initialise(sigma)
-        model_parameters["y0"].initialise(y0_guess)
+        model_parameters["a"].heuristic = a * sgn
+        model_parameters["sigma"].heuristic = sigma
+        model_parameters["y0"].heuristic = y0_guess
 
         cut_off = 2 * omega[np.argmin(np.abs(abs_spectrum - W))]
-        model_parameters["x0"].initialise(
-            self.find_x_offset_fft(x, omega, spectrum, cut_off)
+        model_parameters["x0"].heuristic = self.find_x_offset_fft(
+            x, omega, spectrum, cut_off
         )
 
     @staticmethod
