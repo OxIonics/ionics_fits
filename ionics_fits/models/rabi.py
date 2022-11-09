@@ -16,14 +16,13 @@ class RabiFlop(Model):
     """
     Base class for damped Rabi flops
 
-    The model function of this class calculates the readout observation
-    probability while driving Rabi flops between two states |g> and |e>. This
-    probability is given by
+    This model calculates the measurement probability for damped Rabi flops on
+    a system with states |g> and |e>, given by
         P = P_readout_g + (P_readout_e - P_readout_g) * P_e
     where P_e is the time-dependent population in the excited state, while
     P_readout_g and P_readout_e denote the individual readout levels.
 
-    This model requires that the system starts out in either |g> or |e>,
+    The model requires that the system starts out in either |g> or |e>,
     specified by passing :param:`start_excited` to :meth:`__init__`. The
     probability of transition from one state to the other may then be
     calculated as
@@ -31,7 +30,7 @@ class RabiFlop(Model):
     where
         - t is the duration of interaction between qubit and driving field
         - W = sqrt(omega^2 + delta^2)
-        - delta is the detuning of driving field from resonance frequency
+        - delta is the detuning of the driving field from the resonance frequency
         - omega is the Rabi frequency
         - tau is the decay time constant
 
@@ -49,30 +48,34 @@ class RabiFlop(Model):
         - P_readout_g: Readout level for state |g> (fixed to 0 by default)
         - omega: Rabi frequency
         - tau: Decay time constant (fixed to infinity by default)
-        - t_dead: Dead time (fixed to 0 by default).
-        - w_0: Offset of resonance from zero of angular frequency variable.
+        - t_dead: Dead time (fixed to 0 by default)
+        - w_0: Offset of resonance from zero of angular frequency variable (fixed to 0 by default)
 
     Derived parameters:
         - t_pi: Pi-time, calculated as t_pi = pi / omega
         - t_pi_2: Pi/2-time, calculated as t_pi_2 = t_pi / 2
 
-    All frequencies and detunings are in angular units.
+    All frequencies are in angular units.
     """
 
-    def __init__(self, start_excited):
+    def __init__(self, start_excited: bool):
         super().__init__()
         self.start_excited = start_excited
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
+        # Beware if you're sub-typing this!
+        # This is not the standard type for `x`; we rely on the implementation of `func`
+        # to change the type of `x` for us (see the RabiFlopFreq / RabiFlopTime
+        # implementations)
         x: Tuple[
             Array[("num_samples",), np.float64], Array[("num_samples",), np.float64]
         ],
         P_readout_e: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            fixed_to=1.0,
+            fixed_to=0.9,
             scale_func=lambda x_scale, y_scale, _: y_scale,
         ),
         P_readout_g: ModelParameter(
@@ -87,7 +90,7 @@ class RabiFlop(Model):
         w_0: ModelParameter(fixed_to=0.0),
     ) -> Array[("num_samples",), np.float64]:
         """
-        Return the probability of observation of readout event.
+        Return measurement probability.
 
         :param x: Tuple (t_pulse, w) of ndarrays containing pulse duration and
             angular frequency of driving field. They must have shapes such
@@ -153,7 +156,7 @@ class RabiFlop(Model):
 
 
 class RabiFlopFreq(RabiFlop):
-    def __init__(self, start_excited=True):
+    def __init__(self, start_excited: bool):
         super().__init__(start_excited)
 
         self.parameters["t_pulse"] = ModelParameter(lower_bound=0.0)
@@ -168,12 +171,11 @@ class RabiFlopFreq(RabiFlop):
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
         """
-        Return the probability of observation of readout event.
+        Return measurement probability as function of pulse frequency.
 
-        :param x: Angular frequency of driving field
+        :param x: Angular frequency
         """
-        t_pulse = param_values["t_pulse"]
-        del param_values["t_pulse"]
+        t_pulse = param_values.pop("t_pulse")
         return super()._func((t_pulse, x), **param_values)
         # pytype: disable=wrong-arg-types
 
@@ -183,11 +185,10 @@ class RabiFlopFreq(RabiFlop):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """
-        Sets initial values for model parameters based on heuristics.
+        """Sets initial values for model parameters based on heuristics. Typically
+        called during `Fitter.fit`.
 
-        Typically called during `Fitter.fit`. Heuristic results should stored
-        in :param model_parameters: using the
+        Heuristic results should stored in :param model_parameters: using the
         `ModelParameter`'s `initialise` method. This ensures that all information passed
         in by the user (fixed values, initial values, bounds) is used correctly.
 
@@ -216,12 +217,13 @@ class RabiFlopFreq(RabiFlop):
 
         a = np.abs(fit.values["a"])
         t_pulse = model_parameters["t_pulse"].initialise(2 * fit.values["w"])
+        print(t_pulse)
         model_parameters["omega"].initialise(2 * np.sqrt(a) / t_pulse)
         model_parameters["w_0"].initialise(-fit.values["x0"])
 
 
 class RabiFlopTime(RabiFlop):
-    def __init__(self, start_excited=True):
+    def __init__(self, start_excited: bool):
         super().__init__(start_excited)
 
         self.parameters["w"] = ModelParameter()
@@ -236,12 +238,11 @@ class RabiFlopTime(RabiFlop):
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
         """
-        Return the probability of observation of readout event.
+        Return measurement probability as function of pulse duration.
 
-        :param x: Pulse duration of driving field
+        :param x: Pulse duration
         """
-        w = param_values["w"]
-        del param_values["w"]
+        w = param_values.pop("w")
         return super()._func((x, w), **param_values)
         # pytype: disable=wrong-arg-types
 
@@ -251,10 +252,8 @@ class RabiFlopTime(RabiFlop):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """
-        Set initial values for model parameters based on heuristics.
-
-        Typically called during `Fitter.fit`.
+        """Sets initial values for model parameters based on heuristics. Typically
+        called during `Fitter.fit`.
 
         Heuristic results should stored in :param model_parameters: using the
         `ModelParameter`'s `initialise` method. This ensures that all information passed
