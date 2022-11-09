@@ -89,7 +89,7 @@ class Power(Model):
         model_parameters["y0"].heuristic = 0.0
         model_parameters["a"].heuristic = 1.0
         model_parameters["n"].heuristic = 1.0
-        
+
         x0 = model_parameters["x0"].get_initial_value()
         y0 = model_parameters["y0"].get_initial_value()
         a = model_parameters["a"].get_initial_value()

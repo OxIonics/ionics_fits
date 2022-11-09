@@ -108,7 +108,7 @@ class ModelParameter:
             return None
 
         if value < self.lower_bound or value > self.upper_bound:
-            raise ValueError(f"Initial value outside bounds.")
+            raise ValueError("Initial value outside bounds.")
 
         return value
 
