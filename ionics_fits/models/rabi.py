@@ -201,20 +201,20 @@ class RabiFlopFreq(RabiFlop):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Sets initial values for model parameters based on heuristics. Typically
-        called during `Fitter.fit`.
+        """Set heuristic values for model parameters.
 
-        Heuristic results should be stored in :param model_parameters: using the
-        `ModelParameter`'s `heuristic` attribute. This ensures that all information
-        passed in by the user (fixed values, initial values, bounds) is used correctly.
+        Typically called during `Fitter.fit`. This method may make use of information
+        supplied by the user for some parameters (via the `fixed_to` or
+        `user_estimate` attributes) to find initial guesses for other parameters.
 
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
+        The datasets must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values. If all parameters of the model allow
+        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data, rescaled if allowed.
+        :param y: y-axis data, rescaled if allowed.
         :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
+            metadata, rescaled if allowed.
         """
         model_parameters["P1"].heuristic = 1 if y[0] > 0.5 else 0
         model_parameters["P_upper"].heuristic = 1
@@ -269,20 +269,20 @@ class RabiFlopTime(RabiFlop):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Sets initial values for model parameters based on heuristics. Typically
-        called during `Fitter.fit`.
+        """Set heuristic values for model parameters.
 
-        Heuristic results should be stored in :param model_parameters: using the
-        `ModelParameter`'s `heuristic` attribute. This ensures that all information
-        passed in by the user (fixed values, initial values, bounds) is used correctly.
+        Typically called during `Fitter.fit`. This method may make use of information
+        supplied by the user for some parameters (via the `fixed_to` or
+        `user_estimate` attributes) to find initial guesses for other parameters.
 
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
+        The datasets must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values. If all parameters of the model allow
+        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data, rescaled if allowed.
+        :param y: y-axis data, rescaled if allowed.
         :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
+            metadata, rescaled if allowed.
         """
         # Could back P1 out from the phase of the sinusoid, but keeping it simple
         # for now...

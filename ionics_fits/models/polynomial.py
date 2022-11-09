@@ -64,20 +64,20 @@ class Power(Model):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Set initial values for model parameters based on heuristics. Typically
-        called during `Fitter.fit`.
+        """Set heuristic values for model parameters.
 
-        Heuristic results should be stored in :param model_parameters: using the
-        `ModelParameter`'s `heuristic` attribute. This ensures that all information
-        passed in by the user (fixed values, initial values, bounds) is used correctly.
+        Typically called during `Fitter.fit`. This method may make use of information
+        supplied by the user for some parameters (via the `fixed_to` or
+        `user_estimate` attributes) to find initial guesses for other parameters.
 
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
+        The datasets must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values. If all parameters of the model allow
+        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data, rescaled if allowed.
+        :param y: y-axis data, rescaled if allowed.
         :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
+            metadata, rescaled if allowed.
         """
         unknowns = {
             param
@@ -101,6 +101,7 @@ class Power(Model):
             pass
 
         elif unknowns == {"a"}:
+            raise ValueError
             x = x - x0
             y = y - y0
             a = y / np.float_power(x, n)
@@ -109,7 +110,7 @@ class Power(Model):
 
         elif unknowns == {"n"}:
             n = self.optimal_n(x, y, model_parameters)[0]
-            model_parameters["m"].heuristic = n
+            model_parameters["n"].heuristic = n
 
         elif unknowns == {"y0"}:
             y0 = y - a * np.float_power(x - x0, n)
@@ -254,20 +255,20 @@ class Polynomial(Model):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Sets initial values for model parameters based on heuristics. Typically
-        called during `Fitter.fit`.
+        """Set heuristic values for model parameters.
 
-        Heuristic results should be stored in :param model_parameters: using the
-        `ModelParameter`'s `heuristic` attribute. This ensures that all information
-        passed in by the user (fixed values, initial values, bounds) is used correctly.
+        Typically called during `Fitter.fit`. This method may make use of information
+        supplied by the user for some parameters (via the `fixed_to` or
+        `user_estimate` attributes) to find initial guesses for other parameters.
 
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
+        The datasets must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values. If all parameters of the model allow
+        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data, rescaled if allowed.
+        :param y: y-axis data, rescaled if allowed.
         :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
+            metadata, rescaled if allowed.
         """
         x0 = model_parameters["x0"].heuristic = 0.0
 
