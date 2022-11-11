@@ -64,25 +64,25 @@ class Triangle(Model):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        """Sets initial values for model parameters based on heuristics. Typically
-        called during `Fitter.fit`.
+        """Set heuristic values for model parameters.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Typically called during `Fitter.fit`. This method may make use of information
+        supplied by the user for some parameters (via the `fixed_to` or
+        `user_estimate` attributes) to find initial guesses for other parameters.
 
-        The dataset must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values.
+        The datasets must be sorted in order of increasing x-axis values and must not
+        contain any infinite or nan values. If all parameters of the model allow
+        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data, rescaled if allowed.
+        :param y: y-axis data, rescaled if allowed.
         :param model_parameters: dictionary mapping model parameter names to their
-            metadata.
+            metadata, rescaled if allowed.
         """
         # Written to be handle the case of data which is only well-modelled by a
         # triangle function near `x0` but saturates further away
-        model_parameters["y_max"].initialise(max(y))
-        model_parameters["y_min"].initialise(min(y))
+        model_parameters["y_max"].heuristic = max(y)
+        model_parameters["y_min"].heuristic = min(y)
 
         min_ind = np.argmin(y)
         max_ind = np.argmax(y)
@@ -109,11 +109,11 @@ class Triangle(Model):
         alpha = 0 if k_m == 0 else k_p / k_m
 
         positive_parameters = copy.deepcopy(model_parameters)
-        positive_parameters["x0"].initialise(x_min)
-        positive_parameters["y0"].initialise(y_min)
+        positive_parameters["x0"].heuristic = x_min
+        positive_parameters["y0"].heuristic = y_min
 
-        positive_parameters["k"].initialise(0.5 * (k_p + k_m))
-        positive_parameters["sym"].initialise((alpha - 1) / (1 + alpha))
+        positive_parameters["k"].heuristic = 0.5 * (k_p + k_m)
+        positive_parameters["sym"].heuristic = (alpha - 1) / (1 + alpha)
 
         positive_parameters = {
             param: param_data.get_initial_value()
@@ -140,10 +140,10 @@ class Triangle(Model):
         alpha = 0 if k_m == 0 else k_p / k_m
 
         negative_parameters = copy.deepcopy(model_parameters)
-        negative_parameters["x0"].initialise(x_max)
-        negative_parameters["y0"].initialise(y_max)
-        negative_parameters["k"].initialise(0.5 * (k_p + k_m))
-        negative_parameters["sym"].initialise((alpha - 1) / (1 + alpha))
+        negative_parameters["x0"].heuristic = x_max
+        negative_parameters["y0"].heuristic = y_max
+        negative_parameters["k"].heuristic = 0.5 * (k_p + k_m)
+        negative_parameters["sym"].heuristic = (alpha - 1) / (1 + alpha)
 
         negative_parameters = {
             param: param_data.get_initial_value()
@@ -159,7 +159,7 @@ class Triangle(Model):
             best_params = negative_parameters
 
         for param, value in best_params.items():
-            model_parameters[param].initialise(value)
+            model_parameters[param].heuristic = value
 
     @staticmethod
     def calculate_derived_params(

@@ -50,9 +50,9 @@ class Lorentzian(Model):
         """Sets initial values for model parameters based on heuristics. Typically
         called during `Fitter.fit`.
 
-        Heuristic results should stored in :param model_parameters: using the
-        `ModelParameter`'s `initialise` method. This ensures that all information passed
-        in by the user (fixed values, initial values, bounds) is used correctly.
+        Heuristic results should be stored in :param model_parameters: using the
+        `ModelParameter`'s `heuristic` attribute. This ensures that all information
+        passed in by the user (fixed values, initial values, bounds) is used correctly.
 
         The dataset must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values.
@@ -66,19 +66,20 @@ class Lorentzian(Model):
         abs_spectrum = np.abs(spectrum)
 
         model = Exponential()
-        model.parameters["y0"].initialise(np.max(abs_spectrum))
-        model.parameters["y_inf"].initialise(0)
+        model.parameters["y0"].heuristic = np.max(abs_spectrum)
+        model.parameters["y_inf"].heuristic = 0.0
         fit = NormalFitter(omega, abs_spectrum, model)
 
         y0_guess = np.mean([y[0], y[-1]])
         peak_guess = y[np.argmax(np.abs(y - y0_guess))]
         sgn = 1 if peak_guess > y0_guess else -1
 
-        model_parameters["y0"].initialise(y0_guess)
-        fwhmh = model_parameters["fwhmh"].initialise(1 / fit.values["tau"])
-        model_parameters["a"].initialise(fit.values["y0"] * sgn * 2 / fwhmh)
+        model_parameters["y0"].heuristic = y0_guess
+        model_parameters["fwhmh"].heuristic = 1 / fit.values["tau"]
+        fwhmh = model_parameters["fwhmh"].get_initial_value()
+        model_parameters["a"].heuristic = fit.values["y0"] * sgn * 2 / fwhmh
 
         cut_off = 2 * fit.values["tau"]
-        model_parameters["x0"].initialise(
-            self.find_x_offset_fft(x, omega, spectrum, cut_off)
+        model_parameters["x0"].heuristic = self.find_x_offset_fft(
+            x, omega, spectrum, cut_off
         )
