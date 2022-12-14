@@ -38,10 +38,12 @@ class RabiFlop(Model):
     :class RabiFlopFreq: or :class RabiFlopTime: instead.
 
     Independent variables:
-        - t_pulse: Duration of driving pulse including dead time. The true
-            duration of interaction is calculated as t = max(0, t_pulse - t_dead).
-        - w: Angular frequency of driving pulse. The detuning is calculated as
-            delta = w - w_0.
+        - t_pulse: Duration of driving pulse including dead time. The true duration of
+            interaction is calculated as t = max(0, t_pulse - t_dead).
+        - w: Variable determining frequency of driving pulse. This does not have to be
+            the absolute frequency, but may instead be measured relative to some
+            arbitrary reference frequency. The detuning from resonance is calculated
+            as delta = w - w_0.
 
     Model parameters:
         - P_readout_e: Readout level for state |e> (fixed to 1 by default)
@@ -49,7 +51,7 @@ class RabiFlop(Model):
         - omega: Rabi frequency
         - tau: Decay time constant (fixed to infinity by default)
         - t_dead: Dead time (fixed to 0 by default)
-        - w_0: Offset of resonance from zero of angular frequency variable (fixed to 0 by default)
+        - w_0: Offset of resonance from zero of frequency variable
 
     Derived parameters:
         - t_pi: Pi-time, calculated as t_pi = pi / omega
@@ -75,7 +77,7 @@ class RabiFlop(Model):
         P_readout_e: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            fixed_to=0.9,
+            fixed_to=1.0,
             scale_func=lambda x_scale, y_scale, _: y_scale,
         ),
         P_readout_g: ModelParameter(
@@ -87,7 +89,7 @@ class RabiFlop(Model):
         omega: ModelParameter(lower_bound=0.0),
         tau: ModelParameter(lower_bound=0.0, fixed_to=np.inf),
         t_dead: ModelParameter(lower_bound=0.0, fixed_to=0.0),
-        w_0: ModelParameter(fixed_to=0.0),
+        w_0: ModelParameter(),
     ) -> Array[("num_samples",), np.float64]:
         """
         Return measurement probability.
@@ -200,8 +202,11 @@ class RabiFlopFreq(RabiFlop):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        model_parameters["P_readout_e"].heuristic = 1.0
+        # By default, we assume that the readout level for |g> is low and the
+        # one for |e> is high. If this is not the case, `user_estimate` has to be
+        # provided instead.
         model_parameters["P_readout_g"].heuristic = 0.0
+        model_parameters["P_readout_e"].heuristic = 1.0
         model_parameters["t_dead"].heuristic = 0.0
         model_parameters["tau"].heuristic = np.inf
 
@@ -221,8 +226,9 @@ class RabiFlopFreq(RabiFlop):
 
         model_parameters["t_pulse"].heuristic = 2 * fit.values["w"]
         t_pulse = model_parameters["t_pulse"].get_initial_value()
-        a = np.abs(fit.values["a"])
-        model_parameters["omega"].heuristic = 2 * np.sqrt(a) / t_pulse
+        model_parameters["omega"].heuristic = (
+            2 * np.sqrt(np.abs(fit.values["a"])) / t_pulse
+        )
         model_parameters["w_0"].heuristic = fit.values["x0"]
 
 
@@ -271,8 +277,11 @@ class RabiFlopTime(RabiFlop):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        model_parameters["P_readout_e"].heuristic = 1.0
+        # By default, we assume that the readout level for |g> is low and the
+        # one for |e> is high. If this is not the case, `user_estimate` has to be
+        # provided instead.
         model_parameters["P_readout_g"].heuristic = 0.0
+        model_parameters["P_readout_e"].heuristic = 1.0
         model_parameters["t_dead"].heuristic = 0.0
         model_parameters["tau"].heuristic = np.inf
 
@@ -281,12 +290,19 @@ class RabiFlopTime(RabiFlop):
             np.pi / 2 if self.start_excited else 3 * np.pi / 2
         )
         fit = NormalFitter(x, y, model)
-
         W = fit.values["omega"]
         omega = np.sqrt(2 * fit.values["a"]) * W
-        # Avoid divide by zero errors from numerical noise when delta ~= 0
+        # Prevent delta < 0 from numerical noise
         delta = 0.0 if omega >= W else np.sqrt(W**2 - omega**2)
 
         model_parameters["omega"].heuristic = omega
-        model_parameters["w_0"].heuristic = 0.0
-        model_parameters["w"].heuristic = delta
+        # Transition probability only depends on difference w - w_0, so don't float
+        # both parameters simultaneously. Can't infer sign of delta from sinusoid,
+        # therefore just pick one of the possible values
+        if model_parameters["w_0"].fixed_to is not None:
+            model_parameters["w"].heuristic = model_parameters["w_0"].fixed_to + delta
+        elif model_parameters["w"].fixed_to is not None:
+            model_parameters["w_0"].heuristic = model_parameters["w"].fixed_to - delta
+        else:
+            model_parameters["w_0"].fixed_to = 0.0
+            model_parameters["w"].heuristic = delta
