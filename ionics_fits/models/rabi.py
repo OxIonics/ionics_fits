@@ -178,8 +178,9 @@ class RabiFlopFreq(RabiFlop):
         :param x: Angular frequency
         """
         t_pulse = param_values.pop("t_pulse")
-        return super()._func((t_pulse, x), **param_values)
-        # pytype: disable=wrong-arg-types
+        return super()._func(
+            (t_pulse, x), **param_values
+        )  # pytype: disable=wrong-arg-types
 
     def estimate_parameters(
         self,
@@ -253,8 +254,7 @@ class RabiFlopTime(RabiFlop):
         :param x: Pulse duration
         """
         w = param_values.pop("w")
-        return super()._func((x, w), **param_values)
-        # pytype: disable=wrong-arg-types
+        return super()._func((x, w), **param_values)  # pytype: disable=wrong-arg-types
 
     def estimate_parameters(
         self,

@@ -67,7 +67,7 @@ def fuzz_rabi_freq(
         "t_dead": 0.0,
         "tau": np.inf,
     }
-    model = fits.models.RabiFlopFreq()
+    model = fits.models.RabiFlopFreq(start_excited=True)
     test_config = test_config or common.TestConfig()
     test_config.plot_failures = True
 
@@ -100,7 +100,7 @@ def fuzz_rabi_time(
         "t_dead": 0.0,
         "tau": np.inf,
     }
-    model = fits.models.RabiFlopTime()
+    model = fits.models.RabiFlopTime(start_excited=True)
     test_config = test_config or common.TestConfig()
     test_config.plot_failures = True
 
