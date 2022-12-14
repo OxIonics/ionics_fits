@@ -19,7 +19,7 @@ def test_rabi_freq():
         "tau": np.inf,
     }
 
-    model = fits.models.RabiFlopFreq()
+    model = fits.models.RabiFlopFreq(start_excited=True)
     common.check_multiple_param_sets(
         w,
         model,
@@ -40,7 +40,7 @@ def test_rabi_time():
         "t_dead": 0.0,
         "tau": np.inf,
     }
-    model = fits.models.RabiFlopTime()
+    model = fits.models.RabiFlopTime(start_excited=True)
     common.check_multiple_param_sets(
         t_pulse,
         model,
