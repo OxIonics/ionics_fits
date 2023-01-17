@@ -34,9 +34,9 @@ def test_rabi_time():
     params = {
         "P_readout_e": 1.0,
         "P_readout_g": 0.0,
-        "w_0": 2 * np.pi * np.array([0, 0.025e6]),
+        "delta": 2 * np.pi * np.array([0, 0.025e6]),
         "omega": np.pi / 5e-6 * np.array([0.25, 1.0]),
-        "w": 0.0,
+        "w_0": 0.0,
         "t_dead": 0.0,
         "tau": np.inf,
     }

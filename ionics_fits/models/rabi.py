@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class RabiFlop(Model):
     """
-    Base class for damped Rabi flops
+    Base class for damped Rabi flops.
 
     This model calculates the measurement probability for damped Rabi flops on
     a system with states |g> and |e>, given by
@@ -32,7 +32,7 @@ class RabiFlop(Model):
         - W = sqrt(omega^2 + delta^2)
         - delta is the detuning of the driving field from the resonance frequency
         - omega is the Rabi frequency
-        - tau is the decay time constant
+        - tau is the decay time constant.
 
     This class does not support fitting directly, use one of the subclasses
     :class RabiFlopFreq: or :class RabiFlopTime: instead.
@@ -40,8 +40,8 @@ class RabiFlop(Model):
     Independent variables:
         - t_pulse: Duration of driving pulse including dead time. The true duration of
             interaction is calculated as t = max(0, t_pulse - t_dead).
-        - w: Variable determining frequency of driving pulse. This does not have to be
-            the absolute frequency, but may instead be measured relative to some
+        - w: Variable that determines frequency of driving pulse. This does not have to
+            be the absolute frequency, but may instead be measured relative to some
             arbitrary reference frequency. The detuning from resonance is calculated
             as delta = w - w_0.
 
@@ -158,6 +158,15 @@ class RabiFlop(Model):
 
 
 class RabiFlopFreq(RabiFlop):
+    """
+    Fit model for Rabi pulse detuning scans.
+
+    This model calculates the measurement probability for damped Rabi flops
+    when the duration of the pulse is kept fixed and only its frequency is
+    varied. The pulse duration is therefore no longer an independent variable.
+    Instead, a new model parameter `t_pulse` is introduced.
+    """
+
     def __init__(self, start_excited: bool):
         super().__init__(start_excited)
 
@@ -203,9 +212,6 @@ class RabiFlopFreq(RabiFlop):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        # By default, we assume that the readout level for |g> is low and the
-        # one for |e> is high. If this is not the case, `user_estimate` has to be
-        # provided instead.
         model_parameters["P_readout_g"].heuristic = 0.0
         model_parameters["P_readout_e"].heuristic = 1.0
         model_parameters["t_dead"].heuristic = 0.0
@@ -234,12 +240,24 @@ class RabiFlopFreq(RabiFlop):
 
 
 class RabiFlopTime(RabiFlop):
+    """
+    Fit model for Rabi pulse duration scans.
+
+    This model calculates the measurement probability for damped Rabi flops
+    when the frequency of the pulse is kept fixed and only its duration is
+    varied. The pulse frequency is therefore no longer an independent variable.
+    In this case, only the magnitude of the detuning from resonance may be
+    inferred, given by delta = |w - w_0|. Therefore, a new model parameter
+    `delta` is introduced that replaces `w` and the parameter `w_0` is always
+    fixed to zero.
+    """
+
     def __init__(self, start_excited: bool):
         super().__init__(start_excited)
 
-        self.parameters["w"] = ModelParameter()
+        self.parameters["delta"] = ModelParameter()
 
-        self.parameters["w"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
+        self.parameters["delta"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         self.parameters["tau"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         self.parameters["t_dead"].scale_func = lambda x_scale, y_scale, _: x_scale
@@ -253,8 +271,10 @@ class RabiFlopTime(RabiFlop):
 
         :param x: Pulse duration
         """
-        w = param_values.pop("w")
-        return super()._func((x, w), **param_values)  # pytype: disable=wrong-arg-types
+        delta = param_values.pop("delta")
+        return super()._func(
+            (x, delta), **param_values
+        )  # pytype: disable=wrong-arg-types
 
     def estimate_parameters(
         self,
@@ -277,9 +297,8 @@ class RabiFlopTime(RabiFlop):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        # By default, we assume that the readout level for |g> is low and the
-        # one for |e> is high. If this is not the case, `user_estimate` has to be
-        # provided instead.
+        model_parameters["w_0"].fixed_to = 0.0
+
         model_parameters["P_readout_g"].heuristic = 0.0
         model_parameters["P_readout_e"].heuristic = 1.0
         model_parameters["t_dead"].heuristic = 0.0
@@ -296,13 +315,4 @@ class RabiFlopTime(RabiFlop):
         delta = 0.0 if omega >= W else np.sqrt(W**2 - omega**2)
 
         model_parameters["omega"].heuristic = omega
-        # Transition probability only depends on difference w - w_0, so don't float
-        # both parameters simultaneously. Can't infer sign of delta from sinusoid,
-        # therefore just pick one of the possible values
-        if model_parameters["w_0"].fixed_to is not None:
-            model_parameters["w"].heuristic = model_parameters["w_0"].fixed_to + delta
-        elif model_parameters["w"].fixed_to is not None:
-            model_parameters["w_0"].heuristic = model_parameters["w"].fixed_to - delta
-        else:
-            model_parameters["w_0"].fixed_to = 0.0
-            model_parameters["w"].heuristic = delta
+        model_parameters["delta"].heuristic = delta
