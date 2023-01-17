@@ -186,6 +186,7 @@ class RabiFlopFreq(RabiFlop):
 
         :param x: Angular frequency
         """
+        param_values = param_values.copy()
         t_pulse = param_values.pop("t_pulse")
         return super()._func(
             (t_pulse, x), **param_values
@@ -270,6 +271,7 @@ class RabiFlopTime(RabiFlop):
 
         :param x: Pulse duration
         """
+        param_values = param_values.copy()
         delta = param_values.pop("delta")
         param_values["w_0"] = 0.0
         return super()._func(
