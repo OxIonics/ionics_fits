@@ -248,20 +248,19 @@ class RabiFlopTime(RabiFlop):
     varied. The pulse frequency is therefore no longer an independent variable.
     In this case, only the magnitude of the detuning from resonance may be
     inferred, given by delta = |w - w_0|. Therefore, a new model parameter
-    `delta` is introduced that replaces `w` and the parameter `w_0` is always
-    fixed to zero.
+    `delta` is introduced that replaces `w` and `w_0`.
     """
 
     def __init__(self, start_excited: bool):
         super().__init__(start_excited)
 
         self.parameters["delta"] = ModelParameter()
+        del self.parameters["w_0"]
 
         self.parameters["delta"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         self.parameters["tau"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         self.parameters["t_dead"].scale_func = lambda x_scale, y_scale, _: x_scale
-        self.parameters["w_0"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
@@ -272,6 +271,7 @@ class RabiFlopTime(RabiFlop):
         :param x: Pulse duration
         """
         delta = param_values.pop("delta")
+        param_values["w_0"] = 0.0
         return super()._func(
             (x, delta), **param_values
         )  # pytype: disable=wrong-arg-types
@@ -297,8 +297,6 @@ class RabiFlopTime(RabiFlop):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        model_parameters["w_0"].fixed_to = 0.0
-
         model_parameters["P_readout_g"].heuristic = 0.0
         model_parameters["P_readout_e"].heuristic = 1.0
         model_parameters["t_dead"].heuristic = 0.0
