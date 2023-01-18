@@ -146,6 +146,7 @@ class Sinusoid(Model):
         derived_params = {}
         derived_params["f"] = fitted_params["omega"] / (2 * np.pi)
         derived_params["phi_cosine"] = fitted_params["phi"] + np.pi / 2
+        derived_params["contrast"] = 2 * np.abs(fitted_params["a"])
         derived_params["min"] = fitted_params["y0"] - np.abs(fitted_params["a"])
         derived_params["max"] = fitted_params["y0"] + np.abs(fitted_params["a"])
         derived_params["period"] = 2 * np.pi / fitted_params["omega"]
@@ -153,6 +154,7 @@ class Sinusoid(Model):
         derived_uncertainties = {}
         derived_uncertainties["f"] = fit_uncertainties["omega"] / (2 * np.pi)
         derived_uncertainties["phi_cosine"] = fit_uncertainties["phi"]
+        derived_uncertainties["contrast"] = 2 * fit_uncertainties["a"]
         derived_uncertainties["min"] = np.sqrt(
             fit_uncertainties["y0"] ** 2 + fit_uncertainties["a"] ** 2
         )
