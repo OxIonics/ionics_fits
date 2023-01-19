@@ -26,6 +26,7 @@ class Sinusoid(Model):
     Derived parameters:
       - f: frequency
       - phi_cosine: cosine phase (phi + pi/2)
+      - contrast: peak-to-peak amplitude of the undamped sinusoid
       - min/max: min / max values of the undamped sinusoid (including the offset and
           decay).
       - period: period of oscillation
