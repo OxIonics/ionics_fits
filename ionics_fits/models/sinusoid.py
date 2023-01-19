@@ -57,7 +57,9 @@ class Sinusoid(Model):
         y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
         x0: ModelParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
         tau: ModelParameter(
-            fixed_to=np.inf, scale_func=lambda x_scale, y_scale, _: x_scale
+            lower_bound=0,
+            fixed_to=np.inf,
+            scale_func=lambda x_scale, y_scale, _: x_scale,
         ),
     ) -> Array[("num_samples",), np.float64]:
         Gamma = np.exp(-x / tau)
