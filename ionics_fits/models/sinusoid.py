@@ -12,22 +12,22 @@ if TYPE_CHECKING:
 
 class Sinusoid(Model):
     """Generalised sinusoid fit according to:
-    y = Gamma*a*sin(omega*(x - x0) + phi) + y0
-    where Gamma = exp(-x/tau)
+    y = Gamma * a * sin[omega * (x - x0) + phi] + y0
+    where Gamma = exp(-x / tau).
 
     Fit parameters (all floated by default unless stated otherwise):
-      - a: initial (x = 0) amplitude of the decaying sinusoid
+      - a: initial (x = 0) amplitude of the sinusoid
       - omega: angular frequency
       - phi: phase offset (radians)
       - y0: y-axis offset
       - x0: x-axis offset (fixed to 0 by default)
-      - tau: decay constant (fixed to np.inf by default)
+      - tau: decay/growth constant (fixed to np.inf by default)
 
     Derived parameters:
       - f: frequency
       - phi_cosine: cosine phase (phi + pi/2)
-      - min/max: min / max values of the undamped sinusoid (including the offset and
-          decay).
+      - contrast: peak-to-peak amplitude of the pure sinusoid
+      - min/max: min / max values of the pure sinusoid
       - period: period of oscillation
       - TODO: peak values of the damped sinusoid as well as `x` value that the peak
           occurs at.
@@ -57,7 +57,9 @@ class Sinusoid(Model):
         y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
         x0: ModelParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
         tau: ModelParameter(
-            fixed_to=np.inf, scale_func=lambda x_scale, y_scale, _: x_scale
+            lower_bound=0,
+            fixed_to=np.inf,
+            scale_func=lambda x_scale, y_scale, _: x_scale,
         ),
     ) -> Array[("num_samples",), np.float64]:
         Gamma = np.exp(-x / tau)
@@ -146,6 +148,7 @@ class Sinusoid(Model):
         derived_params = {}
         derived_params["f"] = fitted_params["omega"] / (2 * np.pi)
         derived_params["phi_cosine"] = fitted_params["phi"] + np.pi / 2
+        derived_params["contrast"] = 2 * np.abs(fitted_params["a"])
         derived_params["min"] = fitted_params["y0"] - np.abs(fitted_params["a"])
         derived_params["max"] = fitted_params["y0"] + np.abs(fitted_params["a"])
         derived_params["period"] = 2 * np.pi / fitted_params["omega"]
@@ -153,6 +156,7 @@ class Sinusoid(Model):
         derived_uncertainties = {}
         derived_uncertainties["f"] = fit_uncertainties["omega"] / (2 * np.pi)
         derived_uncertainties["phi_cosine"] = fit_uncertainties["phi"]
+        derived_uncertainties["contrast"] = 2 * fit_uncertainties["a"]
         derived_uncertainties["min"] = np.sqrt(
             fit_uncertainties["y0"] ** 2 + fit_uncertainties["a"] ** 2
         )
