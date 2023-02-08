@@ -437,6 +437,7 @@ class Fitter:
 
         self.x = x
         self.y = y
+        self.sigma = sigma
 
         # Rescale coordinates to improve numerics (optimizers need to do things like
         # calculate numerical derivatives which is easiest if x and y are O(1)).
@@ -527,7 +528,6 @@ class Fitter:
         ) = model.calculate_derived_params(self.x, self.y, fitted_params, uncertainties)
 
         self.model = model
-        self.sigma = sigma
         self.values = fitted_params
         self.uncertainties = uncertainties
         self.initial_values = initial_values
