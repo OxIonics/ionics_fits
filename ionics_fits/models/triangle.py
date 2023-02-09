@@ -161,8 +161,8 @@ class Triangle(Model):
         for param, value in best_params.items():
             model_parameters[param].heuristic = value
 
-    @staticmethod
     def calculate_derived_params(
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         fitted_params: Dict[str, float],

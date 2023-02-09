@@ -1,4 +1,5 @@
 from typing import Dict, Tuple, TYPE_CHECKING
+
 import numpy as np
 
 from .. import Model, ModelParameter
@@ -8,39 +9,64 @@ if TYPE_CHECKING:
     num_samples = float
 
 
-class Exponential(Model):
-    """Exponential function according to:
-    y(x < x_dead) = y0
-    y(x >= x_dead) = y0 + (y_inf-y0)*(1-exp(-(x-x_dead)/tau))
+def _scale_func(x_scale, y_scale, model):
+    # Prevent rescaling
+    return None
+
+
+def _generate_benchmarking_parameters(num_qubits):
+    params = {
+        "p": ModelParameter(lower_bound=0.0, upper_bound=1.0, scale_func=_scale_func),
+        "y0": ModelParameter(
+            lower_bound=0.0,
+            upper_bound=1.0,
+            scale_func=lambda x_scale, y_scale, _: y_scale,
+        ),
+        "y_inf": ModelParameter(
+            fixed_to=1 / 2**num_qubits,
+            lower_bound=0,
+            upper_bound=1,
+            scale_func=lambda x_scale, y_scale, _: y_scale,
+        ),
+    }
+    return params
+
+
+class Benchmarking(Model):
+    """Benchmarking success probability decay model
+
+    y = (y0 - y_inf)*p^x + y_inf
+    for sequence length x.
 
     Fit parameters (all floated by default unless stated otherwise):
-      - x_dead: x-axis "dead time" (fixed to 0 by default)
-      - y0: initial (x = x_dead) y-axis offset
-      - y_inf: y-axis asymptote (i.e. y(x - x_0 >> tau) => y_inf)
-      - tau: decay constant
+      - p: depolarisation parameter
+      - y0: SPAM fidelity estimate
+      - y_inf: depolarisation offset (y-axis asymptote) (fixed to 1/2^n by default)
 
     Derived parameters:
-      - x_1_e: x-axis value for 1/e decay including dead time (`x_1_e = x0 + tau`)
+      - e: error per Clifford = (1 - p) / alpha_n where alpha_n = 2^n / (2^n - 1)
+      - e_spam: estimated SPAM error = 1 - y0
     """
 
-    # pytype: disable=invalid-annotation
-    def _func(
-        self,
-        x: Array[("num_samples",), np.float64],
-        x_dead: ModelParameter(
-            lower_bound=0, fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale
-        ),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        y_inf: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        tau: ModelParameter(
-            lower_bound=0, scale_func=lambda x_scale, y_scale, _: x_scale
-        ),
-    ) -> Array[("num_samples",), np.float64]:
-        y = y0 + (y_inf - y0) * (1 - np.exp(-(x - x_dead) / tau))
-        y = np.where(x >= x_dead, y, y0)
-        return y
+    def __init__(self, num_qubits):
+        """Init
 
-    # pytype: enable=invalid-annotation
+        :param num_qubits: The number of qubits involved in the benchmarking sequence.
+        """
+        self.num_qubits = num_qubits
+        self.alpha = 2**num_qubits / (2**num_qubits - 1)
+        super().__init__(parameters=_generate_benchmarking_parameters(num_qubits))
+
+    def func(
+        self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
+    ) -> Array[("num_samples",), np.float64]:
+        """Evaluates the model at a given set of x-axis points and with a given
+        parameter set and returns the result."""
+        p = params["p"]
+        y0 = params["y0"]
+        y_inf = params["y_inf"]
+        y = (y0 - y_inf) * p**x + y_inf
+        return y
 
     def estimate_parameters(
         self,
@@ -63,11 +89,9 @@ class Exponential(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        # Exponentials are generally pretty easy to fit so we keep the estimator simple
-        model_parameters["x_dead"].heuristic = 0
-        model_parameters["y0"].heuristic = y[0]
-        model_parameters["y_inf"].heuristic = y[-1]
-        model_parameters["tau"].heuristic = x.ptp()
+        model_parameters["p"].heuristic = 1.0
+        model_parameters["y0"].heuristic = max(y)
+        model_parameters["y_inf"].heuristic = 1 / 2**self.num_qubits
 
     def calculate_derived_params(
         self,
@@ -91,10 +115,21 @@ class Exponential(Model):
         :returns: tuple of dictionaries mapping derived parameter names to their
             values and uncertainties.
         """
-        derived_params = {"x_1_e": fitted_params["x_dead"] + fitted_params["tau"]}
-        derived_uncertainties = {
-            "x_1_2": np.sqrt(
-                fit_uncertainties["x_dead"] ** 2 + (fit_uncertainties["tau"] / 2) ** 2
-            )
-        }
+        p = fitted_params["p"]
+        y0 = fitted_params["y0"]
+
+        e = (1 - p) / self.alpha
+        e_spam = 1 - y0
+
+        p_err = fit_uncertainties["p"]
+        y0_err = fit_uncertainties["y0"]
+
+        derived_params = {}
+        derived_params["e"] = e
+        derived_params["e_spam"] = e_spam
+
+        derived_uncertainties = {}
+        derived_uncertainties["e"] = p_err / self.alpha
+        derived_uncertainties["e_spam"] = y0_err
+
         return derived_params, derived_uncertainties

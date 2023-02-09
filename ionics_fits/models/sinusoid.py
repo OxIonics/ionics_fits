@@ -123,8 +123,8 @@ class Sinusoid(Model):
             model_parameters["phi"].heuristic = phi
             model_parameters["x0"].heuristic = 0.0
 
-    @staticmethod
     def calculate_derived_params(
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         fitted_params: Dict[str, float],
