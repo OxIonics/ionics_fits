@@ -1,5 +1,4 @@
-from .benchmarking import Benchmarking
-from .exponential import Exponential
+from .exponential import Exponential, Benchmarking
 from .gaussian import Gaussian
 from .lorentzian import Lorentzian
 from .polynomial import Power, Polynomial, Line, Parabola

@@ -98,3 +98,96 @@ class Exponential(Model):
             )
         }
         return derived_params, derived_uncertainties
+
+
+class Benchmarking(Exponential):
+    """Randomised benchmarking success probability decay model
+
+    y = A*p^x + B
+    for sequence length x.
+    Change basis -> y = A*exp(-(ln(1 / p))*x) + B
+    Exponential function with
+      y_inf = B
+      y0 - y_inf = A
+      x_dead = 0
+      tau = 1 / (ln(1 / p))
+
+    Fit parameters (all floated by default unless stated otherwise):
+      - x_dead: x-axis "dead time" (fixed to 0 by default)
+      - y0: SPAM fidelity estimate (initial y-axis offset)
+      - y_inf: depolarisation offset (y-axis asymptote)
+        (fixed to 1 / 2**num_qubits by default)
+      - tau: exponential decay constant
+
+    Derived parameters:
+      - A: y0 - y_inf
+      - B: y_inf
+      - p: depolarisation parameter = exp(-(1 / tau))
+      - e: error per Clifford = (1 - p) / alpha_n where alpha_n = 2^n / (2^n - 1)
+      - e_spam: estimated SPAM error = 1 - y0
+    """
+
+    def __init__(self, num_qubits):
+        """Init
+
+        :param num_qubits: The number of qubits involved in the benchmarking sequence
+        """
+        self.num_qubits = num_qubits
+        self.alpha = 2**num_qubits / (2**num_qubits - 1)
+        super().__init__()
+        self.parameters["y_inf"].fixed_to = 1 / 2**num_qubits
+        for param in (self.parameters["y0"], self.parameters["y_inf"]):
+            param.lower_bound = 0
+            param.upper_bound = 1
+        self.parameters["tau"].lower_bound = 1  # Equivalent to p <= 1
+
+    def calculate_derived_params(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        Returns dictionaries of values and uncertainties for the derived model
+        parameters (parameters which are calculated from the fit results rather than
+        being directly part of the fit) based on values of the fitted parameters and
+        their uncertainties.
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :param: fitted_params: dictionary mapping model parameter names to their
+            fitted values.
+        :param fit_uncertainties: dictionary mapping model parameter names to
+            their fit uncertainties.
+        :returns: tuple of dictionaries mapping derived parameter names to their
+            values and uncertainties.
+        """
+        y0 = fitted_params["y0"]
+        y_inf = fitted_params["y_inf"]
+        tau = fitted_params["tau"]
+
+        p = np.exp(-(1 / tau))
+        e = (1 - p) / self.alpha
+
+        derived_params = {}
+        derived_params["A"] = y0 - y_inf
+        derived_params["B"] = y_inf
+        derived_params["p"] = p
+        derived_params["e"] = e
+        derived_params["e_spam"] = 1 - y0
+
+        y0_err = fit_uncertainties["y0"]
+        y_inf_err = fit_uncertainties["y_inf"]
+        tau_err = fit_uncertainties["tau"]
+
+        derived_uncertainties = {}
+        derived_uncertainties["A"] = np.sqrt(y0_err**2 + y_inf_err**2)
+        derived_uncertainties["B"] = y_inf_err
+        p_err = derived_uncertainties["p"] = (
+            (1 / tau**2) * np.exp(-(1 / tau)) * tau_err
+        )
+        derived_uncertainties["e"] = p_err / self.alpha
+        derived_uncertainties["e_spam"] = y0_err
+
+        return derived_params, derived_uncertainties
