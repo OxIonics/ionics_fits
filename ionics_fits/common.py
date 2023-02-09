@@ -210,8 +210,8 @@ class Model:
         """
         raise NotImplementedError
 
-    @staticmethod
     def calculate_derived_params(
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         fitted_params: Dict[str, float],

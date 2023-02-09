@@ -69,8 +69,8 @@ class Exponential(Model):
         model_parameters["y_inf"].heuristic = y[-1]
         model_parameters["tau"].heuristic = x.ptp()
 
-    @staticmethod
     def calculate_derived_params(
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
         fitted_params: Dict[str, float],
