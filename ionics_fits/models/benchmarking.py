@@ -14,15 +14,19 @@ def _scale_func(x_scale, y_scale, model):
     return None
 
 
-def _generate_benchmark_parameters(num_qubits):
+def _generate_benchmarking_parameters(num_qubits):
     params = {
         "p": ModelParameter(lower_bound=0.0, upper_bound=1.0, scale_func=_scale_func),
-        "A": ModelParameter(lower_bound=0.0, upper_bound=1.0, scale_func=_scale_func),
-        "B": ModelParameter(
+        "y0": ModelParameter(
+            lower_bound=0.0,
+            upper_bound=1.0,
+            scale_func=lambda x_scale, y_scale, _: y_scale,
+        ),
+        "y_inf": ModelParameter(
             fixed_to=1 / 2**num_qubits,
             lower_bound=0,
             upper_bound=1,
-            scale_func=_scale_func,
+            scale_func=lambda x_scale, y_scale, _: y_scale,
         ),
     }
     return params
@@ -31,19 +35,17 @@ def _generate_benchmark_parameters(num_qubits):
 class Benchmarking(Model):
     """Benchmarking success probability decay model
 
-    y = A*p^x + B
+    y = (y0 - y_inf)*p^x + y_inf
     for sequence length x.
 
     Fit parameters (all floated by default unless stated otherwise):
       - p: depolarisation parameter
-      - A: SPAM offset
-      - B: depolarisation offset (fixed to 1/2^n by default).
+      - y0: SPAM fidelity estimate
+      - y_inf: depolarisation offset (y-axis asymptote) (fixed to 1/2^n by default)
 
     Derived parameters:
-      - e: error per Clifford. Related to p via e = (1 - p) / alpha_n
-           where alpha_n = 2^n / (2^n - 1)
-      - e_spam: estimated SPAM error. Related to A and B via e_spam = 1 - (A + B).
-                If B is fixed to 1/2^n, e_spam = (1 / alpha_n) - A.
+      - e: error per Clifford = (1 - p) / alpha_n where alpha_n = 2^n / (2^n - 1)
+      - e_spam: estimated SPAM error = 1 - y0
     """
 
     def __init__(self, num_qubits):
@@ -53,7 +55,7 @@ class Benchmarking(Model):
         """
         self.num_qubits = num_qubits
         self.alpha = 2**num_qubits / (2**num_qubits - 1)
-        super().__init__(parameters=_generate_benchmark_parameters(num_qubits))
+        super().__init__(parameters=_generate_benchmarking_parameters(num_qubits))
 
     def func(
         self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
@@ -61,9 +63,9 @@ class Benchmarking(Model):
         """Evaluates the model at a given set of x-axis points and with a given
         parameter set and returns the result."""
         p = params["p"]
-        A = params["A"]
-        B = params["B"]
-        y = A * p**x + B
+        y0 = params["y0"]
+        y_inf = params["y_inf"]
+        y = (y0 - y_inf) * p**x + y_inf
         return y
 
     def estimate_parameters(
@@ -88,8 +90,8 @@ class Benchmarking(Model):
             metadata, rescaled if allowed.
         """
         model_parameters["p"].heuristic = 1.0
-        B = model_parameters["B"].heuristic = 1 / 2**self.num_qubits
-        model_parameters["A"].heuristic = max(y) - B
+        model_parameters["y0"].heuristic = max(y)
+        model_parameters["y_inf"].heuristic = 1 / 2**self.num_qubits
 
     def calculate_derived_params(
         self,
@@ -114,23 +116,20 @@ class Benchmarking(Model):
             values and uncertainties.
         """
         p = fitted_params["p"]
-        A = fitted_params["A"]
-        B = fitted_params["B"]
+        y0 = fitted_params["y0"]
 
         e = (1 - p) / self.alpha
-        e_spam = 1 - (A + B)
+        e_spam = 1 - y0
 
         p_err = fit_uncertainties["p"]
-        A_err = fit_uncertainties["A"]
-        B_err = fit_uncertainties["B"]
+        y0_err = fit_uncertainties["y0"]
 
         derived_params = {}
         derived_params["e"] = e
         derived_params["e_spam"] = e_spam
 
         derived_uncertainties = {}
-        # TODO better error bars
         derived_uncertainties["e"] = p_err / self.alpha
-        derived_uncertainties["e_spam"] = np.sqrt(A_err**2 + B_err**2)
+        derived_uncertainties["e_spam"] = y0_err
 
         return derived_params, derived_uncertainties
