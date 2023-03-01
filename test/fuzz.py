@@ -30,6 +30,7 @@ if __name__ == "__main__":
         "power": test_polynomial.fuzz_power,
         "rabi_freq": test_rabi.fuzz_rabi_freq,
         "rabi_time": test_rabi.fuzz_rabi_time,
+        "rabi_time_inverted": test_rabi.fuzz_rabi_time_inverted,
         "rectangle": test_rectangle.fuzz_rectangle,
         "sinc": test_sinc.fuzz_sinc,
         "sinc2": test_sinc.fuzz_sinc2,
