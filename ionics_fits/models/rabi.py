@@ -100,11 +100,11 @@ class RabiFlop(Model):
         """
         t = np.clip(x[0] - t_dead, a_min=0.0, a_max=None)
         delta = x[1] - w_0
-        W = np.sqrt(omega**2 + delta**2)
+        W = np.sqrt(omega ** 2 + delta ** 2)
 
         P_trans = (
             0.5
-            * np.divide(omega**2, W**2, out=np.zeros_like(W), where=(W != 0.0))
+            * np.divide(omega ** 2, W ** 2, out=np.zeros_like(W), where=(W != 0.0))
             * (1 - np.exp(-t / tau) * np.cos(W * t))
         )
         P_e = 1 - P_trans if self.start_excited else P_trans
@@ -148,10 +148,10 @@ class RabiFlop(Model):
 
         derived_uncertainties = {}
         derived_uncertainties["t_pi"] = np.sqrt(
-            t_dead_err**2 + (omega_err * np.pi / (omega**2)) ** 2
+            t_dead_err ** 2 + (omega_err * np.pi / (omega ** 2)) ** 2
         )
         derived_uncertainties["t_pi_2"] = np.sqrt(
-            t_dead_err**2 + (omega_err * np.pi / 2 * (omega**2)) ** 2
+            t_dead_err ** 2 + (omega_err * np.pi / 2 * (omega ** 2)) ** 2
         )
 
         return derived_params, derived_uncertainties
@@ -305,14 +305,22 @@ class RabiFlopTime(RabiFlop):
         model_parameters["tau"].heuristic = np.inf
 
         model = Sinusoid()
-        model.parameters["phi"].fixed_to = (
-            np.pi / 2 if self.start_excited else 3 * np.pi / 2
-        )
+        if (
+            model_parameters["P_readout_e"].get_initial_value()
+            >= model_parameters["P_readout_g"].get_initial_value()
+        ):
+            model.parameters["phi"].fixed_to = (
+                np.pi / 2 if self.start_excited else 3 * np.pi / 2
+            )
+        else:
+            model.parameters["phi"].fixed_to = (
+                3 * np.pi / 2 if self.start_excited else np.pi / 2
+            )
         fit = NormalFitter(x, y, model)
         W = fit.values["omega"]
         omega = np.sqrt(2 * fit.values["a"]) * W
         # Prevent delta < 0 from numerical noise
-        delta = 0.0 if omega >= W else np.sqrt(W**2 - omega**2)
+        delta = 0.0 if omega >= W else np.sqrt(W ** 2 - omega ** 2)
 
         model_parameters["omega"].heuristic = omega
         model_parameters["delta"].heuristic = delta
