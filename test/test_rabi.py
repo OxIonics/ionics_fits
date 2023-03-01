@@ -47,6 +47,24 @@ def test_rabi_time():
         common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
     )
 
+def test_rabi_time_inverted():
+    """Test for rabi.RabiFlopTime, with the readout levels inverted"""
+    t_pulse = np.linspace(0, 20e-6, 100) * 2 * np.pi
+    params = {
+        "P_readout_e": 0.0,
+        "P_readout_g": 1.0,
+        "delta": 2 * np.pi * np.array([0, 0.025e6]),
+        "omega": np.pi / 5e-6 * np.array([0.25, 1.0]),
+        "t_dead": 0.0,
+        "tau": np.inf,
+    }
+    model = fits.models.RabiFlopTime(start_excited=True)
+    common.check_multiple_param_sets(
+        t_pulse,
+        model,
+        params,
+        common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
+    )
 
 def fuzz_rabi_freq(
     num_trials: int = 100,
