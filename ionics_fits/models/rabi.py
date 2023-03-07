@@ -314,7 +314,7 @@ class RabiFlopTime(RabiFlop):
             # pytype: disable=unsupported-operands
             model_parameters["P_readout_e"].get_initial_value()
             >= model_parameters["P_readout_g"].get_initial_value()
-        ):  
+        ):
             model.parameters["phi"].fixed_to = (
                 np.pi / 2 if self.start_excited else 3 * np.pi / 2
             )
