@@ -322,10 +322,30 @@ class RabiFlopTime(RabiFlop):
                 3 * np.pi / 2 if self.start_excited else np.pi / 2
             )
         fit = NormalFitter(x, y, model)
-        W = fit.values["omega"]
-        omega = np.sqrt(2 * fit.values["a"]) * W
-        # Prevent delta < 0 from numerical noise
-        delta = 0.0 if omega >= W else np.sqrt(W**2 - omega**2)
 
-        model_parameters["omega"].heuristic = omega
-        model_parameters["delta"].heuristic = delta
+        W = fit.values["omega"]
+        model_parameters["omega"].heuristic = np.sqrt(2 * fit.values["a"]) * W
+        omega = model_parameters["omega"].get_initial_value()
+
+        if W >= omega:
+            model_parameters["delta"].heuristic = np.sqrt(W**2 - omega**2)
+        else:
+            # can't use param_min_sqrs because omega and delta are coupled
+            deltas = np.linspace(0, omega / 2, 10)
+            omegas = np.sqrt(W**2 - np.power(deltas, 2))
+            costs = np.zeros_like(deltas)
+
+            initial_values = {
+                param: param_data.get_initial_value()
+                for param, param_data in model_parameters.items()
+            }
+
+            for idx in range(len(deltas)):
+                initial_values["delta"] = deltas[idx]
+                initial_values["omega"] = omegas[idx]
+                y_idx = self.func(x, initial_values)
+                costs[idx] = np.sqrt(np.sum(np.power(y - y_idx, 2)))
+            opt_idx = np.argmin(costs)
+
+            model_parameters["delta"].heuristic = deltas[opt_idx]
+            model_parameters["omega"].heuristic = omegas[opt_idx]
