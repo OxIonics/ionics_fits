@@ -299,6 +299,9 @@ class RabiFlopTime(RabiFlop):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
+        model_parameters["t_dead"].heuristic = 0.0
+        model_parameters["tau"].heuristic = np.inf
+
         if self.start_excited:
             model_parameters["P_readout_e"].heuristic = y[0]
             model_parameters["P_readout_g"].heuristic = abs(1 - y[0])
@@ -306,15 +309,11 @@ class RabiFlopTime(RabiFlop):
             model_parameters["P_readout_g"].heuristic = y[0]
             model_parameters["P_readout_e"].heuristic = abs(1 - y[0])
 
-        model_parameters["t_dead"].heuristic = 0.0
-        model_parameters["tau"].heuristic = np.inf
+        P_readout_e = model_parameters["P_readout_e"].get_initial_value()
+        P_readout_g = model_parameters["P_readout_g"].get_initial_value()
 
         model = Sinusoid()
-        if (
-            # pytype: disable=unsupported-operands
-            model_parameters["P_readout_e"].get_initial_value()
-            >= model_parameters["P_readout_g"].get_initial_value()
-        ):
+        if P_readout_e >= P_readout_g:  # pytype: disable=unsupported-operands
             model.parameters["phi"].fixed_to = (
                 np.pi / 2 if self.start_excited else 3 * np.pi / 2
             )
@@ -322,8 +321,8 @@ class RabiFlopTime(RabiFlop):
             model.parameters["phi"].fixed_to = (
                 3 * np.pi / 2 if self.start_excited else np.pi / 2
             )
-        fit = NormalFitter(x, y, model)
 
+        fit = NormalFitter(x, y, model)
         W = fit.values["omega"]
         model_parameters["omega"].heuristic = np.sqrt(2 * fit.values["a"]) * W
         omega = model_parameters["omega"].get_initial_value()
