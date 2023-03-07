@@ -39,7 +39,11 @@ def test_rabi_time():
         "t_dead": 0.0,
         "tau": np.inf,
     }
+
     model = fits.models.RabiFlopTime(start_excited=True)
+    model.parameters["P_readout_e"].fixed_to = None
+    model.parameters["P_readout_g"].fixed_to = None
+
     common.check_multiple_param_sets(
         t_pulse,
         model,
@@ -59,7 +63,11 @@ def test_rabi_time_inverted():
         "t_dead": 0.0,
         "tau": np.inf,
     }
+
     model = fits.models.RabiFlopTime(start_excited=True)
+    model.parameters["P_readout_e"].fixed_to = None
+    model.parameters["P_readout_g"].fixed_to = None
+
     common.check_multiple_param_sets(
         t_pulse,
         model,
