@@ -327,7 +327,7 @@ class RabiFlopTime(RabiFlop):
         model_parameters["omega"].heuristic = np.sqrt(2 * fit.values["a"]) * W
         omega = model_parameters["omega"].get_initial_value()
 
-        if W >= omega:
+        if W >= omega:  # pytype: disable=unsupported-operands
             model_parameters["delta"].heuristic = np.sqrt(W**2 - omega**2)
         else:
             # can't use param_min_sqrs because omega and delta are coupled
