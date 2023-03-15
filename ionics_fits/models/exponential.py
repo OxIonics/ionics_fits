@@ -93,8 +93,8 @@ class Exponential(Model):
         """
         derived_params = {"x_1_e": fitted_params["x_dead"] + fitted_params["tau"]}
         derived_uncertainties = {
-            "x_1_2": np.sqrt(
-                fit_uncertainties["x_dead"] ** 2 + (fit_uncertainties["tau"] / 2) ** 2
+            "x_1_e": np.sqrt(
+                fit_uncertainties["x_dead"] ** 2 + fit_uncertainties["tau"] ** 2
             )
         }
         return derived_params, derived_uncertainties
