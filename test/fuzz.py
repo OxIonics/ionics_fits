@@ -29,6 +29,7 @@ if __name__ == "__main__":
         "polynomial": test_polynomial.fuzz_polynomial,
         "power": test_polynomial.fuzz_power,
         "rabi_freq": test_rabi.fuzz_rabi_freq,
+        "rabi_freq_inverted": test_rabi.fuzz_rabi_freq_inverted,
         "rabi_time": test_rabi.fuzz_rabi_time,
         "rabi_time_inverted": test_rabi.fuzz_rabi_time_inverted,
         "rectangle": test_rectangle.fuzz_rectangle,

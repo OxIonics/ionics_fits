@@ -5,13 +5,13 @@ import ionics_fits as fits
 from . import common
 
 
-def test_rabi_freq():
+def _test_rabi_freq(P_readout_e: float):
     """Test for rabi.RabiFlopFreq"""
     w = np.linspace(-2e6, 2e6, 200) * 2 * np.pi
     t_pulse = 5e-6
     params = {
-        "P_readout_e": 1.0,
-        "P_readout_g": 0.0,
+        "P_readout_e": P_readout_e,
+        "P_readout_g": 1 - P_readout_e,
         "w_0": 0.5e6 * 2 * np.pi,
         "omega": np.array([0.1, 0.25, 1]) * np.pi / t_pulse,
         "t_pulse": t_pulse,
@@ -19,13 +19,22 @@ def test_rabi_freq():
         "tau": np.inf,
     }
 
-    model = fits.models.RabiFlopFreq(start_excited=True)
     common.check_multiple_param_sets(
         w,
-        model,
+        fits.models.RabiFlopFreq(start_excited=True),
         params,
-        common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
     )
+
+
+def test_rabi_freq():
+    """Test for rabi.RabiFlopFreq"""
+    _test_rabi_freq(P_readout_e=1.0)
+
+
+def test_rabi_freq_inverted():
+    """Test for rabi.RabiFlopFreq, with the readout levels inverted"""
+    _test_rabi_freq(P_readout_e=0.0)
 
 
 def _test_rabi_time(P_readout_e: float):
@@ -39,13 +48,9 @@ def _test_rabi_time(P_readout_e: float):
         "tau": np.inf,
     }
 
-    model = fits.models.RabiFlopTime(start_excited=True)
-    model.parameters["P_readout_e"].fixed_to = None
-    model.parameters["P_readout_g"].fixed_to = None
-
     common.check_multiple_param_sets(
         t_pulse,
-        model,
+        fits.models.RabiFlopTime(start_excited=True),
         params,
         common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
     )
@@ -61,7 +66,8 @@ def test_rabi_time_inverted():
     _test_rabi_time(P_readout_e=0.0)
 
 
-def fuzz_rabi_freq(
+def _fuzz_rabi_freq(
+    P_readout_e: float,
     num_trials: int = 100,
     stop_at_failure: bool = True,
     test_config: Optional[common.TestConfig] = None,
@@ -74,8 +80,8 @@ def fuzz_rabi_freq(
     }
 
     static_params = {
-        "P_readout_e": 1.0,
-        "P_readout_g": 0.0,
+        "P_readout_e": P_readout_e,
+        "P_readout_g": 1 - P_readout_e,
         "t_dead": 0.0,
         "tau": np.inf,
     }
@@ -181,6 +187,32 @@ def fuzz_rabi_time_inverted(
     test_config: Optional[common.TestConfig] = None,
 ) -> float:
     return _fuzz_rabi_time(
+        P_readout_e=0.0,
+        num_trials=num_trials,
+        stop_at_failure=stop_at_failure,
+        test_config=test_config,
+    )
+
+
+def fuzz_rabi_freq(
+    num_trials: int = 100,
+    stop_at_failure: bool = True,
+    test_config: Optional[common.TestConfig] = None,
+) -> float:
+    return _fuzz_rabi_freq(
+        P_readout_e=1.0,
+        num_trials=num_trials,
+        stop_at_failure=stop_at_failure,
+        test_config=test_config,
+    )
+
+
+def fuzz_rabi_freq_inverted(
+    num_trials: int = 100,
+    stop_at_failure: bool = True,
+    test_config: Optional[common.TestConfig] = None,
+) -> float:
+    return _fuzz_rabi_freq(
         P_readout_e=0.0,
         num_trials=num_trials,
         stop_at_failure=stop_at_failure,

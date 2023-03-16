@@ -46,8 +46,8 @@ class RabiFlop(Model):
             as delta = w - w_0.
 
     Model parameters:
-        - P_readout_e: Readout level for state |e> (fixed to 1 by default)
-        - P_readout_g: Readout level for state |g> (fixed to 0 by default)
+        - P_readout_e: Readout level for state |e>
+        - P_readout_g: Readout level for state |g>
         - omega: Rabi frequency
         - tau: Decay time constant (fixed to infinity by default)
         - t_dead: Dead time (fixed to 0 by default)
@@ -77,13 +77,11 @@ class RabiFlop(Model):
         P_readout_e: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            fixed_to=1.0,
             scale_func=lambda x_scale, y_scale, _: y_scale,
         ),
         P_readout_g: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            fixed_to=0.0,
             scale_func=lambda x_scale, y_scale, _: y_scale,
         ),
         omega: ModelParameter(lower_bound=0.0),
@@ -213,10 +211,15 @@ class RabiFlopFreq(RabiFlop):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        model_parameters["P_readout_g"].heuristic = 0.0
-        model_parameters["P_readout_e"].heuristic = 1.0
         model_parameters["t_dead"].heuristic = 0.0
         model_parameters["tau"].heuristic = np.inf
+
+        if self.start_excited:
+            model_parameters["P_readout_e"].heuristic = y[0]
+            model_parameters["P_readout_g"].heuristic = abs(1 - y[0])
+        else:
+            model_parameters["P_readout_g"].heuristic = y[0]
+            model_parameters["P_readout_e"].heuristic = abs(1 - y[0])
 
         # There isn't a simple analytic form for the Fourier transform of a Rabi
         # flop in the general case. However in the low pulse area limit (and
