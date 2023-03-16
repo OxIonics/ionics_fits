@@ -19,12 +19,11 @@ def _test_rabi_freq(P_readout_e: float):
         "tau": np.inf,
     }
 
-    model = fits.models.RabiFlopFreq(start_excited=True)
     common.check_multiple_param_sets(
         w,
-        model,
+        fits.models.RabiFlopFreq(start_excited=True),
         params,
-        common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
     )
 
 
@@ -49,13 +48,9 @@ def _test_rabi_time(P_readout_e: float):
         "tau": np.inf,
     }
 
-    model = fits.models.RabiFlopTime(start_excited=True)
-    model.parameters["P_readout_e"].fixed_to = None
-    model.parameters["P_readout_g"].fixed_to = None
-
     common.check_multiple_param_sets(
         t_pulse,
-        model,
+        fits.models.RabiFlopTime(start_excited=True),
         params,
         common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
     )

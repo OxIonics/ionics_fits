@@ -46,8 +46,8 @@ class RabiFlop(Model):
             as delta = w - w_0.
 
     Model parameters:
-        - P_readout_e: Readout level for state |e> (fixed to 1 by default)
-        - P_readout_g: Readout level for state |g> (fixed to 0 by default)
+        - P_readout_e: Readout level for state |e>
+        - P_readout_g: Readout level for state |g>
         - omega: Rabi frequency
         - tau: Decay time constant (fixed to infinity by default)
         - t_dead: Dead time (fixed to 0 by default)
@@ -77,13 +77,11 @@ class RabiFlop(Model):
         P_readout_e: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            fixed_to=1.0,
             scale_func=lambda x_scale, y_scale, _: y_scale,
         ),
         P_readout_g: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            fixed_to=0.0,
             scale_func=lambda x_scale, y_scale, _: y_scale,
         ),
         omega: ModelParameter(lower_bound=0.0),
