@@ -213,10 +213,15 @@ class RabiFlopFreq(RabiFlop):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        model_parameters["P_readout_g"].heuristic = 0.0
-        model_parameters["P_readout_e"].heuristic = 1.0
         model_parameters["t_dead"].heuristic = 0.0
         model_parameters["tau"].heuristic = np.inf
+
+        if self.start_excited:
+            model_parameters["P_readout_e"].heuristic = y[0]
+            model_parameters["P_readout_g"].heuristic = abs(1 - y[0])
+        else:
+            model_parameters["P_readout_g"].heuristic = y[0]
+            model_parameters["P_readout_e"].heuristic = abs(1 - y[0])
 
         # There isn't a simple analytic form for the Fourier transform of a Rabi
         # flop in the general case. However in the low pulse area limit (and
