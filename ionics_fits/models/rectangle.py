@@ -66,11 +66,12 @@ class Rectangle(Model):
             metadata, rescaled if allowed.
         """
 
-        unknowns = {
-            param
-            for param, param_data in model_parameters.items()
-            if param_data.get_initial_value() is None
-        }
+        unknowns = set()
+        for param, param_data in model_parameters.items():
+            try:
+                param_data.get_initial_value()
+            except ValueError:
+                unknowns.add(param)
 
         if {"x_l", "x_r"}.issubset(unknowns):
             model_parameters["y0"].heuristic = 0.5 * (y[0] + y[-1])
