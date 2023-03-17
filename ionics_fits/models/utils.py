@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     num_spectrum_samples = float
 
 
-TModel = TypeVar("T", bound=Type[Model])
+TModel = TypeVar("TModel", bound=Type[Model])
 
 
 @dataclasses.dataclass
