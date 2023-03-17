@@ -270,7 +270,8 @@ class Polynomial(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        x0 = model_parameters["x0"].heuristic = 0.0
+        model_parameters["x0"].heuristic = 0.0
+        x0 = model_parameters["x0"].get_initial_value()
 
         free = [
             n

@@ -62,7 +62,8 @@ class Sinc(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata.
         """
-        y0 = model_parameters["y0"].heuristic = np.mean([y[0], y[-1]])
+        model_parameters["y0"].heuristic = np.mean([y[0], y[-1]])
+        y0 = model_parameters["y0"].get_initial_value()
 
         omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
@@ -75,10 +76,19 @@ class Sinc(Model):
 
         fit = NormalFitter(omega, abs_spectrum, model=rect)
 
-        w = model_parameters["w"].heuristic = fit.values["x_r"]
+        model_parameters["w"].heuristic = fit.values["x_r"]
+        w = model_parameters["w"].get_initial_value()
+
         sgn = 1 if y[np.argmax(np.abs(y - y0))] > y0 else -1
         model_parameters["a"].heuristic = 2 * w * fit.values["a"] * sgn
-        model_parameters["x0"].heuristic = self.find_x_offset_fft(x, omega, spectrum, w)
+
+        try:
+            model_parameters["x0"].heuristic = self.find_x_offset_fft(
+                x, omega, spectrum, w
+            )
+        except ValueError:
+            y0 = model_parameters["y0"].get_initial_value()
+            model_parameters["x0"].heuristic = x[np.argmax(np.abs(y - y0))]
 
 
 class Sinc2(Model):
@@ -153,6 +163,10 @@ class Sinc2(Model):
         model_parameters["w"].heuristic = 0.5 * intercept
         model_parameters["a"].heuristic = fit.values["y0"] * sgn * intercept
 
-        model_parameters["x0"].heuristic = self.find_x_offset_fft(
-            x, omega, spectrum, intercept
-        )
+        try:
+            model_parameters["x0"].heuristic = self.find_x_offset_fft(
+                x, omega, spectrum, intercept
+            )
+        except ValueError:
+            y0 = model_parameters["y0"].get_initial_value()
+            model_parameters["x0"].heuristic = x[np.argmax(np.abs(y - y0))]

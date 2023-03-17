@@ -98,11 +98,13 @@ class Rectangle(Model):
 
             outside = np.logical_or(x <= x_l, x >= x_r)
             inside = np.logical_and(x > x_l, x < x_r)
-            y0 = model_parameters["y0"].heuristic = np.mean(y[outside])
+            model_parameters["y0"].heuristic = np.mean(y[outside])
+            y0 = model_parameters["y0"].get_initial_value()
             model_parameters["a"].heuristic = np.mean(y[outside] - y0)
 
         y0 = model_parameters["y0"].get_initial_value()
-        a = model_parameters["a"].heuristic = y[np.argmax(np.abs(y - y0))] - y0
+        model_parameters["a"].heuristic = y[np.argmax(np.abs(y - y0))] - y0
+        a = model_parameters["a"].get_initial_value()
 
         thresh = self.thresh * (y0 + (y0 + a))
         inside = (y >= thresh) if a > 0 else (y < thresh)
