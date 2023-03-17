@@ -66,11 +66,12 @@ class Rectangle(Model):
             metadata, rescaled if allowed.
         """
 
-        unknowns = {
-            param
-            for param, param_data in model_parameters.items()
-            if param_data.get_initial_value() is None
-        }
+        unknowns = set()
+        for param, param_data in model_parameters.items():
+            try:
+                param_data.get_initial_value()
+            except ValueError:
+                unknowns.add(param)
 
         if {"x_l", "x_r"}.issubset(unknowns):
             model_parameters["y0"].heuristic = 0.5 * (y[0] + y[-1])
@@ -98,11 +99,13 @@ class Rectangle(Model):
 
             outside = np.logical_or(x <= x_l, x >= x_r)
             inside = np.logical_and(x > x_l, x < x_r)
-            y0 = model_parameters["y0"].heuristic = np.mean(y[outside])
+            model_parameters["y0"].heuristic = np.mean(y[outside])
+            y0 = model_parameters["y0"].get_initial_value()
             model_parameters["a"].heuristic = np.mean(y[outside] - y0)
 
         y0 = model_parameters["y0"].get_initial_value()
-        a = model_parameters["a"].heuristic = y[np.argmax(np.abs(y - y0))] - y0
+        model_parameters["a"].heuristic = y[np.argmax(np.abs(y - y0))] - y0
+        a = model_parameters["a"].get_initial_value()
 
         thresh = self.thresh * (y0 + (y0 + a))
         inside = (y >= thresh) if a > 0 else (y < thresh)

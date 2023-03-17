@@ -156,8 +156,11 @@ class Power(Model):
         us an estimate for `n` at each value of x. We choose the one which results
         in lowest sum of squares residuals.
         """
-        if (known_n := model_parameters["n"].get_initial_value()) is not None:
+        try:
+            known_n = model_parameters["n"].get_initial_value()
             return known_n, 0
+        except ValueError:
+            pass
 
         x0 = model_parameters["x0"].get_initial_value()
         y0 = model_parameters["y0"].get_initial_value()
@@ -270,7 +273,8 @@ class Polynomial(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        x0 = model_parameters["x0"].heuristic = 0.0
+        model_parameters["x0"].heuristic = 0.0
+        x0 = model_parameters["x0"].get_initial_value()
 
         free = [
             n
@@ -355,7 +359,6 @@ class Parabola(MappedModel):
         a_0 = inner_parameters["a_0"].get_initial_value()
         a_1 = inner_parameters["a_1"].get_initial_value()
         a_2 = inner_parameters["a_2"].get_initial_value()
-        assert a_1 is not None and a_2 is not None
 
         x0 = -a_1 / (2 * a_2)
         inner_parameters["x0"].heuristic = x0

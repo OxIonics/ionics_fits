@@ -91,7 +91,7 @@ class ModelParameter:
 
         return scale_factor
 
-    def get_initial_value(self) -> Optional[float]:
+    def get_initial_value(self) -> float:
         """
         Get initial value.
 
@@ -107,7 +107,7 @@ class ModelParameter:
         elif self.heuristic is not None:
             value = self.clip(self.heuristic)
         else:
-            return None
+            raise ValueError("No initial value specified")
 
         if value < self.lower_bound or value > self.upper_bound:
             raise ValueError("Initial value outside bounds.")
@@ -328,6 +328,9 @@ class Model:
         :returns: an estimate of the x-axis offset
         """
         keep = omega < omega_cut_off
+        if not len(keep):
+            raise ValueError("No points below cut-off")
+
         omega = omega[keep]
         phi = np.unwrap(np.angle(spectrum[keep]))
         phi -= phi[0]
@@ -469,8 +472,9 @@ class Fitter:
         model.estimate_parameters(x, y, parameters)
 
         for param, param_data in parameters.items():
-            initial_value = param_data.get_initial_value()
-            if initial_value is None:
+            try:
+                param_data.get_initial_value()
+            except ValueError:
                 raise RuntimeError(
                     "No fixed_to, user_estimate or heuristic specified"
                     f" for parameter `{param}`."

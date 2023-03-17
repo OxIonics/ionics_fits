@@ -321,7 +321,7 @@ class RabiFlopTime(RabiFlop):
         P_readout_g = model_parameters["P_readout_g"].get_initial_value()
 
         model = Sinusoid()
-        if P_readout_e >= P_readout_g:  # pytype: disable=unsupported-operands
+        if P_readout_e >= P_readout_g:
             model.parameters["phi"].fixed_to = (
                 np.pi / 2 if self.start_excited else 3 * np.pi / 2
             )
@@ -335,7 +335,7 @@ class RabiFlopTime(RabiFlop):
         model_parameters["omega"].heuristic = np.sqrt(2 * fit.values["a"]) * W
         omega = model_parameters["omega"].get_initial_value()
 
-        if W >= omega:  # pytype: disable=unsupported-operands
+        if W >= omega:
             model_parameters["delta"].heuristic = np.sqrt(W**2 - omega**2)
         else:
             # can't use param_min_sqrs because omega and delta are coupled
@@ -346,6 +346,7 @@ class RabiFlopTime(RabiFlop):
             initial_values = {
                 param: param_data.get_initial_value()
                 for param, param_data in model_parameters.items()
+                if param != "delta"
             }
 
             for idx in range(len(deltas)):
