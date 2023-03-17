@@ -2,7 +2,7 @@ import copy
 import dataclasses
 import numpy as np
 from scipy import signal
-from typing import Dict, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, Optional, Tuple, Type, TYPE_CHECKING, TypeVar
 from ..common import Model, ModelParameter
 from ..utils import Array
 
@@ -10,6 +10,9 @@ from ..utils import Array
 if TYPE_CHECKING:
     num_samples = float
     num_spectrum_samples = float
+
+
+TModel = TypeVar("TModel", bound=Type[Model])
 
 
 @dataclasses.dataclass
@@ -159,6 +162,46 @@ class MappedModel(Model):
         for new_param, original_param in self.mapped_args.items():
             initial_value = inner_parameters[original_param].get_initial_value()
             model_parameters[new_param].heuristic = initial_value
+
+
+def rescale_model_x(model_class: TModel, x_scale: float) -> TModel:
+    """Rescales the x-axis for a model class.
+
+    This is commonly used to convert models between linear and angular units.
+
+    :param model_class: model class to rescale
+    :param x_scale: multiplicative x-axis scale factor. To convert a model that takes
+      x in angular units and convert to one that takes x in linear units use
+      `x_scale = 2 * np.pi`
+    """
+
+    class ScaledModel(model_class):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.__x_scale = x_scale
+            self.__rescale = True
+
+        def func(
+            self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
+        ) -> Array[("num_samples",), np.float64]:
+            x = (x * self.__x_scale) if self.__rescale else x
+            return super().func(x, param_values)
+
+        def estimate_parameters(
+            self,
+            x: Array[("num_samples",), np.float64],
+            y: Array[("num_samples",), np.float64],
+            model_parameters: Dict[str, ModelParameter],
+        ):
+            # avoid double rescaling if estimate_parameters calls self.func internally
+            self.__rescale = False
+            super().estimate_parameters(x * self.__x_scale, y, model_parameters)
+            self.__rescale = True
+
+    ScaledModel.__name__ = model_class.__name__
+    ScaledModel.__doc__ = model_class.__doc__
+
+    return ScaledModel
 
 
 def get_spectrum(
