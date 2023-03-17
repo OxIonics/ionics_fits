@@ -144,7 +144,6 @@ class RabiFlop(Model):
         derived_params = {}
         derived_params["t_pi"] = t_pi
         derived_params["t_pi_2"] = t_pi_2
-        derived_params["f_0"] = fitted_params["w_0"] / (2 * np.pi)
 
         derived_uncertainties = {}
         derived_uncertainties["t_pi"] = np.sqrt(
@@ -153,7 +152,10 @@ class RabiFlop(Model):
         derived_uncertainties["t_pi_2"] = np.sqrt(
             t_dead_err**2 + (omega_err * np.pi / 2 * (omega**2)) ** 2
         )
-        derived_uncertainties["f_0"] = fit_uncertainties["w_0"] / (2 * np.pi)
+
+        if "w_0" in fitted_params:
+            derived_params["f_0"] = fitted_params["w_0"] / (2 * np.pi)
+            derived_uncertainties["f_0"] = fit_uncertainties["w_0"] / (2 * np.pi)
 
         return derived_params, derived_uncertainties
 
