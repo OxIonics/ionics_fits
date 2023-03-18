@@ -328,8 +328,8 @@ class Model:
         :returns: an estimate of the x-axis offset
         """
         keep = omega < omega_cut_off
-        if not len(keep):
-            raise ValueError("No points below cut-off")
+        if np.sum(keep) < 2:
+            raise ValueError("Insufficient data below cut-off")
 
         omega = omega[keep]
         phi = np.unwrap(np.angle(spectrum[keep]))
