@@ -114,6 +114,10 @@ class ModelParameter:
 
         return value
 
+    def has_user_initial_value(self) -> bool:
+        """Returns True if the parameter is fixed or has a user estimate """
+        return self.fixed_to is not None or self.user_estimate is not None
+
     def clip(self, value: float) -> float:
         """Clip value to lie between lower and upper bounds."""
         return np.clip(value, self.lower_bound, self.upper_bound)
@@ -472,9 +476,7 @@ class Fitter:
         model.estimate_parameters(x, y, parameters)
 
         for param, param_data in parameters.items():
-            try:
-                param_data.get_initial_value()
-            except ValueError:
+            if not param.has_user_estimate():
                 raise RuntimeError(
                     "No fixed_to, user_estimate or heuristic specified"
                     f" for parameter `{param}`."
