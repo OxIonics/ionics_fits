@@ -233,11 +233,12 @@ class RabiFlopFreq(RabiFlop):
         # NB np.sinc(x) = np.sin(pi * x) / (pi * x)
         # This heuristic breaks down when: omega * t_pulse ~ pi
         model = Sinc2()
-        model.parameters["y0"].fixed_to = (
+        y0 = (
             model_parameters["P_readout_e"].get_initial_value()
             if self.start_excited
             else model_parameters["P_readout_g"].get_initial_value()
         )
+        model.parameters["y0"].fixed_to = y0
         fit = NormalFitter(x, y, model)
 
         model_parameters["t_pulse"].heuristic = 2 * fit.values["w"]
@@ -245,7 +246,26 @@ class RabiFlopFreq(RabiFlop):
         model_parameters["omega"].heuristic = (
             2 * np.sqrt(np.abs(fit.values["a"])) / t_pulse
         )
-        model_parameters["w_0"].heuristic = fit.values["x0"]
+
+        try:
+            model_parameters["w_0"].get_initial_value()
+            return
+        except ValueError:
+            pass
+
+        # The user hasn't told us what w_0 is so we need to find a heuristic value
+        # In addition to going off the Sinc^2, we use a simple sampling-based heuristic
+        x_sinc = fit.values["x0"]
+
+        # Test out all points with a contrast of 30% of more. NB the fitter
+        # automatically rescales our y-data so this assumes we have one point at
+        # sufficiently high contrast for the y-axis rescaling to not do much!
+        x_sample = x[np.argwhere(np.abs(y - y0) > 0.3)]
+        x_trial = np.append(x_sample, [x_sinc])
+        w_0, _ = self.param_min_sqrs(
+            x, y, model_parameters, scanned_param="w_0", scanned_param_values=x_trial
+        )
+        model_parameters["w_0"].heuristic = w_0
 
 
 class RabiFlopTime(RabiFlop):

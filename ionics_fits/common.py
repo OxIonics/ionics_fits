@@ -254,10 +254,10 @@ class Model:
         :returns: tuple with the value from :param scanned_param_values: which results
         in lowest residuals and the root-sum-squared residuals for that value.
         """
-        parameters.pop(scanned_param)
         param_values = {
             param: param_data.get_initial_value()
             for param, param_data in parameters.items()
+            if param != scanned_param
         }
 
         scanned_param_values = np.asarray(scanned_param_values)
