@@ -325,7 +325,7 @@ class Model:
 
         y0 = parameters[y_offset_param_name].get_initial_value()
         deviations = np.argsort(np.abs(y - y0))
-        top_quartile_deviations = deviations[0 : int(len(deviations) / 4)]
+        top_quartile_deviations = deviations[int(len(deviations) * 3 / 4) :]
         deviations_candidates = x[top_quartile_deviations]
         x0_candidates = np.append(x0_candidates, deviations_candidates)
 
