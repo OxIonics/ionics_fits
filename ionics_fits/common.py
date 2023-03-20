@@ -115,7 +115,7 @@ class ModelParameter:
         return value
 
     def has_user_initial_value(self) -> bool:
-        """Returns True if the parameter is fixed or has a user estimate """
+        """Returns True if the parameter is fixed or has a user estimate"""
         return self.fixed_to is not None or self.user_estimate is not None
 
     def clip(self, value: float) -> float:
@@ -476,7 +476,9 @@ class Fitter:
         model.estimate_parameters(x, y, parameters)
 
         for param, param_data in parameters.items():
-            if not param.has_user_initial_value():
+            try:
+                param_data.get_initial_value()
+            except ValueError:
                 raise RuntimeError(
                     "No fixed_to, user_estimate or heuristic specified"
                     f" for parameter `{param}`."
@@ -523,6 +525,7 @@ class Fitter:
             param: value * scale_factors[param]
             for param, value in uncertainties.items()
         }
+
         initial_values = {
             param: param_data.get_initial_value() * scale_factors[param]
             for param, param_data in parameters.items()
