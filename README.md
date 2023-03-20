@@ -100,20 +100,16 @@ to be cases where we could easily do better. Please report them where you find t
 ## Validation
 
 It's not enough to just fit the data, we want to know if we can trust the fit results
-before acting on them. To assist validation, we provide a statistical estimate for the
-fit quality. These tells the user how likely it is that their dataset could have arisen
-through chance assuming the fitted model is correct given the assumed statistics.
+before acting on them.  There are two distinct aspects to the validation problem: did
+the fit find the model parameters which best match the data (as opposed to getting stuck
+in a local minimum in parameter space far from the global optimum)? and, are the fitted
+parameter values consistent with our prior knowledge of the system (e.g. we know that a
+fringe contrast must lie within certain bounds).
 
-There are two distinct aspects to the validation process: did the fit find the model
-parameters which best match the data (as opposed to getting stuck in a local minimum in
-parameter space)? and, are the fitted parameter values consistent with our prior
-knowledge of the system (e.g. we know that a fringe contrast must lie within certain
-bounds).
-
-We encourage our users to approach both aspects of validation using the goodness of fit:
-any prior knowledge about the system should be included in the fit setup through fixed
-parameter values and parameter bounds; after that, a high fit significance indicates
-both a good fit and that the system behaviour is consistent with our prior expectations.
+First, any prior knowledge about the system should be incorporated by specifying fixed
+parameter values and parameter bounds. After that, the fit is validated. At present,
+validation is done using the Chi-squared as a test for goodness of fit. It is likely
+that additional validation tests will be added as the package grows.
 
 ## General purpose
 
@@ -137,10 +133,10 @@ tweak the parameter estimator for a model? Create a new model class that inherit
 the original model and modify away. If you're struggling to do what you want, it's
 probably a bug in the library so report it.
 
-The package provides a number of tools in [`models.utils`](../master/ionics_fits/models/utils.py) to help with this. For
-example, say you want to fit some frequency-domain Rabi oscillation data. However,
-the model works in angular units, but your tooling needs linear units. No problem!
-Simply use the `rescale_model_x` tool:
+`ionics_fits` provides a number of tools in [`models.utils`](../master/ionics_fits/models/utils.py) to make it easier to
+extend models. For example, say you want to fit some frequency-domain Rabi oscillation
+data. However, the model works in angular units, but your tooling needs linear units. No
+problem! Simply use the `rescale_model_x` tool:
 
 ```python
 detuning_model = fits.models.utils.rescale_model_x(fits.models.RabiFlopFreq, 2 * np.pi)
