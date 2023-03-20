@@ -32,6 +32,35 @@ def test_rabi_freq():
     _test_rabi_freq(P_readout_e=1.0)
 
 
+def test_rabi_freq_w0_only():
+    """Test for rabi.RabiFlopFreq in the case where w_0 is the only unknown.
+
+    This case is special-cased in the parameter estimator.
+    """
+    w = np.linspace(-2e6, 2e6, 200) * 2 * np.pi
+    t_pulse = 5e-6
+    params = {
+        "P_readout_e": 1,
+        "P_readout_g": 0,
+        "w_0": [0, -0.25e6 * 2 * np.pi, 0.5e6 * 2 * np.pi],
+        "t_pulse": t_pulse,
+        "t_dead": 0.0,
+        "tau": np.inf,
+    }
+
+    for omega in np.array([0.1, 0.25, 1]):
+        params["omega"] = omega * np.pi / t_pulse
+        model = fits.models.RabiFlopFreq(start_excited=True)
+        model.parameters["omega"].fixed_to = params["omega"]
+        model.parameters["t_pulse"].fixed_to = params["t_pulse"]
+        common.check_multiple_param_sets(
+            w,
+            model,
+            params,
+            common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
+        )
+
+
 def test_rabi_freq_inverted():
     """Test for rabi.RabiFlopFreq, with the readout levels inverted"""
     _test_rabi_freq(P_readout_e=0.0)
