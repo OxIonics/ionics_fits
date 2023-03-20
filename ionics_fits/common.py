@@ -476,7 +476,7 @@ class Fitter:
         model.estimate_parameters(x, y, parameters)
 
         for param, param_data in parameters.items():
-            if not param.has_user_estimate():
+            if not param.has_user_initial_value():
                 raise RuntimeError(
                     "No fixed_to, user_estimate or heuristic specified"
                     f" for parameter `{param}`."
