@@ -82,13 +82,16 @@ class Sinc(Model):
         sgn = 1 if y[np.argmax(np.abs(y - y0))] > y0 else -1
         model_parameters["a"].heuristic = 2 * w * fit.values["a"] * sgn
 
-        try:
-            model_parameters["x0"].heuristic = self.find_x_offset_fft(
-                x, omega, spectrum, w
-            )
-        except ValueError:
-            y0 = model_parameters["y0"].get_initial_value()
-            model_parameters["x0"].heuristic = x[np.argmax(np.abs(y - y0))]
+        x0 = self.find_x_offset_sym_peak(
+            x=x,
+            y=y,
+            parameters=model_parameters,
+            omega=omega,
+            spectrum=spectrum,
+            omega_cut_off=w,
+        )
+
+        model_parameters["x0"].heuristic = x0
 
 
 class Sinc2(Model):
@@ -163,10 +166,13 @@ class Sinc2(Model):
         model_parameters["w"].heuristic = 0.5 * intercept
         model_parameters["a"].heuristic = fit.values["y0"] * sgn * intercept
 
-        try:
-            model_parameters["x0"].heuristic = self.find_x_offset_fft(
-                x, omega, spectrum, intercept
-            )
-        except ValueError:
-            y0 = model_parameters["y0"].get_initial_value()
-            model_parameters["x0"].heuristic = x[np.argmax(np.abs(y - y0))]
+        x0 = self.find_x_offset_sym_peak(
+            x=x,
+            y=y,
+            parameters=model_parameters,
+            omega=omega,
+            spectrum=spectrum,
+            omega_cut_off=intercept,
+        )
+
+        model_parameters["x0"].heuristic = x0
