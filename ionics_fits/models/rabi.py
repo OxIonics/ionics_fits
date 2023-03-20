@@ -5,6 +5,7 @@ import numpy as np
 from .sinc import Sinc2
 from .sinusoid import Sinusoid
 from .. import Model, ModelParameter, NormalFitter
+from .utils import get_spectrum
 from ..utils import Array
 
 
@@ -226,6 +227,35 @@ class RabiFlopFreq(RabiFlop):
             model_parameters["P_readout_g"].heuristic = y[0]
             model_parameters["P_readout_e"].heuristic = abs(1 - y[0])
 
+        y0_param = (
+            "P_readout_e" if self.start_excited else model_parameters["P_readout_g"]
+        )
+
+        # A common use of this model is finding `w_0` when the Rabi frequency and pulse
+        # duration are known. In this case we don't need to rely on the Sinc2
+        # approximation
+        unknowns = set()
+        for param, param_data in model_parameters.items():
+            try:
+                param_data.get_initial_value()
+            except ValueError:
+                unknowns.add(param)
+
+        if unknowns == {"w_0"}:
+            omega, spectrum = get_spectrum(x, y, trim_dc=True)
+            w_0 = self.find_x_offset_sym_peak(
+                x=x,
+                y=y,
+                parameters=model_parameters,
+                omega=omega,
+                spectrum=spectrum,
+                omega_cut_off=model_parameters["t_pulse"].get_initial_value(),
+                x_offset_param_name="w_0",
+                y_offset_param_name=y0_param,
+            )
+            model_parameters["w_0"].heuristic = w_0
+            return
+
         # There isn't a simple analytic form for the Fourier transform of a Rabi
         # flop in the general case. However in the low pulse area limit (and
         # ignoring decay etc) the Rabi flop function tends to the sinc^2 function:
@@ -233,11 +263,7 @@ class RabiFlopFreq(RabiFlop):
         # NB np.sinc(x) = np.sin(pi * x) / (pi * x)
         # This heuristic breaks down when: omega * t_pulse ~ pi
         model = Sinc2()
-        y0 = (
-            model_parameters["P_readout_e"].get_initial_value()
-            if self.start_excited
-            else model_parameters["P_readout_g"].get_initial_value()
-        )
+        y0 = model_parameters[y0_param].get_initial_value()
         model.parameters["y0"].fixed_to = y0
         fit = NormalFitter(x, y, model)
 
