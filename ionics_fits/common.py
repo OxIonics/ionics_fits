@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     num_samples = float
     num_values = float
     num_spectrum_pts = float
+    num_test_pts = float
 
 
 @dataclasses.dataclass
@@ -113,6 +114,10 @@ class ModelParameter:
             raise ValueError("Initial value outside bounds.")
 
         return value
+
+    def has_user_initial_value(self) -> bool:
+        """Returns True if the parameter is fixed or has a user estimate"""
+        return self.fixed_to is not None or self.user_estimate is not None
 
     def clip(self, value: float) -> float:
         """Clip value to lie between lower and upper bounds."""
@@ -269,6 +274,70 @@ class Model:
         opt = np.argmin(costs)
         return float(scanned_param_values[opt]), float(costs[opt])
 
+    def find_x_offset_sym_peak(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        parameters: Dict[str, ModelParameter],
+        omega: Array[("num_spectrum_pts",), np.float64],
+        spectrum: Array[("num_spectrum_pts",), np.float64],
+        omega_cut_off: float,
+        test_pts: Optional[Array[("num_test_pts",), np.float64]] = None,
+        x_offset_param_name: str = "x0",
+        y_offset_param_name: str = "y0",
+    ):
+        """Finds the x-axis offset for symmetric, peaked (maximum deviation from the
+        baseline occurs at the origin) functions.
+
+        This heuristic draws candidate x-offset points from three sources and picks the
+        best one (in the least-squares residuals sense). Sources:
+          - FFT shift theorem based on provided spectrum data
+          - Tests all points in the top quartile of deviation from the baseline
+          - Optionally, user-provided "test points", taken from another heuristic. This
+            allows the developer to combine the general-purpose heuristics here with
+            other heuristics which make use of more model-specific assumptions
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :param parameters: dictionary of model parameters. All model parameters other
+          than the x-axis offset must have initial values set before calling this method
+        :param omega: FFT frequency axis
+        :param spectrum: complex FFT data
+        :param omega_cut_off: highest value of omega to use in offset estimation
+        :param test_pts: optional array of x-axis points to test
+        :param x_offset_param_name: name of the x-axis offset model parameter
+        :param y_offset_param_name: name of the y-axis offset model parameter
+
+        :returns: an estimate of the x-axis offset
+        """
+        x0_candidates = np.array([])
+
+        if test_pts is not None:
+            x0_candidates = np.append(x0_candidates, test_pts)
+
+        try:
+            fft_candidate = self.find_x_offset_fft(
+                x=x, omega=omega, spectrum=spectrum, omega_cut_off=omega_cut_off
+            )
+            x0_candidates = np.append(x0_candidates, fft_candidate)
+        except ValueError:
+            pass
+
+        y0 = parameters[y_offset_param_name].get_initial_value()
+        deviations = np.argsort(np.abs(y - y0))
+        top_quartile_deviations = deviations[0 : int(len(deviations) / 4)]
+        deviations_candidates = x[top_quartile_deviations]
+        x0_candidates = np.append(x0_candidates, deviations_candidates)
+
+        best_x0, _ = self.param_min_sqrs(
+            x=x,
+            y=y,
+            parameters=parameters,
+            scanned_param=x_offset_param_name,
+            scanned_param_values=x0_candidates,
+        )
+        return best_x0
+
     def find_x_offset_sampling(
         self,
         x: Array[("num_samples",), np.float64],
@@ -295,7 +364,7 @@ class Model:
 
         :param x: x-axis data
         :param y: y-axis data
-        :param parameters: dictionary of model parameters
+        :param parameters: dictionary of model parameters.
         :param width: width of the feature we're trying to find (e.g. FWHMH). Used to
             pick the spacing between offset values to try.
         :param param_name: name of the x-axis offset parameter
@@ -328,8 +397,8 @@ class Model:
         :returns: an estimate of the x-axis offset
         """
         keep = omega < omega_cut_off
-        if not len(keep):
-            raise ValueError("No points below cut-off")
+        if np.sum(keep) < 2:
+            raise ValueError("Insufficient data below cut-off")
 
         omega = omega[keep]
         phi = np.unwrap(np.angle(spectrum[keep]))
@@ -521,6 +590,7 @@ class Fitter:
             param: value * scale_factors[param]
             for param, value in uncertainties.items()
         }
+
         initial_values = {
             param: param_data.get_initial_value() * scale_factors[param]
             for param, param_data in parameters.items()

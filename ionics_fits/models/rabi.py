@@ -247,11 +247,8 @@ class RabiFlopFreq(RabiFlop):
             2 * np.sqrt(np.abs(fit.values["a"])) / t_pulse
         )
 
-        try:
-            model_parameters["w_0"].get_initial_value()
+        if model_parameters["w_0"].has_user_initial_value():
             return
-        except ValueError:
-            pass
 
         # The user hasn't told us what w_0 is so we need to find a heuristic value
         # In addition to going off the Sinc^2, we use a simple sampling-based heuristic

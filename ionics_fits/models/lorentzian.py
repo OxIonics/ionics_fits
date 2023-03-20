@@ -83,9 +83,14 @@ class Lorentzian(Model):
 
         cut_off = 2 * fit.values["tau"]
 
-        try:
-            model_parameters["x0"].heuristic = self.find_x_offset_fft(
-                x, omega, spectrum, cut_off
-            )
-        except ValueError:
-            model_parameters["x0"].heuristic = x[peak_idx]
+        x0 = self.find_x_offset_sym_peak(
+            x=x,
+            y=y,
+            parameters=model_parameters,
+            omega=omega,
+            spectrum=spectrum,
+            omega_cut_off=cut_off,
+            test_pts=x[peak_idx],
+        )
+
+        model_parameters["x0"].heuristic = x0

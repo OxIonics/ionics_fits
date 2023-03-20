@@ -156,11 +156,8 @@ class Power(Model):
         us an estimate for `n` at each value of x. We choose the one which results
         in lowest sum of squares residuals.
         """
-        try:
-            known_n = model_parameters["n"].get_initial_value()
-            return known_n, 0
-        except ValueError:
-            pass
+        if model_parameters["n"].has_user_initial_value():
+            return model_parameters["n"].get_initial_value(), 0
 
         x0 = model_parameters["x0"].get_initial_value()
         y0 = model_parameters["y0"].get_initial_value()
