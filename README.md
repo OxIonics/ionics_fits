@@ -78,7 +78,7 @@ plt.show()
 other models, whether to extend their capabilities (for example, adding additional
 derived parameters) or to provide special-casing.
 
-The package provides a number of tools in [`models.utils`](../blob/master/ionics_fits/models/utils.py) to help with this. For
+The package provides a number of tools in [`models.utils`](../master/ionics_fits/models/utils.py) to help with this. For
 example, say you want to fit some frequency-domain Rabi oscillation data. However,
 the model works in angular units, but your tooling needs linear units. No problem!
 Simply use the `rescale_model_x` tool:
