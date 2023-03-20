@@ -87,7 +87,7 @@ Simply use the `rescale_model_x` tool:
 detuning_model = fits.models.utils.rescale_model_x(fits.models.RabiFlopFreq, 2 * np.pi)
 ```
 
-Or, suppose we actually you to scan the magnetic field and find the field offset which
+Or, suppose you actually want to scan the magnetic field and find the field offset which
 puts the transition at a particular frequency?
 ```python
 class _RabiBField(fits.models.RabiFlopFreq):
