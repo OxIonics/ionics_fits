@@ -227,9 +227,7 @@ class RabiFlopFreq(RabiFlop):
             model_parameters["P_readout_g"].heuristic = y[0]
             model_parameters["P_readout_e"].heuristic = abs(1 - y[0])
 
-        y0_param = (
-            "P_readout_e" if self.start_excited else model_parameters["P_readout_g"]
-        )
+        y0_param = "P_readout_e" if self.start_excited else "P_readout_g"
 
         # A common use of this model is finding `w_0` when the Rabi frequency and pulse
         # duration are known. In this case we don't need to rely on the Sinc2
