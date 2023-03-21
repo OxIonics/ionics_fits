@@ -10,6 +10,8 @@ from .utils import Array
 if TYPE_CHECKING:
     num_samples = float
     num_values = float
+    num_y_channels = float
+    num_samples_flattened = float
 
 
 logger = logging.getLogger(__name__)
@@ -26,10 +28,10 @@ class NormalFitter(Fitter):
     @staticmethod
     def _fit(
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-        sigma: Optional[Array[("num_samples",), np.float64]],
+        y: Array[("num_samples", "num_y_channels"), np.float64],
+        sigma: Optional[Array[("num_samples", "num_y_channels"), np.float64]],
         parameters: Dict[str, ModelParameter],
-        free_func: Callable[..., Array[("num_samples",), np.float64]],
+        free_func: Callable[..., Array[("num_samples", "num_y_channels"), np.float64]],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Implementation of the parameter estimation.
 
@@ -67,12 +69,27 @@ class NormalFitter(Fitter):
             f"{pprint.pformat(p0_dict)}"
         )
 
+        def fit_func(
+            _: Array[("num_samples_flattened",), np.float64], *free_param_values: float
+        ) -> Array[("num_samples_flattened",), np.float64]:
+            """Call the model function with the values of the free parameters."""
+            return free_func(x, *free_param_values).ravel()
+
+        if y.ndim == 1:
+            x_flat = x
+            y_flat = y
+            sigma_flat = None if sigma is None else sigma
+        else:
+            x_flat = np.ravel(np.tile(x, (y.ndim, 1)))
+            y_flat = np.ravel(y)
+            sigma_flat = None if sigma is None else np.ravel(sigma)
+
         p, p_cov = optimize.curve_fit(
-            f=free_func,
-            xdata=x,
-            ydata=y,
+            f=fit_func,
+            xdata=x_flat,
+            ydata=y_flat,
             p0=p0,
-            sigma=sigma,
+            sigma=sigma_flat,
             absolute_sigma=sigma is not None,
             bounds=(lower, upper),
             method="trf",
@@ -97,6 +114,10 @@ class NormalFitter(Fitter):
         a value close to 0 indicates significant deviations of the dataset from the
         fitted model.
         """
+        # TODO: support multiple y channels
+        if self.model.get_num_y_channels() != 1:
+            return None
+
         if self.sigma is None:
             return None
 
