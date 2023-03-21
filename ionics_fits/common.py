@@ -60,6 +60,7 @@ class ModelParameter:
     fixed_to: Optional[float] = None
     user_estimate: Optional[float] = None
     heuristic: Optional[float] = None
+    scale_factor: float = 1
     scale_func: Callable[
         [
             float,
@@ -76,7 +77,7 @@ class ModelParameter:
             scale_factor is not None and np.isfinite(scale_factor) and scale_factor != 0
         )
 
-    def rescale(self, x_scale: float, y_scale: float, model: Model) -> float:
+    def rescale(self, x_scale: float, y_scale: float, model: Model):
         """Rescales the parameter metadata based on the specified x and y data scale
         factors and returns the overall scale factor used.
         """
@@ -94,8 +95,7 @@ class ModelParameter:
         self.upper_bound = _rescale(self.upper_bound)
         self.fixed_to = _rescale(self.fixed_to)
         self.user_estimate = _rescale(self.user_estimate)
-
-        return scale_factor
+        self.scale_factor *= scale_factor
 
     def get_initial_value(self) -> float:
         """
@@ -157,6 +157,29 @@ class Model:
             }
         else:
             self.parameters = parameters
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        """Returns True if the model can be rescaled"""
+        return all(
+            [
+                param_data.can_rescale(x_scale, y_scale, self)
+                for param_data in self.parameters.values()
+            ]
+        )
+
+    @staticmethod
+    def get_scaled_model(model, x_scale: float, y_scale: float):
+        """Rescale model parameters
+
+        :param x_scale: ...
+        :param y_scale: ...
+        :returns: True if the model can be rescaled, otherwise False
+        """
+        scaled_model = copy.deepcopy(model)
+        for param in scaled_model.parameters.values():
+            param.rescale(x_scale, y_scale, scaled_model)
+
+        return scaled_model
 
     def get_num_y_channels(self) -> int:
         """Returns the number of y channels supported by the model"""
@@ -582,31 +605,20 @@ class Fitter:
         x_scale = np.max(np.abs(x))
         y_scale = np.max(np.abs(y))
 
-        parameters = copy.deepcopy(model.parameters)
-        rescale_coords = all(
-            [
-                param_data.can_rescale(x_scale, y_scale, model)
-                for param_data in parameters.values()
-            ]
-        )
-
-        if not rescale_coords:
+        if model.can_rescale(x_scale, y_scale):
+            scaled_model = model.get_scaled_model(model, x_scale, y_scale)
+        else:
             x_scale = 1
             y_scale = 1
-            scale_factors = {param: 1 for param in parameters.keys()}
-        else:
-            scale_factors = {
-                param: param_data.rescale(x_scale, y_scale, model)
-                for param, param_data in parameters.items()
-            }
+            scaled_model = model
 
         x = x / x_scale
         y = y / y_scale
         sigma = None if sigma is None else sigma / y_scale
 
-        model.estimate_parameters(x, y, parameters)
+        scaled_model.estimate_parameters(x, y, scaled_model.parameters)
 
-        for param, param_data in parameters.items():
+        for param, param_data in scaled_model.parameters.items():
             try:
                 param_data.get_initial_value()
             except ValueError:
@@ -617,12 +629,12 @@ class Fitter:
 
         self.fixed_parameters = {
             param_name: param_data.fixed_to
-            for param_name, param_data in parameters.items()
+            for param_name, param_data in scaled_model.parameters.items()
             if param_data.fixed_to is not None
         }
         self.free_parameters = [
             param_name
-            for param_name, param_data in parameters.items()
+            for param_name, param_data in scaled_model.parameters.items()
             if param_data.fixed_to is None
         ]
 
@@ -638,28 +650,30 @@ class Fitter:
                 for param, value in zip(self.free_parameters, list(free_param_values))
             }
             params.update(self.fixed_parameters)
-            y = model.func(x, params)
+            y = scaled_model.func(x, params)
             return y
 
-        fitted_params, uncertainties = self._fit(x, y, sigma, parameters, free_func)
-
+        fitted_params, uncertainties = self._fit(
+            x, y, sigma, scaled_model.parameters, free_func
+        )
         fitted_params.update(
             {param: value for param, value in self.fixed_parameters.items()}
         )
         uncertainties.update({param: 0 for param in self.fixed_parameters.keys()})
 
         fitted_params = {
-            param: value * scale_factors[param]
+            param: value * scaled_model.parameters[param].scale_factor
             for param, value in fitted_params.items()
         }
         uncertainties = {
-            param: value * scale_factors[param]
+            param: value * scaled_model.parameters[param].scale_factor
             for param, value in uncertainties.items()
         }
 
         initial_values = {
-            param: param_data.get_initial_value() * scale_factors[param]
-            for param, param_data in parameters.items()
+            param: param_data.get_initial_value()
+            * scaled_model.parameters[param].scale_factor
+            for param, param_data in scaled_model.parameters.items()
         }
 
         (
