@@ -2,6 +2,7 @@ from __future__ import annotations
 import dataclasses
 import copy
 import inspect
+import logging
 import numpy as np
 from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 from .utils import Array, ArrayLike
@@ -12,6 +13,10 @@ if TYPE_CHECKING:
     num_values = float
     num_spectrum_pts = float
     num_test_pts = float
+    num_y_channels = float
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -153,9 +158,13 @@ class Model:
         else:
             self.parameters = parameters
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_samples",), np.float64]:
+    ) -> Array[("num_samples", "num_y_channels"), np.float64]:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
@@ -171,7 +180,7 @@ class Model:
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-    ) -> Array[("num_samples",), np.float64]:
+    ) -> Array[("num_samples", "num_y_channels"), np.float64]:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
@@ -195,7 +204,7 @@ class Model:
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        y: Array[("num_samples", "num_y_channels"), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
         """Set heuristic values for model parameters.
@@ -218,7 +227,7 @@ class Model:
     def calculate_derived_params(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        y: Array[("num_samples", "num_y_channels"), np.float64],
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
@@ -242,7 +251,7 @@ class Model:
     def param_min_sqrs(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        y: Array[("num_samples", "num_y_channels"), np.float64],
         parameters: Dict[str, ModelParameter],
         scanned_param: str,
         scanned_param_values: ArrayLike["num_values", np.float64],
@@ -252,7 +261,8 @@ class Model:
 
         :param x: x-axis data
         :param y: y-axis data
-        :param parameters: dictionary of model parameters
+        :param parameters: dictionary of model parameters. All parameters apart from the
+          scanned parameter must have an initial value set.
         :param scanned_param: name of parameter to optimize
         :param scanned_param_values: array of scanned parameter values to test
 
@@ -298,11 +308,13 @@ class Model:
             other heuristics which make use of more model-specific assumptions
 
         :param x: x-axis data
-        :param y: y-axis data
+        :param y: y-axis data. For models with multiple y channels, this should contain
+            data from a single channel only.
         :param parameters: dictionary of model parameters. All model parameters other
           than the x-axis offset must have initial values set before calling this method
         :param omega: FFT frequency axis
-        :param spectrum: complex FFT data
+        :param spectrum: complex FFT data. For models with multiple y channels, this
+          should contain data from a single channel only.
         :param omega_cut_off: highest value of omega to use in offset estimation
         :param test_pts: optional array of x-axis points to test
         :param x_offset_param_name: name of the x-axis offset model parameter
@@ -310,6 +322,11 @@ class Model:
 
         :returns: an estimate of the x-axis offset
         """
+        if y.ndim != 1:
+            raise ValueError(
+                f"{y.shape[1]} y channels were provided to a method which takes 1"
+            )
+
         x0_candidates = np.array([])
 
         if test_pts is not None:
@@ -341,10 +358,10 @@ class Model:
     def find_x_offset_sampling(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        y: Array[("num_samples", "num_y_channels"), np.float64],
         parameters: Dict[str, ModelParameter],
         width: float,
-        param_name: str = "x0",
+        x_offset_param_name: str = "x0",
     ) -> float:
         """Finds the x-axis offset of a dataset by stepping through a range of potential
         offset values and picking the one that gives the lowest residuals.
@@ -367,12 +384,12 @@ class Model:
         :param parameters: dictionary of model parameters.
         :param width: width of the feature we're trying to find (e.g. FWHMH). Used to
             pick the spacing between offset values to try.
-        :param param_name: name of the x-axis offset parameter
+        :param x_offset_param_name: name of the x-axis offset parameter
 
         :returns: an estimate of the x-axis offset
         """
         offsets = np.arange(min(x), max(x), width / 6)
-        return self.param_min_sqrs(x, y, parameters, param_name, offsets)[0]
+        return self.param_min_sqrs(x, y, parameters, x_offset_param_name, offsets)[0]
 
     def find_x_offset_fft(
         self,
@@ -388,14 +405,21 @@ class Model:
         sensitive to offsets).
 
         This method uses the FFT shift theorem to extract the offset from the phase
-        slope of an FFT.
+        slope of an FFT. At present it only supports models with a single y channel.
 
         :param omega: FFT frequency axis
-        :param spectrum: complex FFT data
+        :param spectrum: complex FFT data. For models with multiple y channels, this
+          should contain data from a single channel only.
         :param omega_cut_off: highest value of omega to use in offset estimation
 
         :returns: an estimate of the x-axis offset
         """
+        if spectrum.ndim != 1:
+            raise ValueError(
+                f"{spectrum.shape[1]} y channels were provided to a method which "
+                "takes 1"
+            )
+
         keep = omega < omega_cut_off
         if np.sum(keep) < 2:
             raise ValueError("Insufficient data below cut-off")
@@ -457,8 +481,8 @@ class Fitter:
     """
 
     x: Array[("num_samples",), np.float64]
-    y: Array[("num_samples",), np.float64]
-    sigma: Optional[Array[("num_samples",), np.float64]]
+    y: Array[("num_samples", "num_y_channels"), np.float64]
+    sigma: Optional[Array[("num_samples", "num_y_channels"), np.float64]]
     values: Dict[str, float]
     uncertainties: Dict[str, float]
     derived_values: Dict[str, float]
@@ -471,9 +495,11 @@ class Fitter:
     def __init__(
         self,
         x: ArrayLike[("num_samples",), np.float64],
-        y: ArrayLike[("num_samples",), np.float64],
+        y: ArrayLike[("num_samples", "num_y_channels"), np.float64],
         model: Model,
-        sigma: Optional[ArrayLike[("num_samples",), np.float64]] = None,
+        sigma: Optional[
+            ArrayLike[("num_samples", "num_y_channels"), np.float64]
+        ] = None,
     ):
         """Fits a model to a dataset and stores the results.
 
@@ -491,21 +517,55 @@ class Fitter:
         y = np.array(y, dtype=np.float64, copy=True)
         sigma = None if sigma is None else np.array(sigma, dtype=np.float64, copy=True)
 
-        if x.shape != y.shape:
-            raise ValueError("Shapes of x and y must match.")
+        if x.ndim != 1:
+            raise ValueError("x-axis data must be a 1D")
+
+        if y.ndim > 2:
+            raise ValueError("y-axis data must be 1D or 2D")
+
+        if x.shape[0] != y.shape[0]:
+            raise ValueError("number of x-axis and y-axis samples must match")
+
+        if y.ndim > 1 and y.shape[1] != model.get_num_y_channels():
+            raise ValueError(
+                f"Expected {model.get_num_y_channels()} y channels, got {y.shape[1]}"
+            )
 
         if sigma is not None and sigma.shape != y.shape:
-            raise ValueError("Shapes of sigma and y must match.")
+            raise ValueError(
+                f"Shapes of sigma (got {sigma.shape}) and y (got {y.shape}) must match"
+            )
 
-        valid_pts = np.logical_and(np.isfinite(x), np.isfinite(y))
+        if sigma is not None and not np.all(sigma != 0):
+            logger.warning("Ignoring points with zero uncertainty")
+
+        valid_x = np.isfinite(x)
+        valid_y = np.isfinite(y)
+        valid_sigma = (
+            None if sigma is None else np.logical_and(np.isfinite(sigma), sigma != 0)
+        )
+
+        if model.get_num_y_channels() > 1:
+            valid_y = np.all(valid_y, axis=0)
+            valid_sigma = None if sigma is None else np.all(valid_sigma, axis=0)
+
+        valid_pts = np.logical_and(valid_x, valid_y)
+        if sigma is not None:
+            valid_pts = np.logical_and(valid_pts, valid_sigma)
+
         x = x[valid_pts]
         y = y[valid_pts]
         sigma = None if sigma is None else sigma[valid_pts]
 
         inds = np.argsort(x)
         x = x[inds]
-        y = y[inds]
-        sigma = None if sigma is None else sigma[inds]
+
+        if model.get_num_y_channels() == 1:
+            y = y[inds]
+            sigma = None if sigma is None else sigma[inds]
+        else:
+            y = y[:, inds]
+            sigma = None if sigma is None else sigma[:, inds]
 
         self.x = x
         self.y = y
@@ -513,6 +573,9 @@ class Fitter:
 
         # Rescale coordinates to improve numerics (optimizers need to do things like
         # calculate numerical derivatives which is easiest if x and y are O(1)).
+        #
+        # Currently we use a single scale factor for all y channels. This may change in
+        # future
         x_scale = np.max(np.abs(x))
         y_scale = np.max(np.abs(y))
 
@@ -565,7 +628,7 @@ class Fitter:
 
         def free_func(
             x: Array[("num_samples",), np.float64], *free_param_values: float
-        ):
+        ) -> Array[("num_samples", "num_y_channels"), np.float64]:
             """Call the model function with the values of the free parameters."""
             params = {
                 param: value
@@ -610,10 +673,10 @@ class Fitter:
     @staticmethod
     def _fit(
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-        sigma: Optional[Array[("num_samples",), np.float64]],
+        y: Array[("num_samples", "num_y_channels"), np.float64],
+        sigma: Optional[Array[("num_samples", "num_y_channels"), np.float64]],
         parameters: Dict[str, ModelParameter],
-        free_func: Callable[..., Array[("num_samples",), np.float64]],
+        free_func: Callable[..., Array[("num_samples", "num_y_channels"), np.float64]],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Implementation of the parameter estimation.
 
@@ -648,7 +711,8 @@ class Fitter:
     def evaluate(
         self, x_fit: Optional[Union[Array[("num_samples",), np.float64], int]] = None
     ) -> Tuple[
-        Array[("num_samples",), np.float64], Array[("num_samples",), np.float64]
+        Array[("num_samples",), np.float64],
+        Array[("num_samples", "num_y_channels"), np.float64],
     ]:
         """Evaluates the model function using the fitted parameter set.
 
@@ -667,6 +731,6 @@ class Fitter:
         y_fit = self.model.func(x_fit, self.values)
         return x_fit, y_fit  # type: ignore
 
-    def residuals(self) -> Array[("num_samples",), np.float64]:
+    def residuals(self) -> Array[("num_samples", "num_y_channels"), np.float64]:
         """Returns an array of fit residuals."""
         return self.y - self.evaluate()[1]

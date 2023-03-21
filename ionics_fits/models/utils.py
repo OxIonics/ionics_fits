@@ -10,7 +10,7 @@ from ..utils import Array
 if TYPE_CHECKING:
     num_samples = float
     num_spectrum_samples = float
-
+    num_y_channels = float
 
 TModel = TypeVar("TModel", bound=Type[Model])
 
@@ -96,7 +96,7 @@ class MappedModel(Model):
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_samples",), np.float64]:
+    ) -> Array[("num_samples", "num_y_channels"), np.float64]:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
@@ -117,7 +117,7 @@ class MappedModel(Model):
     def _inner_estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        y: Array[("num_samples", "num_y_channels"), np.float64],
         inner_parameters: Dict[str, ModelParameter],
     ) -> Dict[str, float]:
         return self.inner.estimate_parameters(x, y, inner_parameters)
@@ -125,7 +125,7 @@ class MappedModel(Model):
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        y: Array[("num_samples", "num_y_channels"), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
         """Set heuristic values for model parameters.
@@ -183,14 +183,14 @@ def rescale_model_x(model_class: TModel, x_scale: float) -> TModel:
 
         def func(
             self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-        ) -> Array[("num_samples",), np.float64]:
+        ) -> Array[("num_samples", "num_y_channels"), np.float64]:
             x = (x * self.__x_scale) if self.__rescale else x
             return super().func(x, param_values)
 
         def estimate_parameters(
             self,
             x: Array[("num_samples",), np.float64],
-            y: Array[("num_samples",), np.float64],
+            y: Array[("num_samples", "num_y_channels"), np.float64],
             model_parameters: Dict[str, ModelParameter],
         ):
             # avoid double rescaling if estimate_parameters calls self.func internally
@@ -216,11 +216,17 @@ def get_spectrum(
     """Returns the frequency spectrum (Fourier transform) of a dataset.
 
     :param x: x-axis data
-    :param y: y-axis data
+    :param y: y-axis data. For models with multiple y channels, this should contain
+        data from a single channel only.
     :param density_units: if `False` we apply normalization for narrow-band signals. If
         `True` we normalize for continuous distributions.
     :param trim_dc: if `True` we do not return the DC component.
     """
+    if y.ndim != 1:
+        raise ValueError(
+            f"{y.shape[1]} y channels were provided to a method which takes 1"
+        )
+
     dx = x.ptp() / x.size
     n = x.size
     omega = np.fft.fftfreq(n, dx) * (2 * np.pi)
@@ -254,11 +260,17 @@ def get_pgram(
     sinusoids at different frequencies).
 
     :param x: x-axis data
-    :param y: y-axis data
+    :param y: y-axis data. For models with multiple y channels, this should contain
+        data from a single channel only.
     :param density_units: if `False` (default) we apply normalization for narrow-band
         signals. If `True` we normalize for continuous distributions.
     :returns: tuple with the frequency axis (angular units) and the periodogram
     """
+    if y.ndim != 1:
+        raise ValueError(
+            f"{y.shape[1]} y channels were provided to a method which takes 1"
+        )
+
     dx = np.min(np.diff(x))
     duration = x.ptp()
     n = int(duration / dx)
