@@ -23,7 +23,6 @@ pytype = {version = "^2022.4.15", markers = "os_name == 'posix'"}
 enable = true
 vcs = "git"
 style = "pep440"
-format-jinja = "{{ base }}.{{ distance }}+g{{ commit }}"
 pattern = "^(?P<base>\\d+(\\.\\d+)*)"
 
 [build-system]
