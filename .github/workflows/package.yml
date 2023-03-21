@@ -17,6 +17,11 @@ jobs:
         with:
           python-version: "3.8"
       - run: poetry build
+      - name: Test wheel
+        if: github.event_name != 'release'
+        run: |
+            pipx install twine
+            twine check dist/*
       - name: Upload wheel
         if: github.event_name == 'release'
         uses: pypa/gh-action-pypi-publish@release/v1
