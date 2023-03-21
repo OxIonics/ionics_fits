@@ -76,9 +76,13 @@ class DoubleRabiFreq(fits.Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        # TODO!
-        model_parameters["w_0_0"].heuristic = 0
-        model_parameters["w_0_1"].heuristic = 0
+        self.model.parameters["w_0"].heuristic = None
+        self.model.estimate_parameters(x, y[:, 0], self.model.parameters)
+        model_parameters["w_0_0"].heuristic = self.model.parameters["w_0"].heuristic
+
+        self.model.parameters["w_0"].heuristic = None
+        self.model.estimate_parameters(x, y[:, 1], self.model.parameters)
+        model_parameters["w_0_1"].heuristic = self.model.parameters["w_0"].heuristic
 
 
 def test_multi_y():
@@ -93,5 +97,5 @@ def test_multi_y():
         w,
         DoubleRabiFreq(),
         params,
-        common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
+        common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-14),
     )
