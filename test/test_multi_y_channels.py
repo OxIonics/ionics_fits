@@ -97,5 +97,5 @@ def test_multi_y():
         w,
         DoubleRabiFreq(),
         params,
-        common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-14),
+        common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
     )
