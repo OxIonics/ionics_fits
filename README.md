@@ -72,16 +72,71 @@ plt.legend()
 plt.show()
 ```
 
+# Developing
+
+Before committing:
+- Update formatting: `poe fmt`
+- Lints: `poe flake`
+- Run test suite: `poe test`
+- Optionally: [fuzz](#Fuzzing) any new models
+
+# Design Philosophy
+
+## Good Heuristics
+
+Life is too short for failed fits. We can't guarantee to fit every dataset without any
+help from the user (e.g. specifying initial parameter values) no matter how noisy or
+incomplete it is...but we do our best!
+
+Every fit model has a "parameter estimator" which uses heuristics to find good estimates
+of the values of the model's free parameters. We expect these heuristics to be good
+enough to allow the optimizer to fit any "reasonable" dataset. Fit failures are viewed
+as a bug and we encourage our users to file issues where they find them (please post an
+example dataset in the issue).
+
+Currently this project is a MVP and many of the heuristics need some work. Expect there
+to be cases where we could easily do better. Please report them where you find them!
+
+## Validation
+
+It's not enough to just fit the data, we want to know if we can trust the fit results
+before acting on them.  There are two distinct aspects to the validation problem: did
+the fit find the model parameters which best match the data (as opposed to getting stuck
+in a local minimum in parameter space far from the global optimum)? and, are the fitted
+parameter values consistent with our prior knowledge of the system (e.g. we know that a
+fringe contrast must lie within certain bounds).
+
+First, any prior knowledge about the system should be incorporated by specifying fixed
+parameter values and parameter bounds. After that, the fit is validated. At present,
+validation is done using the Chi-squared as a test for goodness of fit. It is likely
+that additional validation tests will be added as the package grows.
+
+## General purpose
+
+This library is designed to be general purpose; rather than tackling specific problems
+we try to target sets of problems -- we want to fit sinusoids not *your* sinusoid. This
+is reflected, for example, in the choices of parametrisation, which are intended to be
+extremely flexible, and the effort put into heuristics. If you find you can't easily fit
+your sinusoid with the standard model/heuristics it's probably a bug in the model design
+so please open an issue.
+
+We encourage contributions of new fit models, but please consider generality before
+submission. If you want to solve a specific problem in front of you, that's fine but
+probably better suited to your own codebase.
+
 ## Extensibility
 
-`ionics_fits` is designed to be east to extend. It's common for models to inherit from
-other models, whether to extend their capabilities (for example, adding additional
-derived parameters) or to provide special-casing.
+The library is designed to be extensible and ergonomic to user. Want to use different
+statistics? Easy, just provide a new class that inherits from `FitBase`. Want to do some
+custom post-fit processing? Override the `calculate_derived_parameters` method. Want to
+tweak the parameter estimator for a model? Create a new model class that inherits from
+the original model and modify away. If you're struggling to do what you want, it's
+probably a bug in the library so report it.
 
-The package provides a number of tools in [`models.utils`](../blob/master/ionics_fits/models/utils.py) to help with this. For
-example, say you want to fit some frequency-domain Rabi oscillation data. However,
-the model works in angular units, but your tooling needs linear units. No problem!
-Simply use the `rescale_model_x` tool:
+`ionics_fits` provides a number of tools in [`models.utils`](../master/ionics_fits/models/utils.py) to make it easier to
+extend models. For example, say you want to fit some frequency-domain Rabi oscillation
+data. However, the model works in angular units, but your tooling needs linear units. No
+problem! Simply use the `rescale_model_x` tool:
 
 ```python
 detuning_model = fits.models.utils.rescale_model_x(fits.models.RabiFlopFreq, 2 * np.pi)
@@ -113,71 +168,6 @@ class _RabiBField(fits.models.RabiFlopFreq):
 
 RabiBField = fits.models.utils.rescale_model_x(_RabiBField, 2 * np.pi * dfdB)
 ```
-
-# Developing
-
-Before committing:
-- Update formatting: `poe fmt`
-- Lints: `poe flake`
-- Run test suite: `poe test`
-- Optionally: [fuzz](#Fuzzing) any new models
-
-# Design Philosophy
-
-## Good Heuristics
-
-Life is too short for failed fits. We can't guarantee to fit every dataset without any
-help from the user (e.g. specifying initial parameter values) no matter how noisy or
-incomplete it is...but we do our best!
-
-Every fit model has a "parameter estimator" which uses heuristics to find good estimates
-of the values of the model's free parameters. We expect these heuristics to be good
-enough to allow the optimizer to fit any "reasonable" dataset. Fit failures are viewed
-as a bug and we encourage our users to file issues where they find them (please post an
-example dataset in the issue).
-
-Currently this project is a MVP and many of the heuristics need some work. Expect there
-to be cases where we could easily do better. Please report them where you find them!
-
-## Validation
-
-It's not enough to just fit the data, we want to know if we can trust the fit results
-before acting on them. To assist validation, we provide a statistical estimate for the
-fit quality. These tells the user how likely it is that their dataset could have arisen
-through chance assuming the fitted model is correct given the assumed statistics.
-
-There are two distinct aspects to the validation process: did the fit find the model
-parameters which best match the data (as opposed to getting stuck in a local minimum in
-parameter space)? and, are the fitted parameter values consistent with our prior
-knowledge of the system (e.g. we know that a fringe contrast must lie within certain
-bounds).
-
-We encourage our users to approach both aspects of validation using the goodness of fit:
-any prior knowledge about the system should be included in the fit setup through fixed
-parameter values and parameter bounds; after that, a high fit significance indicates
-both a good fit and that the system behaviour is consistent with our prior expectations.
-
-## General purpose
-
-This library is designed to be general purpose; rather than tackling specific problems
-we try to target sets of problems -- we want to fit sinusoids not *your* sinusoid. This
-is reflected, for example, in the choices of parametrisation, which are intended to be
-extremely flexible, and the effort put into heuristics. If you find you can't easily fit
-your sinusoid with the standard model/heuristics it's probably a bug in the model design
-so please open an issue.
-
-We encourage contributions of new fit models, but please consider generality before
-submission. If you want to solve a specific problem in front of you, that's fine but
-probably better suited to your own codebase.
-
-## Extensibility
-
-The library is designed to be extensible and ergonomic to user. Want to use different
-statistics? Easy, just provide a new class that inherits from `FitBase`. Want to do some
-custom post-fit processing? Override the `calculate_derived_parameters` method. Want to
-tweak the parameter estimator for a model? Create a new model class that inherits from
-the original model and modify away. If you're struggling to do what you want, it's
-probably a bug in the library so report it.
 
 At present the library is still an MVP. While we do provide some hooks there aren't
 many. The addition of further hooks will be driven by use cases, so please open an issue
