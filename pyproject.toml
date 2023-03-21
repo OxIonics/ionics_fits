@@ -3,6 +3,7 @@ name = "ionics_fits"
 version = "0.1"
 description = "Lightweight Python data fitting library with an emphasis on AMO/Quantum Information"
 authors = ["hartytp <thomas.peter.harty@gmail.com>"]
+readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.8, <3.11"
