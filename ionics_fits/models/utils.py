@@ -94,6 +94,40 @@ class MappedModel(Model):
         self.mapped_args = mapped_params
         self.fixed_params = fixed_params or {}
 
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        """Returns True if the model can be rescaled"""
+        mapped_can_rescale = super().can_rescale(x_scale, y_scale)
+        fixed_can_rescale = all(
+            [
+                param_data.can_rescale(x_scale, y_scale, self)
+                for param_data in self.parameters.values()
+            ]
+        )
+        return mapped_can_rescale and fixed_can_rescale
+        # return False
+
+    @staticmethod
+    def get_scaled_model(model, x_scale: float, y_scale: float):
+        """Rescale model parameters
+
+        :param x_scale: ...
+        :param y_scale: ...
+        :returns: True if the model can be rescaled, otherwise False
+        """
+        scaled_model = copy.deepcopy(model)
+        for param_name, param in scaled_model.inner.parameters.items():
+            param.rescale(x_scale, y_scale, scaled_model.inner)
+
+        for fixed_param in scaled_model.fixed_params.keys():
+            scale_factor = scaled_model.inner.parameters[fixed_param].scale_factor
+            scaled_model.fixed_params[fixed_param] /= scale_factor
+
+        for new_name, old_name in scaled_model.mapped_args.items():
+            scale_factor = scaled_model.inner.parameters[old_name].scale_factor
+            scaled_model.parameters[new_name].scale_factor = scale_factor
+
+        return scaled_model
+
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples", "num_y_channels"), np.float64]:
@@ -112,6 +146,13 @@ class MappedModel(Model):
             for new_name, old_name in self.mapped_args.items()
         }
         new_params.update(self.fixed_params)
+
+        import pprint as pprint
+
+        print("new")
+        pprint.pprint(new_params)
+        print("fixed")
+        pprint.pprint(self.fixed_params)
         return self.inner.func(x, new_params)
 
     def _inner_estimate_parameters(
