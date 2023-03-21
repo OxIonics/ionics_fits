@@ -1,7 +1,7 @@
 name: Package
 
 on:
-  release:
+  release: [published]
   workflow_dispatch:
   pull_request:
 
