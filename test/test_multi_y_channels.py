@@ -85,8 +85,8 @@ def test_multi_y():
     """Test fitting to a model with multiple y channels"""
     w = np.linspace(-10, 10, 200)
     params = {
-        "w_0_0": -3,
-        "w_0_1": +3,
+        "w_0_0": [-3.0],
+        "w_0_1": [+3.0],
     }
 
     common.check_multiple_param_sets(
