@@ -524,7 +524,10 @@ class Fitter:
             raise ValueError("y-axis data must be 1D or 2D")
 
         if x.shape[0] != y.shape[0]:
-            raise ValueError("number of x-axis and y-axis samples must match")
+            raise ValueError(
+                "number of x-axis and y-axis samples must match "
+                f"(got {x.shape} and {y.shape})"
+            )
 
         if y.ndim > 1 and y.shape[1] != model.get_num_y_channels():
             raise ValueError(
@@ -546,8 +549,8 @@ class Fitter:
         )
 
         if model.get_num_y_channels() > 1:
-            valid_y = np.all(valid_y, axis=0)
-            valid_sigma = None if sigma is None else np.all(valid_sigma, axis=0)
+            valid_y = np.all(valid_y, axis=1)
+            valid_sigma = None if sigma is None else np.all(valid_sigma, axis=1)
 
         valid_pts = np.logical_and(valid_x, valid_y)
         if sigma is not None:
@@ -564,8 +567,8 @@ class Fitter:
             y = y[inds]
             sigma = None if sigma is None else sigma[inds]
         else:
-            y = y[:, inds]
-            sigma = None if sigma is None else sigma[:, inds]
+            y = y[inds, :]
+            sigma = None if sigma is None else sigma[inds, :]
 
         self.x = x
         self.y = y

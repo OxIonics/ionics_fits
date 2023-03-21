@@ -170,38 +170,58 @@ def _plot(
     fit: fits.common.Fitter,
     y_model: fits.utils.Array[("num_samples",), np.float64],
 ):
-    _, ax = plt.subplots(1, 2)
-    ax[0].set_title(fit.model.__class__.__name__)
-    ax[0].plot(fit.x, y_model, "-o", label="model")
-    ax[0].plot(*fit.evaluate(), "-.o", label="fit")
-    ax[0].plot(
-        fit.x,
-        fit.model.func(fit.x, fit.initial_values),
-        "--o",
-        label="heuristic",
-    )
-    ax[0].set(xlabel="x", ylabel="y")
-    ax[0].grid()
-    ax[0].legend()
 
-    freq_model, y_f_model = fits.models.utils.get_spectrum(fit.x, y_model)
-    freq_fit, y_f_fit = fits.models.utils.get_spectrum(*fit.evaluate())
-    freq_heuristic, y_f_heuristic = fits.models.utils.get_spectrum(
-        fit.x, fit.model.func(fit.x, fit.initial_values)
-    )
+    y_model = y_model
+    y_fit = fit.model.func(fit.x, fit.values)
+    y_heuristic = fit.model.func(fit.x, fit.initial_values)
 
-    ax[1].set_title(f"{fit.model.__class__.__name__} spectrum")
-    ax[1].plot(freq_model, np.abs(y_f_model), "-o", label="model")
-    ax[1].plot(freq_fit, np.abs(y_f_fit), "-.o", label="fit")
-    ax[1].plot(
-        freq_heuristic,
-        np.abs(y_f_heuristic),
-        "--o",
-        label="heuristic",
-    )
-    ax[1].set(xlabel="frequency (linear units)", ylabel="Spectral density")
-    ax[1].grid()
-    ax[1].legend()
+    if fit.model.get_num_y_channels() == 1:
+        y_model = np.expand_dims(y_model, axis=1)
+        y_fit = np.expand_dims(y_fit, axis=1)
+        y_heuristic = np.expand_dims(y_heuristic, axis=1)
+
+    _, ax = plt.subplots(fit.model.get_num_y_channels(), 2)
+    for ch in range(fit.model.get_num_y_channels()):
+        y_model_ch = y_model[:, ch]
+        y_fit_ch = y_fit[:, ch]
+        y_heuristic_ch = y_heuristic[:, ch]
+
+        if fit.model.get_num_y_channels() == 1:
+            ax = np.expand_dims(ax, axis=0)
+
+        ax[ch, 0].set_title(fit.model.__class__.__name__)
+        ax[ch, 0].plot(fit.x, y_model_ch, "-o", label="model")
+        ax[ch, 0].plot(fit.x, y_fit_ch, "-.o", label="fit")
+        ax[ch, 0].plot(
+            fit.x,
+            y_heuristic_ch,
+            "--o",
+            label="heuristic",
+        )
+        ax[ch, 0].set(
+            xlabel="x", ylabel="y" if fit.model.get_num_y_channels() == 1 else f"y_{ch}"
+        )
+        ax[ch, 0].grid()
+        ax[ch, 0].legend()
+
+        freq_model, y_f_model = fits.models.utils.get_spectrum(fit.x, y_model_ch)
+        freq_fit, y_f_fit = fits.models.utils.get_spectrum(fit.x, y_fit_ch)
+        freq_heuristic, y_f_heuristic = fits.models.utils.get_spectrum(
+            fit.x, y_heuristic_ch
+        )
+
+        ax[ch, 1].set_title(f"{fit.model.__class__.__name__} spectrum")
+        ax[ch, 1].plot(freq_model, np.abs(y_f_model), "-o", label="model")
+        ax[ch, 1].plot(freq_fit, np.abs(y_f_fit), "-.o", label="fit")
+        ax[ch, 1].plot(
+            freq_heuristic,
+            np.abs(y_f_heuristic),
+            "--o",
+            label="heuristic",
+        )
+        ax[ch, 1].set(xlabel="frequency (linear units)", ylabel="Spectral density")
+        ax[ch, 1].grid()
+        ax[ch, 1].legend()
 
     plt.show()
 
