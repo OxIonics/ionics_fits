@@ -73,7 +73,6 @@ class NormalFitter(Fitter):
             _: Array[("num_samples_flattened",), np.float64], *free_param_values: float
         ) -> Array[("num_samples_flattened",), np.float64]:
             """Call the model function with the values of the free parameters."""
-
             return free_func(x, *free_param_values).ravel()
 
         if y.ndim == 1:
@@ -81,7 +80,7 @@ class NormalFitter(Fitter):
             y_flat = y
             sigma_flat = None if sigma is None else sigma
         else:
-            x_flat = np.tile(x, (y.ndim, 1))
+            x_flat = np.ravel(np.tile(x, (y.ndim, 1)))
             y_flat = np.ravel(y)
             sigma_flat = None if sigma is None else np.ravel(sigma)
 

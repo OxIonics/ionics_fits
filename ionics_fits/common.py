@@ -169,11 +169,12 @@ class Model:
 
     @staticmethod
     def get_scaled_model(model, x_scale: float, y_scale: float):
-        """Rescale model parameters
+        """Returns a scaled copy of a given model object
 
-        :param x_scale: ...
-        :param y_scale: ...
-        :returns: True if the model can be rescaled, otherwise False
+        :param model: model to be copied and rescaled
+        :param x_scale: x-axis scale factor
+        :param y_scale: y-axis scale factor
+        :returns: a scaled copy of model
         """
         scaled_model = copy.deepcopy(model)
         for param in scaled_model.parameters.values():
@@ -239,6 +240,9 @@ class Model:
         The datasets must be sorted in order of increasing x-axis values and must not
         contain any infinite or nan values. If all parameters of the model allow
         rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
+
+        TODO: this should act directly on self.model_parameters rather than taking
+        model parameters as an argument (this is a hangover from an old design)
 
         :param x: x-axis data, rescaled if allowed.
         :param y: y-axis data, rescaled if allowed.
@@ -610,7 +614,7 @@ class Fitter:
         else:
             x_scale = 1
             y_scale = 1
-            scaled_model = model
+            scaled_model = copy.deepcopy(model)
 
         x = x / x_scale
         y = y / y_scale
