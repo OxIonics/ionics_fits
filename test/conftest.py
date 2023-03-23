@@ -17,7 +17,10 @@ def pytest_addoption(parser):
 def plot_failures(request, monkeypatch):
     show = request.config.getoption("--plot-failures")
     if show:
-        matplotlib.use("TkAgg")
+        try:
+            matplotlib.use("TkAgg")
+        except ImportError:
+            matplotlib.use("Qt5Agg")
     else:
         matplotlib.use("agg")
         monkeypatch.setattr(common.plt, "show", lambda: None)
