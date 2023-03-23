@@ -5,7 +5,7 @@ import ionics_fits as fits
 from . import common
 
 
-def test_gaussian():
+def test_gaussian(plot_failures):
     """Test for gaussian.Gaussian"""
     x = np.linspace(-10, 20, 500)
     params = {
@@ -19,7 +19,7 @@ def test_gaussian():
         x,
         model,
         params,
-        common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=plot_failures),
     )
 
 

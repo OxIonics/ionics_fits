@@ -5,7 +5,7 @@ import ionics_fits as fits
 from . import common
 
 
-def test_exponential():
+def test_exponential(plot_failures):
     """Test for exponential.Exponential"""
     x = np.linspace(0, 2, 100)
     params = {
@@ -20,7 +20,7 @@ def test_exponential():
         x,
         model,
         params,
-        common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=plot_failures),
     )
 
 

@@ -5,7 +5,7 @@ import ionics_fits as fits
 from . import common
 
 
-def _test_rabi_freq(P_readout_e: float):
+def _test_rabi_freq(plot_failures: bool, P_readout_e: float):
     """Test for rabi.RabiFlopFreq"""
     w = np.linspace(-2e6, 2e6, 200) * 2 * np.pi
     t_pulse = 5e-6
@@ -23,16 +23,18 @@ def _test_rabi_freq(P_readout_e: float):
         w,
         fits.models.RabiFlopFreq(start_excited=True),
         params,
-        common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
+        common.TestConfig(
+            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
+        ),
     )
 
 
-def test_rabi_freq():
+def test_rabi_freq(plot_failures: bool):
     """Test for rabi.RabiFlopFreq"""
-    _test_rabi_freq(P_readout_e=1.0)
+    _test_rabi_freq(plot_failures=plot_failures, P_readout_e=1.0)
 
 
-def test_rabi_freq_w0_only():
+def test_rabi_freq_w0_only(plot_failures: bool):
     """Test for rabi.RabiFlopFreq in the case where w_0 is the only unknown.
 
     This case is special-cased in the parameter estimator.
@@ -57,16 +59,18 @@ def test_rabi_freq_w0_only():
             w,
             model,
             params,
-            common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
+            common.TestConfig(
+                plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
+            ),
         )
 
 
-def test_rabi_freq_inverted():
+def test_rabi_freq_inverted(plot_failures: bool):
     """Test for rabi.RabiFlopFreq, with the readout levels inverted"""
-    _test_rabi_freq(P_readout_e=0.0)
+    _test_rabi_freq(plot_failures=plot_failures, P_readout_e=0.0)
 
 
-def _test_rabi_time(P_readout_e: float):
+def _test_rabi_time(plot_failures: bool, P_readout_e: float):
     t_pulse = np.linspace(0, 20e-6, 100) * 2 * np.pi
     params = {
         "P_readout_e": P_readout_e,
@@ -81,18 +85,20 @@ def _test_rabi_time(P_readout_e: float):
         t_pulse,
         fits.models.RabiFlopTime(start_excited=True),
         params,
-        common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
+        common.TestConfig(
+            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
+        ),
     )
 
 
-def test_rabi_time():
+def test_rabi_time(plot_failures: bool):
     """Test for rabi.RabiFlopTime"""
-    _test_rabi_time(P_readout_e=1.0)
+    _test_rabi_time(plot_failures=plot_failures, P_readout_e=1.0)
 
 
-def test_rabi_time_inverted():
+def test_rabi_time_inverted(plot_failures: bool):
     """Test for rabi.RabiFlopTime, with the readout levels inverted"""
-    _test_rabi_time(P_readout_e=0.0)
+    _test_rabi_time(plot_failures=plot_failures, P_readout_e=0.0)
 
 
 def _fuzz_rabi_freq(

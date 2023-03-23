@@ -5,7 +5,7 @@ import ionics_fits as fits
 from . import common
 
 
-def test_lorentzian():
+def test_lorentzian(plot_failures):
     """Test for lorentzian.Lorentzian"""
     x = np.linspace(-4, 4, 1000)
     params = {
@@ -19,7 +19,7 @@ def test_lorentzian():
         x,
         model,
         params,
-        common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=plot_failures),
     )
 
 

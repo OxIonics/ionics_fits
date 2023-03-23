@@ -5,7 +5,7 @@ import ionics_fits as fits
 from . import common
 
 
-def test_line():
+def test_line(plot_failures: bool):
     """Simple test for polynomials.Line
 
     This fitting code is already well covered by the tests on polynomials.Polynomial,
@@ -14,10 +14,12 @@ def test_line():
     x = np.linspace(-10, 10)
     params = {"a": 3.2, "y0": -9}
     model = fits.models.Line()
-    common.check_single_param_set(x, model, params)
+    common.check_single_param_set(
+        x, model, params, common.TestConfig(plot_failures=plot_failures)
+    )
 
 
-def test_parabola():
+def test_parabola(plot_failures: bool):
     """Simple test for polynomials.Parabola
 
     This fitting code is already well covered by the tests on polynomials.Polynomial,
@@ -26,10 +28,12 @@ def test_parabola():
     x = np.linspace(-10, 10)
     params = {"k": -9, "y0": +4, "x0": -3}
     model = fits.models.Parabola()
-    common.check_single_param_set(x, model, params)
+    common.check_single_param_set(
+        x, model, params, common.TestConfig(plot_failures=plot_failures)
+    )
 
 
-def test_power_n():
+def test_power_n(plot_failures: bool):
     """Test polynomials.Power with `n` and `y0` floated.
 
     We use using parameter sets with various values of `n` and `y0`, holding `x0` and
@@ -40,10 +44,12 @@ def test_power_n():
     model = fits.models.Power()
     model.parameters["x0"].fixed_to = params["x0"]
     model.parameters["a"].fixed_to = params["a"]
-    common.check_multiple_param_sets(x, model, params)
+    common.check_multiple_param_sets(
+        x, model, params, common.TestConfig(plot_failures=plot_failures)
+    )
 
 
-def test_power_a():
+def test_power_a(plot_failures: bool):
     """Test polynomials.Power with `a` and `y0` floated.
 
     We use using parameter sets with various values of `a` and `y0`, holding `x0` and
@@ -55,7 +61,9 @@ def test_power_a():
     model.parameters["a"].fixed_to = None
     model.parameters["x0"].fixed_to = params["x0"]
     model.parameters["n"].fixed_to = params["n"]
-    common.check_multiple_param_sets(x, model, params)
+    common.check_multiple_param_sets(
+        x, model, params, common.TestConfig(plot_failures=plot_failures)
+    )
 
 
 def fuzz_power(
@@ -80,15 +88,17 @@ def fuzz_power(
     )
 
 
-def test_polynomial():
+def test_polynomial(plot_failures: bool):
     """Test for polynomials.Polynomial."""
     x = np.linspace(-5, 5)
     params = {"x0": 0, "a_0": 1, "a_1": 50, "a_2": 10, "a_3": 2}
     model = fits.models.Polynomial(poly_degree=3)
-    common.check_single_param_set(x, model, params)
+    common.check_single_param_set(
+        x, model, params, common.TestConfig(plot_failures=plot_failures)
+    )
 
 
-def test_x0():
+def test_x0(plot_failures: bool):
     """Test for polynomials.Polynomial floating x0."""
 
     # Floating x0 leads to an under-defined problem so we check the residuals rather
@@ -97,7 +107,9 @@ def test_x0():
     params = {"x0": -10, "a_0": 1, "a_1": 50, "a_2": 10}
     model = fits.models.Polynomial(poly_degree=2)
     model.parameters["x0"].fixed_to = None
-    config = common.TestConfig(residual_tol=1e-6, param_tol=None)
+    config = common.TestConfig(
+        residual_tol=1e-6, param_tol=None, plot_failures=plot_failures
+    )
     common.check_single_param_set(x, model, params, config=config)
 
 

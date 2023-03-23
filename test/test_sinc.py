@@ -6,7 +6,7 @@ import ionics_fits as fits
 from . import common
 
 
-def test_sinc():
+def test_sinc(plot_failures: bool):
     """Test for sinc.Sinc"""
     x = np.linspace(-20, 10, 200)
     params = {
@@ -20,11 +20,11 @@ def test_sinc():
         x,
         model,
         params,
-        common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=plot_failures),
     )
 
 
-def test_sinc2():
+def test_sinc2(plot_failures: bool):
     """Test for sinc.Sinc2"""
     x = np.linspace(-10, 20, 400)
     params = {
@@ -38,7 +38,7 @@ def test_sinc2():
         x,
         model,
         params,
-        common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=plot_failures),
     )
 
 

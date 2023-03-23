@@ -5,7 +5,7 @@ import ionics_fits as fits
 from . import common
 
 
-def test_rectangle():
+def test_rectangle(plot_failures: bool):
     """Test for rectangle.Rectangle
 
     NB the residuals can be bad here as the optimizer sometimes struggles to find the
@@ -26,7 +26,7 @@ def test_rectangle():
         x,
         model,
         params,
-        common.TestConfig(plot_failures=True, param_tol=5e-2),
+        common.TestConfig(plot_failures=plot_failures, param_tol=5e-2),
     )
 
     params["x_l"] = -10
@@ -36,7 +36,7 @@ def test_rectangle():
         x,
         model,
         params,
-        common.TestConfig(plot_failures=True, param_tol=5e-2),
+        common.TestConfig(plot_failures=plot_failures, param_tol=5e-2),
     )
 
     params["x_l"] = [-2.01, -1]
@@ -46,7 +46,7 @@ def test_rectangle():
         x,
         model,
         params,
-        common.TestConfig(plot_failures=True, param_tol=5e-2),
+        common.TestConfig(plot_failures=plot_failures, param_tol=5e-2),
     )
 
 
