@@ -1,4 +1,3 @@
-from typing import Optional
 import numpy as np
 
 import ionics_fits as fits
@@ -51,9 +50,9 @@ def test_rectangle(plot_failures: bool):
 
 
 def fuzz_rectangle(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     x = np.linspace(-2, 2, 100)
     fuzzed_params = {
@@ -62,10 +61,10 @@ def fuzz_rectangle(
         "x_r": (1, 2.01),
     }
     static_params = {"x_l": -1}
+
     model = fits.models.Rectangle()
     model.parameters["x_l"].fixed_to = static_params["x_l"]
-    test_config = test_config or common.TestConfig()
-    test_config.plot_failures = True
+
     test_config.param_tol = 5e-2
 
     return common.fuzz(

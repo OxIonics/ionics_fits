@@ -1,6 +1,7 @@
 """ Randomized testing of fitting code. run with: poe fuzz """
 import argparse
 import logging
+import matplotlib
 import time
 import traceback
 
@@ -45,17 +46,17 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--continue_at_failure",
+        "--continue-at-failure",
         action="store_true",
         help="If set, we do not stop fuzzing a target after a single failure",
     )
     parser.add_argument(
-        "--plot_failures",
+        "--plot-failures",
         action="store_true",
         help="If set, we plot data/fit for each failure",
     )
     parser.add_argument(
-        "--num_trials",
+        "--num-trials",
         type=int,
         default=100,
         help="Number of random parameter sets for each target",
@@ -85,7 +86,16 @@ if __name__ == "__main__":
     args.targets = args.targets or targets.keys()
     args.targets = [args.targets] if isinstance(args.targets, str) else args.targets
 
-    test_config = common.TestConfig(plot_failures=args.plot_failures)
+    show = args.plot_failures
+    if show:
+        try:
+            matplotlib.use("TkAgg")
+        except ImportError:
+            matplotlib.use("Qt5Agg")
+    else:
+        matplotlib.use("agg")
+        common.plt.show = lambda: None
+
     for target in args.targets:
         logger.info(f"Fuzzing {target}...")
         t0 = time.time()
@@ -93,6 +103,7 @@ if __name__ == "__main__":
         target_fun = targets[target]
 
         try:
+            test_config = common.TestConfig(plot_failures=args.plot_failures)
             failures = target_fun(
                 num_trials=args.num_trials,
                 stop_at_failure=not args.continue_at_failure,

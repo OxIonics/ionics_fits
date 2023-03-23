@@ -1,4 +1,3 @@
-from typing import Optional
 import numpy as np
 
 import ionics_fits as fits
@@ -42,9 +41,9 @@ def test_sinusoid_x0(plot_failures: bool):
 
 
 def fuzz_sinusoid(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     x = np.linspace(-2, 4, 1000)
 

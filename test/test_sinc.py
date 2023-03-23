@@ -64,14 +64,11 @@ def sinc_fuzzer(
         "a": (0.25, 4),
         "w": (1, 10),
     }
-    static_params = {}
-    test_config = test_config or common.TestConfig()
-    test_config.plot_failures = True
 
     return common.fuzz(
         x=x,
         model=model,
-        static_params=static_params,
+        static_params={},
         fuzzed_params=fuzzed_params,
         test_config=test_config,
         fitter_cls=None,
@@ -82,9 +79,9 @@ def sinc_fuzzer(
 
 
 def fuzz_sinc(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     return sinc_fuzzer(
         model=fits.models.sinc.Sinc(),
@@ -95,9 +92,9 @@ def fuzz_sinc(
 
 
 def fuzz_sinc2(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     return sinc_fuzzer(
         model=fits.models.sinc.Sinc2(),

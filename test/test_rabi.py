@@ -1,4 +1,3 @@
-from typing import Optional
 import numpy as np
 
 import ionics_fits as fits
@@ -103,9 +102,9 @@ def test_rabi_time_inverted(plot_failures: bool):
 
 def _fuzz_rabi_freq(
     P_readout_e: float,
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     delta = np.linspace(-2e6, 2e6, 200) * 2 * np.pi
     fuzzed_params = {
@@ -120,10 +119,6 @@ def _fuzz_rabi_freq(
         "t_dead": 0.0,
         "tau": np.inf,
     }
-    model = fits.models.RabiFlopFreq(start_excited=True)
-
-    test_config = test_config or common.TestConfig()
-    test_config.plot_failures = True
 
     # Parameter tolerances are messy here since the tolerance for delta needs to be
     # judged relative to the size of Omega, which the code isn't set up for. So we check
@@ -140,7 +135,7 @@ def _fuzz_rabi_freq(
 
     return common.fuzz(
         x=delta,
-        model=model,
+        model=fits.models.RabiFlopFreq(start_excited=True),
         static_params=static_params,
         fuzzed_params=fuzzed_params,
         test_config=test_config,
@@ -152,9 +147,9 @@ def _fuzz_rabi_freq(
 
 def _fuzz_rabi_time(
     P_readout_e: float,
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     t = np.linspace(0, 20e-6, 400) * 2 * np.pi
     fuzzed_params = {
@@ -169,14 +164,10 @@ def _fuzz_rabi_time(
         "tau": np.inf,
     }
 
-    model = fits.models.RabiFlopTime(start_excited=True)
-
     # If we float the readout levels and the detuning the fits are under-defined
+    model = fits.models.RabiFlopTime(start_excited=True)
     model.parameters["P_readout_e"].fixed_to = P_readout_e
     model.parameters["P_readout_g"].fixed_to = 1 - P_readout_e
-
-    test_config = test_config or common.TestConfig()
-    test_config.plot_failures = True
 
     # Parameter tolerances are messy here since the tolerance for delta needs to be
     # judged relative to the size of Omega, which the code isn't set up for. So we check
@@ -204,9 +195,9 @@ def _fuzz_rabi_time(
 
 
 def fuzz_rabi_time(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     return _fuzz_rabi_time(
         P_readout_e=1.0,
@@ -217,9 +208,9 @@ def fuzz_rabi_time(
 
 
 def fuzz_rabi_time_inverted(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     return _fuzz_rabi_time(
         P_readout_e=0.0,
@@ -230,9 +221,9 @@ def fuzz_rabi_time_inverted(
 
 
 def fuzz_rabi_freq(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     return _fuzz_rabi_freq(
         P_readout_e=1.0,
@@ -243,9 +234,9 @@ def fuzz_rabi_freq(
 
 
 def fuzz_rabi_freq_inverted(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     return _fuzz_rabi_freq(
         P_readout_e=0.0,

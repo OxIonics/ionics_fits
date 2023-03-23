@@ -1,4 +1,3 @@
-from typing import Optional
 import numpy as np
 
 import ionics_fits as fits
@@ -67,18 +66,18 @@ def test_power_a(plot_failures: bool):
 
 
 def fuzz_power(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     x = np.linspace(0.1, 15)
 
     static_params = {"x0": 0, "a": 1}
     fuzzed_params = {"n": (-3, 3), "y0": (-10, 10)}
-    model = fits.models.Power()
+
     return common.fuzz(
         x=x,
-        model=model,
+        model=fits.models.Power(),
         static_params=static_params,
         fuzzed_params=fuzzed_params,
         test_config=test_config,
@@ -114,20 +113,18 @@ def test_x0(plot_failures: bool):
 
 
 def fuzz_polynomial(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     x = np.linspace(-5, 50) * 1e-3
 
     static_params = {"x0": 0}
     fuzzed_params = {f"a_{n}": (-10, 10) for n in range(4)}
 
-    model = fits.models.Polynomial(poly_degree=3)
-
     return common.fuzz(
         x=x,
-        model=model,
+        model=fits.models.Polynomial(poly_degree=3),
         static_params=static_params,
         fuzzed_params=fuzzed_params,
         test_config=test_config,
