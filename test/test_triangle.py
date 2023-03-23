@@ -1,11 +1,10 @@
-from typing import Optional
 import numpy as np
 
 import ionics_fits as fits
 from . import common
 
 
-def test_triangle():
+def test_triangle(plot_failures: bool):
     """Test for triangle.Triangle"""
     x = np.linspace(-2, 2, 100)
     params = {
@@ -23,14 +22,14 @@ def test_triangle():
         x,
         model,
         params,
-        common.TestConfig(plot_failures=True),
+        common.TestConfig(plot_failures=plot_failures),
     )
 
 
 def fuzz_triangle(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     x = np.linspace(-2, 2, 100)
     fuzzed_params = {
@@ -43,9 +42,6 @@ def fuzz_triangle(
 
     model = fits.models.Triangle()
     model.parameters["sym"].fixed_to = None
-
-    test_config = test_config or common.TestConfig()
-    test_config.plot_failures = True
 
     return common.fuzz(
         x=x,

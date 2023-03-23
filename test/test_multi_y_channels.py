@@ -85,7 +85,7 @@ class DoubleRabiFreq(fits.Model):
         model_parameters["w_0_1"].heuristic = self.model.parameters["w_0"].heuristic
 
 
-def test_multi_y():
+def test_multi_y(plot_failures):
     """Test fitting to a model with multiple y channels"""
     w = np.linspace(-10, 10, 200)
     params = {
@@ -97,5 +97,7 @@ def test_multi_y():
         w,
         DoubleRabiFreq(),
         params,
-        common.TestConfig(plot_failures=True, param_tol=None, residual_tol=1e-4),
+        common.TestConfig(
+            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
+        ),
     )

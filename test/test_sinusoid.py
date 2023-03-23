@@ -1,11 +1,10 @@
-from typing import Optional
 import numpy as np
 
 import ionics_fits as fits
 from . import common
 
 
-def test_sinusoid():
+def test_sinusoid(plot_failures: bool):
     """Test for sinusoid.Sinusoid"""
     x = np.linspace(-10, 10, 1000)
     params = {
@@ -18,11 +17,11 @@ def test_sinusoid():
     }
     model = fits.models.Sinusoid()
     common.check_multiple_param_sets(
-        x, model, params, common.TestConfig(plot_failures=True)
+        x, model, params, common.TestConfig(plot_failures=plot_failures)
     )
 
 
-def test_sinusoid_x0():
+def test_sinusoid_x0(plot_failures: bool):
     """Test for sinusoid.Sinusoid with `x0` floated instead of `phi`"""
     x = np.linspace(-5, 20, 1000)
     params = {
@@ -36,13 +35,15 @@ def test_sinusoid_x0():
     model = fits.models.Sinusoid()
     model.parameters["x0"].fixed_to = None
     model.parameters["phi"].fixed_to = 0
-    common.check_single_param_set(x, model, params)
+    common.check_single_param_set(
+        x, model, params, common.TestConfig(plot_failures=plot_failures)
+    )
 
 
 def fuzz_sinusoid(
-    num_trials: int = 100,
-    stop_at_failure: bool = True,
-    test_config: Optional[common.TestConfig] = None,
+    num_trials: int,
+    stop_at_failure: bool,
+    test_config: common.TestConfig,
 ) -> float:
     x = np.linspace(-2, 4, 1000)
 
