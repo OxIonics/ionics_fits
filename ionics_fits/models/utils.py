@@ -46,28 +46,28 @@ class RepeatedModel(Model):
         """Init
 
         :param inner: The wrapped model, the implementation of `inner` will be used to
-          generate data for each y channel in the wrapped model
+          generate data for each y channel
         :param common_params: optional list of names of model arguments, whose value is
           common to all y channels. All other model parameters are independent
         :param num_repititions: the number of times the inner model is repeated or,
-          equivalently, the number of y channels in the wrapped model
+          equivalently, the number of y channels in the new model
 
-        Wrapped model parameters:
+        Parameters of the new model:
           - all common parameters of the inner model are parameters of the outer model
-          - for each independent (not common) parameter of the inner model `foo`, the
-            outer model has parameters `foo_{n}` for n in [0, .., num_repitions-1]
+          - for each independent (not common) or derived parameter of the inner model,
+            `foo`, the outer model has parameters `foo_{n}` for n in
+            [0, .., num_repitions-1]
         """
         inner_params = set(inner.parameters.keys())
-        common_params = set(common_params)
+        common_params = set(common_params or [])
 
         if not common_params.issubset(inner_params):
             raise ValueError(
                 "Common parameters must be a subset of the inner model's parameters"
             )
 
-        params = {param: inner.parameters[param] for param in common_params or []}
-
         independent_params = set(inner.parameters.keys()) - common_params
+        params = {param: inner.parameters[param] for param in common_params}
         for param in independent_params:
             params.update(
                 {
@@ -161,7 +161,10 @@ class RepeatedModel(Model):
             )
 
             derived = self.inner.calculate_derived_params(
-                x=x, y=y, fitted_params=rep_params, fit_uncertainties=rep_uncertainties
+                x=x,
+                y=y[:, idx],
+                fitted_params=rep_params,
+                fit_uncertainties=rep_uncertainties,
             )
             rep_derived_params, rep_derived_uncertainties = derived
 
