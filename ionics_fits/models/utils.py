@@ -2,7 +2,7 @@ import copy
 import dataclasses
 import numpy as np
 from scipy import signal
-from typing import Dict, Optional, Tuple, Type, TYPE_CHECKING, TypeVar
+from typing import Dict, List, Optional, Tuple, Type, TYPE_CHECKING, TypeVar
 from ..common import Model, ModelParameter
 from ..utils import Array
 
@@ -32,6 +32,150 @@ class PeriodicModelParameter(ModelParameter):
         """Clip value to lie between lower and upper bounds."""
         value = value - self.offset
         return (value % self.period) + self.offset
+
+
+class RepeatedModel(Model):
+    """Wraps a `Model` to create a new model with multiple y channels"""
+
+    def __init__(
+        self,
+        inner: Model,
+        common_params: Optional[List[str]] = None,
+        num_repetitions: int = 2,
+    ):
+        """Init
+
+        :param inner: The wrapped model, the implementation of `inner` will be used to
+          generate data for each y channel in the wrapped model
+        :param common_params: optional list of names of model arguments, whose value is
+          common to all y channels. All other model parameters are independent
+        :param num_repititions: the number of times the inner model is repeated or,
+          equivalently, the number of y channels in the wrapped model
+
+        Wrapped model parameters:
+          - all common parameters of the inner model are parameters of the outer model
+          - for each independent (not common) parameter of the inner model `foo`, the
+            outer model has parameters `foo_{n}` for n in [0, .., num_repitions-1]
+        """
+        inner_params = set(inner.parameters.keys())
+        common_params = set(common_params)
+
+        if not common_params.issubset(inner_params):
+            raise ValueError(
+                "Common parameters must be a subset of the inner model's parameters"
+            )
+
+        params = {param: inner.parameters[param] for param in common_params or []}
+
+        independent_params = set(inner.parameters.keys()) - common_params
+        for param in independent_params:
+            params.update(
+                {
+                    f"{param}_{idx}": copy.deepcopy(inner.parameters[param])
+                    for idx in range(num_repetitions)
+                }
+            )
+
+        super().__init__(parameters=params)
+
+        self.inner = inner
+        self.common_params = common_params
+        self.independent_params = independent_params
+        self.num_repetitions = num_repetitions
+
+    def get_num_y_channels(self) -> int:
+        return self.num_repetitions
+
+    def func(
+        self,
+        x: Array[("num_samples",), np.float64],
+        param_values: Dict[str, float],
+    ) -> Array[("num_samples", "num_y_channels"), np.float64]:
+        """
+        Return measurement probability as function of pulse frequency.
+
+        :param x: Angular frequency
+        """
+        common_values = {param: param_values[param] for param in self.common_params}
+
+        ys = []
+        for idx in range(self.num_repetitions):
+            values = dict(common_values)
+            values.update(
+                {
+                    param: param_values[f"{param}_{idx}"]
+                    for param in self.independent_params
+                }
+            )
+            ys.append(self.inner.func(x, values))
+
+        return np.stack(ys).T
+
+    def estimate_parameters(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples", "num_y_channels"), np.float64],
+        model_parameters: Dict[str, ModelParameter],
+    ):
+        common_params = {param: model_parameters[param] for param in self.common_params}
+        common_heuristics = {param: [] for param in self.common_params}
+        for idx in range(self.num_repetitions):
+            params = {
+                param: model_parameters[f"{param}_{idx}"]
+                for param in self.independent_params
+            }
+            params.update(copy.deepcopy(common_params))
+            self.inner.estimate_parameters(x, y[:, idx], params)
+
+            for param in self.common_params:
+                common_heuristics[param].append(params[param].get_initial_value())
+
+        for param in self.common_params:
+            model_parameters[param].heuristic = np.mean(common_heuristics[param])
+
+    def calculate_derived_params(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        derived_params = {}
+        derived_uncertainties = {}
+
+        for idx in range(self.num_repetitions):
+            rep_params = {
+                param: fitted_params[f"{param}_{idx}"]
+                for param in self.independent_params
+            }
+            rep_params.update(
+                {param: fitted_params[param] for param in self.common_params}
+            )
+
+            rep_uncertainties = {
+                param: fit_uncertainties[f"{param}_{idx}"]
+                for param in self.independent_params
+            }
+            rep_uncertainties.update(
+                {param: fit_uncertainties[param] for param in self.common_params}
+            )
+
+            derived = self.inner.calculate_derived_params(
+                x=x, y=y, fitted_params=rep_params, fit_uncertainties=rep_uncertainties
+            )
+            rep_derived_params, rep_derived_uncertainties = derived
+
+            derived_params.update(
+                {f"{param}_{idx}": value for param, value in rep_derived_params.items()}
+            )
+            derived_uncertainties.update(
+                {
+                    f"{param}_{idx}": value
+                    for param, value in rep_derived_uncertainties.items()
+                }
+            )
+
+        return derived_params, derived_uncertainties
 
 
 class MappedModel(Model):
