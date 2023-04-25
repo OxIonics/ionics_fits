@@ -1,3 +1,4 @@
+from .aggregate_model import AggregateModel
 from .benchmarking import Benchmarking
 from .exponential import Exponential
 from .gaussian import Gaussian

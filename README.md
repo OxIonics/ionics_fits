@@ -131,12 +131,16 @@ statistics? Easy, just provide a new class that inherits from `FitBase`. Want to
 custom post-fit processing? Override the `calculate_derived_parameters` method. Want to
 tweak the parameter estimator for a model? Create a new model class that inherits from
 the original model and modify away. If you're struggling to do what you want, it's
-probably a bug in the library so report it.
+probably a bug in the library so please report it.
 
-`ionics_fits` provides a number of tools in [`models.utils`](../master/ionics_fits/models/utils.py) to make it easier to
-extend models. For example, say you want to fit some frequency-domain Rabi oscillation
-data. However, the model works in angular units, but your tooling needs linear units. No
-problem! Simply use the `rescale_model_x` tool:
+`ionics_fits` provides a number of tools to make it easier to extend models (see, for
+example in [`models.utils`](../master/ionics_fits/models/utils.py)). Say you want to...
+
+## Rescaling models
+
+...fit some frequency-domain Rabi oscillation data. However, the model works in angular
+units, but your tooling needs linear units. No problem! Simply use the `rescale_model_x`
+tool.
 
 ```python
 detuning_model = fits.models.utils.rescale_model_x(fits.models.RabiFlopFreq, 2 * np.pi)
@@ -169,9 +173,35 @@ class _RabiBField(fits.models.RabiFlopFreq):
 RabiBField = fits.models.utils.rescale_model_x(_RabiBField, 2 * np.pi * dfdB)
 ```
 
-At present the library is still an MVP. While we do provide some hooks there aren't
-many. The addition of further hooks will be driven by use cases, so please open an issue
-if you find you can't easily extend the library in the way you want.
+## Aggregating models
+
+...fit multiple independent models simultaneously and do some post-processing on the
+results. Use an `AggregateModel`.
+
+```python
+class LineAndTriange(fits.models.AggregateModel):
+  def __init__(self):
+    line = fits.models.Line()
+    triangle = fits.models.Triangle()
+    super().__init__(models=[("line", line), "triangle", triangle])
+
+  def calculate_derived_params(
+      self,
+      x: Array[("num_samples",), np.float64],
+      y: Array[("num_samples",), np.float64],
+      fitted_params: Dict[str, float],
+      fit_uncertainties: Dict[str, float],
+  ) -> Tuple[Dict[str, float], Dict[str, float]]:
+      derived_params, derived_uncertainties = super().calculate_derived_params()
+      # derive new results from the two fits
+      return derived_params, derived_uncertainties
+```
+
+## And more!
+
+At present the library is still an MVP. Further work will be driven by use cases, so
+please open an issue if you find you can't easily extend the library in the way you
+want.
 
 # Ontology
 
