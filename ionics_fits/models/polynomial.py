@@ -2,7 +2,7 @@ from typing import Dict, Optional, TYPE_CHECKING
 
 import numpy as np
 
-from .utils import MappedModel
+from .containers import MappedModel
 from .. import Model, ModelParameter
 from ..utils import Array
 

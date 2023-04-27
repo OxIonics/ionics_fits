@@ -27,12 +27,30 @@ class DoubleRabiFreq(fits.models.RepeatedModel):
         )
 
 
-def test_multi_y(plot_failures):
-    """Test fitting to a model with multiple y channels"""
+class QuadrupleRabiFreq(fits.models.RepeatedModel):
+    def __init__(self):
+        super().__init__(
+            inner=DoubleRabiFreq(),
+            common_params=[
+                "P_readout_e",
+                "P_readout_g",
+                "t_pulse",
+                "omega",
+                "tau",
+                "t_dead",
+            ],
+            num_repetitions=2,
+        )
+
+
+def test_repeated_model(plot_failures):
+    """Test for models.containers.RepeatedModel"""
     w = np.linspace(-10, 10, 200)
     params = {
-        "w_0_0": [-3.0],
-        "w_0_1": [+3.0],
+        "w_0_0_0": [-3.0],
+        "w_0_0_1": [+3.0],
+        "w_0_1_0": [-1.0],
+        "w_0_1_1": [+1.0],
         "P_readout_e": 1,
         "P_readout_g": 0,
         "t_pulse": 1,
@@ -41,16 +59,21 @@ def test_multi_y(plot_failures):
         "t_dead": 0,
     }
 
-    model = DoubleRabiFreq()
+    model = QuadrupleRabiFreq()
     model.parameters["P_readout_e"].fixed_to = params["P_readout_e"]
     model.parameters["P_readout_g"].fixed_to = params["P_readout_g"]
     model.parameters["t_pulse"].fixed_to = params["t_pulse"]
+
+    y = model.func(w, params)
+
+    if y.shape != (len(w), 4):
+        raise ValueError("Incorrect y shape for repeated model")
 
     common.check_multiple_param_sets(
         w,
         model,
         params,
         common.TestConfig(
-            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
+            plot_failures=plot_failures, param_tol=None, residual_tol=1e-8
         ),
     )
