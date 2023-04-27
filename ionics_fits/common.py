@@ -579,9 +579,16 @@ class Fitter:
             valid_y = np.all(valid_y, axis=1)
             valid_sigma = None if sigma is None else np.all(valid_sigma, axis=1)
 
+        valid_x = np.atleast_2d(valid_x.T).T
+        valid_y = np.atleast_2d(valid_y.T).T
+
+        if valid_sigma is not None:
+            valid_sigma = np.atleast_2d(np.isfinite(valid_sigma).T).T
+
         valid_pts = np.logical_and(valid_x, valid_y)
         if sigma is not None:
             valid_pts = np.logical_and(valid_pts, valid_sigma)
+        valid_pts = valid_pts.squeeze()
 
         x = x[valid_pts]
         y = y[valid_pts]
