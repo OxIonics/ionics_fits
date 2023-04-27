@@ -133,9 +133,8 @@ tweak the parameter estimator for a model? Create a new model class that inherit
 the original model and modify away. If you're struggling to do what you want, it's
 probably a bug in the library so please report it.
 
-`ionics_fits` provides a number of tools to make it easier to extend models (see, for
-example in [`models.utils`](../master/ionics_fits/models/utils.py)). Say you want to...
-
+`ionics_fits` provides a number of tools to make it easier to extend models. See, for
+example [`models.utils`](../master/ionics_fits/models/utils.py) and [`models.containers`](../master/ionics_fits/models/containers.py). Suppose you want to...
 ## Rescaling models
 
 ...fit some frequency-domain Rabi oscillation data. However, the model works in angular
@@ -173,7 +172,7 @@ class _RabiBField(fits.models.RabiFlopFreq):
 RabiBField = fits.models.utils.rescale_model_x(_RabiBField, 2 * np.pi * dfdB)
 ```
 
-## Aggregating models
+## Containers
 
 ...fit multiple independent models simultaneously and do some post-processing on the
 results. Use an `AggregateModel`.
@@ -197,6 +196,26 @@ class LineAndTriange(fits.models.AggregateModel):
       return derived_params, derived_uncertainties
 ```
 
+...use the single-qubit Rabi flop model to fit simultaneous Rabi flopping on multiple
+qubits at once with some parameters shared and some independent.
+
+```python
+class MultiRabiFreq(fits.models.RepeatedModel):
+    def __init__(self, n_qubits):
+        super().__init__(
+            inner=fits.models.RabiFlopFreq(start_excited=True),
+            common_params=[
+                "P_readout_e",
+                "P_readout_g",
+                "t_pulse",
+                "omega",
+                "tau",
+                "t_dead",
+            ],
+            num_repetitions=n_qubits,
+        )
+
+```
 ## And more!
 
 At present the library is still an MVP. Further work will be driven by use cases, so
