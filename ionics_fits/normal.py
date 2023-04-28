@@ -114,14 +114,10 @@ class NormalFitter(Fitter):
         a value close to 0 indicates significant deviations of the dataset from the
         fitted model.
         """
-        # TODO: support multiple y channels
-        if self.model.get_num_y_channels() != 1:
-            return None
-
         if self.sigma is None:
             return None
 
-        n = len(self.x) - len(self.free_parameters)
+        n = self.y.size - len(self.free_parameters)
 
         if n < 1:
             raise ValueError(
