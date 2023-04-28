@@ -194,10 +194,10 @@ class Triangle(Model):
         derived_params["k_m"] = (1 - sym) * k
 
         derived_uncertainties = {}
-        derived_uncertainties["kp"] = np.sqrt(
+        derived_uncertainties["k_p"] = np.sqrt(
             (k_err * (1 + sym)) ** 2 + (k * sym_err) ** 2
         )
-        derived_uncertainties["km"] = np.sqrt(
+        derived_uncertainties["k_m"] = np.sqrt(
             (k_err * (1 - sym)) ** 2 + (k * sym_err) ** 2
         )
 
