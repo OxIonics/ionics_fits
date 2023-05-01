@@ -74,7 +74,7 @@ def make_laser_flop(base_class, distribution_fun):
             self,
             start_excited: bool,
             sideband_index: int,
-            n_max: int = 15,
+            n_max: int = 30,
         ):
             """
             :param start_excited: if True the qubit starts in the excited state
@@ -186,21 +186,21 @@ def make_laser_flop(base_class, distribution_fun):
 
         # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
-    ):
-        # Pick sensible starting values which are usually good enough for the fit to
-        # converge from.
-        model_parameters["eta"].heuristic = 0.1
-        if "n_bar" in model_parameters.keys():
-            model_parameters["n_bar"] = 1
-        if "alpha" in model_parameters.keys():
-            model_parameters["alpha"] = 1
+        def estimate_parameters(
+            self,
+            x: Array[("num_samples",), np.float64],
+            y: Array[("num_samples",), np.float64],
+            model_parameters: Dict[str, ModelParameter],
+        ):
+            # Pick sensible starting values which are usually good enough for the fit to
+            # converge from.
+            model_parameters["eta"].heuristic = 0.1
+            if "n_bar" in model_parameters.keys():
+                model_parameters["n_bar"].heuristic = 1
+            if "alpha" in model_parameters.keys():
+                model_parameters["alpha"].heuristic = 1
 
-        super().estimate_parameters(x=x, y=y, model_parameters=model_parameters)
+            super().estimate_parameters(x=x, y=y, model_parameters=model_parameters)
 
     return LaserFlop
 
@@ -216,13 +216,12 @@ def make_laser_flop_freq(distribution_fun):
             self,
             start_excited: bool,
             sideband_index: int,
-            n_max: int = 15,
+            n_max: int = 30,
         ):
             super().__init__(
                 self,
                 start_excited=start_excited,
                 sideband_index=sideband_index,
-                distribution_fun=distribution_fun,
                 n_max=n_max,
             )
 
@@ -240,12 +239,11 @@ def make_laser_flop_time(distribution_fun):
             self,
             start_excited: bool,
             sideband_index: int,
-            n_max: int = 15,
+            n_max: int = 30,
         ):
             super().__init__(
                 start_excited=start_excited,
                 sideband_index=sideband_index,
-                distribution_fun=distribution_fun,
                 n_max=n_max,
             )
 

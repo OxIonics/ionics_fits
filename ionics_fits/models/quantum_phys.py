@@ -35,7 +35,12 @@ def coherent_state_probs(
     # The standard expression is: P_n = n_bar**n * exp(-n_bar) / n!
     # However, this is difficult to evaluate as n increases, so we use an alternate form
     # NB for integer n: gamma(n + 1) = n!
-    return np.exp(n * np.log(n_bar) - n_bar - special.gammaln(n + 1))
+    if n_bar == 0:
+        P_n = np.zeros_like(n)
+        P_n[0] = 1
+    else:
+        P_n = np.exp(n * np.log(n_bar) - n_bar - special.gammaln(n + 1))
+    return P_n
 
 
 # pytype: enable=invalid-annotation
