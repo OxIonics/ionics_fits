@@ -206,48 +206,17 @@ def make_laser_flop(base_class, distribution_fun):
 
 
 def make_laser_flop_freq(distribution_fun):
-    class LaserFlopFreq(make_laser_flop(rabi.RabiFlopFreq, distribution_fun)):
-        """Fit model for Rabi flopping pulse detuning scans.
-
-        See models.rabi.RabiFlopFreq
-        """
-
-        def __init__(
-            self,
-            start_excited: bool,
-            sideband_index: int,
-            n_max: int = 30,
-        ):
-            super().__init__(
-                self,
-                start_excited=start_excited,
-                sideband_index=sideband_index,
-                n_max=n_max,
-            )
-
-    return LaserFlopFreq
+    """
+    Fit model for Rabi flopping pulse detuning scans. See models.rabi.RabiFlopFreq
+    """
+    return make_laser_flop(rabi.RabiFlopFreq, distribution_fun)
 
 
 def make_laser_flop_time(distribution_fun):
-    class LaserFlopTime(make_laser_flop(rabi.RabiFlopTime, distribution_fun)):
-        """Fit model for laser flopping pulse duration scans.
-
-        See models.rabi.RabiFlopTime
-        """
-
-        def __init__(
-            self,
-            start_excited: bool,
-            sideband_index: int,
-            n_max: int = 30,
-        ):
-            super().__init__(
-                start_excited=start_excited,
-                sideband_index=sideband_index,
-                n_max=n_max,
-            )
-
-    return LaserFlopTime
+    """
+    Fit model for laser flopping pulse duration scans. See models.rabi.RabiFlopTime
+    """
+    return make_laser_flop(rabi.RabiFlopTime, distribution_fun)
 
 
 LaserFlopFreqCoherent = make_laser_flop_freq(coherent_state_probs)
