@@ -5,7 +5,7 @@ from typing import Callable, Dict, Tuple, TYPE_CHECKING
 import numpy as np
 from scipy import special
 
-from .quantum_phys import thermal_state_probs
+from .quantum_phys import coherent_state_probs, thermal_state_probs
 from . import rabi
 from .. import Model, ModelParameter
 from ..utils import Array
