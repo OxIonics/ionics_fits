@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     num_fock_states = float
 
 
+# pytype: disable=invalid-annotation
 def thermal_state_probs(
     n_max: int, n_bar: ModelParameter(lower_bound=0)
 ) -> Array[("num_fock_states",), np.float64]:
@@ -19,6 +20,9 @@ def thermal_state_probs(
     return np.power(n_bar / (n_bar + 1), n) / (n_bar + 1)
 
 
+# pytype: enable=invalid-annotation
+
+# pytype: disable=invalid-annotation
 def coherent_state_probs(
     n_max: int, alpha: ModelParameter(lower_bound=0)
 ) -> Array[("num_fock_states",), np.float64]:
@@ -32,3 +36,6 @@ def coherent_state_probs(
     # However, this is difficult to evaluate as n increases, so we use an alternate form
     # NB for integer n: gamma(n + 1) = n!
     return np.exp(n * np.log(n_bar) - n_bar - special.gammaln(n + 1))
+
+
+# pytype: enable=invalid-annotation
