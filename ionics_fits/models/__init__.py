@@ -5,10 +5,8 @@ from .gaussian import Gaussian
 from .laser_rabi import (
     LaserFlopFreqCoherent,
     LaserFlopFreqThermal,
-    LaserFlopTime,
     LaserFlopTimeCoherent,
     LaserFlopTimeThermal,
-    make_laser_flop,
 )
 from .lorentzian import Lorentzian
 from .polynomial import Power, Polynomial, Line, Parabola
