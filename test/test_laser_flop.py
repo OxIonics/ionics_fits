@@ -21,7 +21,7 @@ def _test_laser_flop_freq(
         "eta": 0.1,
         "tau": np.inf,
     }
-    params["t_pulse"] = 1 * t_pi  # np.array([0.1, 0.5, 1, 1.5, 2])*t_pi
+    params["t_pulse"] = 1 * t_pi
     params["t_pulse"] /= params["eta"] ** abs(sideband_index)
     params.update(dist_params)
 
@@ -44,7 +44,7 @@ def _test_laser_flop_freq(
         model,
         params,
         common.TestConfig(
-            plot_failures=plot_failures, param_tol=None, residual_tol=0 * 1e-4
+            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
         ),
     )
 
