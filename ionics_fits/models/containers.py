@@ -213,7 +213,9 @@ class RepeatedModel(Model):
         y: Array[("num_samples", "num_y_channels"), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
+        y = np.atleast_2d(y.T).T
         dim = self.inner.get_num_y_channels()
+
         common_params = {param: model_parameters[param] for param in self.common_params}
         common_heuristics = {param: [] for param in self.common_params}
         for idx in range(self.num_repetitions):
@@ -242,7 +244,9 @@ class RepeatedModel(Model):
         derived_params = {}
         derived_uncertainties = {}
 
+        y = np.atleast_2d(y.T).T
         dim = self.inner.get_num_y_channels()
+
         for idx in range(self.num_repetitions):
             rep_params = {
                 param: fitted_params[f"{param}_{idx}"]
