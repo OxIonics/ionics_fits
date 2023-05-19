@@ -102,31 +102,49 @@ class NormalFitter(Fitter):
 
         return p, p_err
 
-    def _fit_significance(self) -> Optional[float]:
-        """Returns an estimate of the goodness of fit as a number between 0 and 1 or
-        `None` if `sigma` has not been supplied.
+    def chi_squared(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples", "num_y_channels"), np.float64],
+        sigma: Array[("num_samples", "num_y_channels"), np.float64],
+    ) -> float:
+        """Returns the Chi-squared fit significance for the fit compared to a given
+        dataset as a number between 0 and 1.
 
-        This is the defined as the probability that fit residuals as large as the ones
+        The significance gives the probability that fit residuals as large as the ones
         we observe could have arisen through chance given our assumed statistics and
-        assuming that the fitted model perfectly represents the probability distribution
+        assuming that the fitted model perfectly represents the probability
+        distribution.
 
         A value of `1` indicates a perfect fit (all data points lie on the fitted curve)
-        a value close to 0 indicates significant deviations of the dataset from the
-        fitted model.
+        a value close to 0 indicates super-statistical deviations of the dataset from
+        the fitted model.
+        """
+        if sigma.shape != y.shape:
+            raise ValueError(
+                f"Mismatch between shapes of sigma ({sigma.shape}) and y ({y.shape})"
+            )
+
+        n = y.size - len(self.free_parameters)
+
+        if n < 1:
+            raise ValueError(
+                "Cannot calculate chi squared for fit with "
+                f"{len(self.free_parameters)} floated parameters and only "
+                f"{len(x)} data points."
+            )
+
+        y_fit = self.model.func(x, self.values)
+        chi_2 = np.sum(np.power((y - y_fit) / sigma, 2))
+        p = stats.chi2.sf(chi_2, n)
+
+        return p
+
+    def _fit_significance(self) -> Optional[float]:
+        """Returns an estimate of the goodness of fit as a number between 0 and 1 or
+        `None` if `sigma` has not been supplied. See :meth chi_squared: for details.
         """
         if self.sigma is None:
             return None
 
-        n = self.y.size - len(self.free_parameters)
-
-        if n < 1:
-            raise ValueError(
-                "Cannot calculate chi squared with "
-                f"{len(self.free_parameters)} fit parameters and only "
-                f"{len(self.x)} data points."
-            )
-
-        y_fit = self.evaluate()[1]
-        chi_2 = np.sum(np.power((self.y - y_fit) / self.sigma, 2))
-        p = stats.chi2.sf(chi_2, n)
-        return p
+        return self.chi_squared(self.x, self.y, self.sigma)
