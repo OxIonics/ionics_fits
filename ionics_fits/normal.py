@@ -106,7 +106,7 @@ class NormalFitter(Fitter):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples", "num_y_channels"), np.float64],
-        sigma: Optional[Array[("num_samples", "num_y_channels"), np.float64]],
+        sigma: Array[("num_samples", "num_y_channels"), np.float64],
     ) -> float:
         """Returns the Chi-squared fit significance for the fit compared to a given
         dataset as a number between 0 and 1.
@@ -144,8 +144,7 @@ class NormalFitter(Fitter):
         """Returns an estimate of the goodness of fit as a number between 0 and 1 or
         `None` if `sigma` has not been supplied. See :meth chi_squared: for details.
         """
-        sigma = self.sigma
-        if sigma is None:
+        if self.sigma is None:
             return None
 
-        return self.chi_squared(self.x, self.y, sigma)
+        return self.chi_squared(self.x, self.y, self.sigma)
