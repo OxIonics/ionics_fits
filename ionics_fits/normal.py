@@ -144,7 +144,8 @@ class NormalFitter(Fitter):
         """Returns an estimate of the goodness of fit as a number between 0 and 1 or
         `None` if `sigma` has not been supplied. See :meth chi_squared: for details.
         """
-        if self.sigma is None:
+        sigma = self.sigma
+        if sigma is None:
             return None
 
-        return self.chi_squared(self.x, self.y, self.sigma)
+        return self.chi_squared(self.x, self.y, sigma)
