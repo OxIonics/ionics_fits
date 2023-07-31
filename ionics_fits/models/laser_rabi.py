@@ -5,7 +5,11 @@ from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
 from scipy import special
 
-from .quantum_phys import coherent_state_probs, thermal_state_probs
+from .quantum_phys import (
+    coherent_state_probs,
+    squeezed_state_probs,
+    thermal_state_probs,
+)
 from . import rabi
 from .. import ModelParameter
 from ..utils import Array
@@ -17,7 +21,9 @@ if TYPE_CHECKING:
 
 
 def make_laser_flop(base_class, distribution_fun):
-    """Generate laser flopping base class
+    """
+    Generate subclass for laser Rabi flopping models.
+
     :param base_class: base class to inherit from
     :param distribution_fun: function returning an array of Fock state occupation
         probabilities. The distribution function's first argument should be the maximum
@@ -29,7 +35,8 @@ def make_laser_flop(base_class, distribution_fun):
     class LaserFlop(base_class):
         """Base class for damped Rabi flopping with finite Lamb-Dicke parameter.
 
-        This model calculates measurement outcomes for two-state systems undergoing
+        This model calculates measurement outcomes for systems containing two
+        internal states and moving in a 1D harmonic potential that undergo
         damped Rabi oscillations, defined by:
             `P = P_readout_g + (P_readout_e - P_readout_g) * P_e`
         where `P_e` is the (time-dependent) population in the excited state and
@@ -38,9 +45,12 @@ def make_laser_flop(base_class, distribution_fun):
 
         This class does not support fitting directly; use one of the subclasses instead.
 
-        The model requires that the system starts out entirely in one of the ground or
-        excited states, specified using :meth:`__init__`'s :param:`start_excited`
-        parameter.
+        The model requires that the internal part of the system starts out
+        entirely in one of the ground or excited states, specified using
+        :meth:`__init__`'s :param:`start_excited` parameter. It further assumes
+        that the motional part of the system starts out as a statistical mixture
+        of different Fock states, the occupation probabilities of which are
+        determined by means of the parameter `distribution_fun`.
 
         Independent variables:
             - t_pulse: duration of driving pulse including dead time. The duration of
@@ -67,7 +77,7 @@ def make_laser_flop(base_class, distribution_fun):
 
         All frequencies are in angular units.
 
-        See also the RabiFlop model
+        See also models.rabi.RabiFlop.
         """
 
         def __init__(
@@ -165,9 +175,9 @@ def make_laser_flop(base_class, distribution_fun):
                 t_vec, detuning_vec, omega_vec, indexing="ij"
             )
 
-            # P_transition = 1 / 2 * omega^2 / W^2 * [1 - exp(-t / tau) * cos(W * t)]
+            # Transition probability for individual Fock state, given by
+            #     P_transition = 1/2 * omega^2 / W^2 * [1 - exp(-t / tau) * cos(W * t)]
             W = np.sqrt(np.power(omega, 2) + np.power(detuning, 2))
-
             P_trans = (
                 0.5
                 * np.power(
@@ -176,11 +186,11 @@ def make_laser_flop(base_class, distribution_fun):
                 * (1 - np.exp(-t / tau) * np.cos(W * t))
             )
 
-            initial_state = self.distribution_fun(self.n_max, **kwargs)
-            P_i = np.tile(initial_state, (omega.shape[0], omega.shape[1], 1))
-            P_e = np.sum(P_i * P_trans, axis=-1).squeeze()
+            P_fock_i = self.distribution_fun(self.n_max, **kwargs)
+            # Transition probability averaged over Fock state distribution
+            P_trans_mean = np.sum(P_fock_i * P_trans, axis=-1).squeeze()
 
-            P_e = 1 - P_e if self.start_excited else P_e
+            P_e = 1 - P_trans_mean if self.start_excited else P_trans_mean
 
             return P_readout_g + (P_readout_e - P_readout_g) * P_e
 
@@ -199,6 +209,8 @@ def make_laser_flop(base_class, distribution_fun):
                 model_parameters["n_bar"].heuristic = 1
             if "alpha" in model_parameters.keys():
                 model_parameters["alpha"].heuristic = 1
+            if "zeta" in model_parameters.keys():
+                model_parameters["zeta"].heuristic = 1
 
             super().estimate_parameters(x=x, y=y, model_parameters=model_parameters)
 
@@ -207,19 +219,21 @@ def make_laser_flop(base_class, distribution_fun):
 
 def make_laser_flop_freq(distribution_fun):
     """
-    Fit model for Rabi flopping pulse detuning scans. See models.rabi.RabiFlopFreq
+    Fit model for Rabi flopping pulse detuning scans. See models.rabi.RabiFlopFreq.
     """
     return make_laser_flop(rabi.RabiFlopFreq, distribution_fun)
 
 
 def make_laser_flop_time(distribution_fun):
     """
-    Fit model for laser flopping pulse duration scans. See models.rabi.RabiFlopTime
+    Fit model for laser flopping pulse duration scans. See models.rabi.RabiFlopTime.
     """
     return make_laser_flop(rabi.RabiFlopTime, distribution_fun)
 
 
 LaserFlopFreqCoherent = make_laser_flop_freq(coherent_state_probs)
 LaserFlopFreqThermal = make_laser_flop_freq(thermal_state_probs)
+LaserFlopFreqSqueezed = make_laser_flop_freq(squeezed_state_probs)
 LaserFlopTimeCoherent = make_laser_flop_time(coherent_state_probs)
 LaserFlopTimeThermal = make_laser_flop_time(thermal_state_probs)
+LaserFlopTimeSqueezed = make_laser_flop_time(squeezed_state_probs)

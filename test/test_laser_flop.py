@@ -79,6 +79,13 @@ def test_laser_flop_freq(plot_failures: bool):
         flop_class=fits.models.LaserFlopFreqThermal,
         dist_params={"n_bar": [0.1, 0.1, 1]},
     )
+    _test_laser_flop_freq(
+        plot_failures=plot_failures,
+        P_readout_e=1.0,
+        sideband_index=+1,
+        flop_class=fits.models.LaserFlopFreqSqueezed,
+        dist_params={"zeta": 1.0},
+    )
 
 
 def _test_laser_flop_time(
@@ -152,4 +159,11 @@ def test_laser_flop_time(plot_failures: bool):
         sideband_index=+1,
         flop_class=fits.models.LaserFlopTimeThermal,
         dist_params={"n_bar": [0, 0.1, 1]},
+    )
+    _test_laser_flop_time(
+        plot_failures=plot_failures,
+        P_readout_e=1.0,
+        sideband_index=+1,
+        flop_class=fits.models.LaserFlopTimeSqueezed,
+        dist_params={"zeta": 1.0},
     )

@@ -4,8 +4,10 @@ from .exponential import Exponential
 from .gaussian import Gaussian
 from .laser_rabi import (
     LaserFlopFreqCoherent,
+    LaserFlopFreqSqueezed,
     LaserFlopFreqThermal,
     LaserFlopTimeCoherent,
+    LaserFlopTimeSqueezed,
     LaserFlopTimeThermal,
 )
 from .lorentzian import Lorentzian
