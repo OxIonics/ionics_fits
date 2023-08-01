@@ -65,7 +65,7 @@ def squeezed_state_probs(
     where a_dag and a denote the harmonic-oscillator creation and annihilation
     operators.
 
-    The occupation probabilites are truncated at the maximum Fock state |n_max>.
+    The occupation probabilities are truncated at the maximum Fock state |n_max>.
 
     :param zeta: Complex squeezing parameter
     """

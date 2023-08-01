@@ -48,9 +48,8 @@ def make_laser_flop(base_class, distribution_fun):
         The model requires that the internal part of the system starts out
         entirely in one of the ground or excited states, specified using
         :meth:`__init__`'s :param:`start_excited` parameter. It further assumes
-        that the motional part of the system starts out as a statistical mixture
-        of different Fock states, the occupation probabilities of which are
-        determined by means of the parameter `distribution_fun`.
+        that the motional part of the system starts out in a distribution
+        over different Fock states, described by the parameter `distribution_fun`.
 
         Independent variables:
             - t_pulse: duration of driving pulse including dead time. The duration of
@@ -186,9 +185,10 @@ def make_laser_flop(base_class, distribution_fun):
                 * (1 - np.exp(-t / tau) * np.cos(W * t))
             )
 
-            P_fock_i = self.distribution_fun(self.n_max, **kwargs)
+            # Occupation probabilities of Fock states
+            P_fock = self.distribution_fun(self.n_max, **kwargs)
             # Transition probability averaged over Fock state distribution
-            P_trans_mean = np.sum(P_fock_i * P_trans, axis=-1).squeeze()
+            P_trans_mean = np.sum(P_fock * P_trans, axis=-1).squeeze()
 
             P_e = 1 - P_trans_mean if self.start_excited else P_trans_mean
 
