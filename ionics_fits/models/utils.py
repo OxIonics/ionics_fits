@@ -85,16 +85,19 @@ def get_spectrum(
     """Returns the frequency spectrum (Fourier transform) of a dataset.
 
     :param x: x-axis data
-    :param y: y-axis data. For models with multiple y channels, this should contain
-        data from a single channel only.
+    :param y: y-axis data. For models with multiple y-channels, this must be
+        an array of shape (num_samples,) or (1, num_samples) containing data
+        from a single channel only.
     :param density_units: if `False` we apply normalization for narrow-band signals. If
         `True` we normalize for continuous distributions.
     :param trim_dc: if `True` we do not return the DC component.
     """
-    if y.ndim != 1 and y.shape[1] > 1:
+    if y.ndim != 1 and y.shape[0] != 1:
         raise ValueError(
-            f"{y.shape[1]} y channels were provided to a method which takes 1"
+            f"{y.shape[0]} y-channels were provided to a method which takes 1."
         )
+    # Ensure that y is a 1D array
+    y = np.squeeze(y)
 
     dx = x.ptp() / x.size
     n = x.size

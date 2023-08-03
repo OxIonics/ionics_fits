@@ -28,17 +28,17 @@ class NormalFitter(Fitter):
     @staticmethod
     def _fit(
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
-        sigma: Optional[Array[("num_samples", "num_y_channels"), np.float64]],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
+        sigma: Optional[Array[("num_y_channels", "num_samples"), np.float64]],
         parameters: Dict[str, ModelParameter],
-        free_func: Callable[..., Array[("num_samples", "num_y_channels"), np.float64]],
+        free_func: Callable[..., Array[("num_y_channels", "num_samples"), np.float64]],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Implementation of the parameter estimation.
 
         `Fitter` implementations must override this method to provide a fit with
         appropriate statistics.
 
-        :param x: rescaled x-axis data
+        :param x: rescaled x-axis data, must be a 1D array
         :param y: rescaled y-axis data
         :param sigma: rescaled standard deviations
         :param parameters: dictionary of rescaled model parameters
@@ -73,16 +73,11 @@ class NormalFitter(Fitter):
             _: Array[("num_samples_flattened",), np.float64], *free_param_values: float
         ) -> Array[("num_samples_flattened",), np.float64]:
             """Call the model function with the values of the free parameters."""
-            return free_func(x, *free_param_values).ravel()
+            return np.ravel(free_func(x, *free_param_values))
 
-        if y.ndim == 1:
-            x_flat = x
-            y_flat = y
-            sigma_flat = None if sigma is None else sigma
-        else:
-            x_flat = np.ravel(np.tile(x, (y.ndim, 1)))
-            y_flat = np.ravel(y)
-            sigma_flat = None if sigma is None else np.ravel(sigma)
+        x_flat = np.ravel(np.tile(x, (y.ndim, 1)))
+        y_flat = np.ravel(y)
+        sigma_flat = None if sigma is None else np.ravel(sigma)
 
         p, p_cov = optimize.curve_fit(
             f=fit_func,

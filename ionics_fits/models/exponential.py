@@ -23,6 +23,10 @@ class Exponential(Model):
       - x_1_e: x-axis value for 1/e decay including dead time (`x_1_e = x0 + tau`)
     """
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
@@ -63,6 +67,9 @@ class Exponential(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         # Exponentials are generally pretty easy to fit so we keep the estimator simple
         model_parameters["x_dead"].heuristic = 0
         model_parameters["y0"].heuristic = y[0]

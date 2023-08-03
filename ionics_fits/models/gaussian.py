@@ -28,6 +28,10 @@ class Gaussian(Model):
       - w0: full width at 1/e max height. For Gaussian beams this is the beam waist
     """
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
@@ -70,6 +74,9 @@ class Gaussian(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         # Gaussian Fourier Transform:
         #   F[A * exp(-(x/w)^2)](k) = A * sqrt(pi) * w * exp(-(pi*k*w)^2)
         #

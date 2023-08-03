@@ -183,12 +183,12 @@ class Model:
         return scaled_model
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
-        return 1
+        """Returns the number of y channels supported by the model."""
+        raise NotImplementedError
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_samples", "num_y_channels"), np.float64]:
+    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
@@ -204,7 +204,7 @@ class Model:
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-    ) -> Array[("num_samples", "num_y_channels"), np.float64]:
+    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
@@ -228,7 +228,7 @@ class Model:
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
         """Set heuristic values for model parameters.
@@ -254,7 +254,7 @@ class Model:
     def calculate_derived_params(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
@@ -278,7 +278,7 @@ class Model:
     def param_min_sqrs(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
         parameters: Dict[str, ModelParameter],
         scanned_param: str,
         scanned_param_values: ArrayLike["num_values", np.float64],
@@ -351,7 +351,7 @@ class Model:
         """
         if y.ndim != 1:
             raise ValueError(
-                f"{y.shape[1]} y channels were provided to a method which takes 1"
+                f"{y.shape[0]} y-channels were provided to a method which takes 1."
             )
 
         x0_candidates = np.array([])
@@ -484,9 +484,11 @@ class Fitter:
     results as attributes.
 
     Attributes:
-        x: x-axis data
-        y: y-axis data
-        sigma: optional y-axis  standard deviations. Only used by `NormalFitter`
+        x: 1D ndarray of shape (num_samples) containing x-axis values of valid points.
+        y: 2D ndarray of shape (num_y_channels, num_samples) containing y-axis values
+            of valid points.
+        sigma: optional 2D ndarray of shape (num_y_channels, num_samples) containing
+            y-axis standard deviations of valid points. Only used by `NormalFitter`.
         values: dictionary mapping model parameter names to their fitted values
         uncertainties: dictionary mapping model parameter names to their fit
             uncertainties. For sufficiently large datasets, well-formed problems and
@@ -508,8 +510,8 @@ class Fitter:
     """
 
     x: Array[("num_samples",), np.float64]
-    y: Array[("num_samples", "num_y_channels"), np.float64]
-    sigma: Optional[Array[("num_samples", "num_y_channels"), np.float64]]
+    y: Array[("num_y_channels", "num_samples"), np.float64]
+    sigma: Optional[Array[("num_y_channels", "num_samples"), np.float64]]
     values: Dict[str, float]
     uncertainties: Dict[str, float]
     derived_values: Dict[str, float]
@@ -522,10 +524,10 @@ class Fitter:
     def __init__(
         self,
         x: ArrayLike[("num_samples",), np.float64],
-        y: ArrayLike[("num_samples", "num_y_channels"), np.float64],
+        y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
         model: Model,
         sigma: Optional[
-            ArrayLike[("num_samples", "num_y_channels"), np.float64]
+            ArrayLike[("num_y_channels", "num_samples"), np.float64]
         ] = None,
     ):
         """Fits a model to a dataset and stores the results.
@@ -545,29 +547,34 @@ class Fitter:
         sigma = None if sigma is None else np.array(sigma, dtype=np.float64, copy=True)
 
         if x.ndim != 1:
-            raise ValueError("x-axis data must be a 1D")
+            raise ValueError("x-axis data must be a 1D array.")
 
         if y.ndim > 2:
-            raise ValueError("y-axis data must be 1D or 2D")
+            raise ValueError("y-axis data must be a 1D or 2D array.")
 
-        if x.shape[0] != y.shape[0]:
+        # Ensure a common shape for all data related to y-axis, regardless of
+        # user input
+        y = np.atleast_2d(y)
+        if sigma is not None:
+            sigma = np.atleast_2d(sigma)
+
+        if x.shape[0] != y.shape[1]:
             raise ValueError(
-                "number of x-axis and y-axis samples must match "
-                f"(got {x.shape} and {y.shape})"
+                "Number of x-axis and y-axis samples must match "
+                f"(got {x.shape} and {y.shape})."
             )
-
-        if y.ndim > 1 and y.shape[1] != model.get_num_y_channels():
+        if y.shape[0] != model.get_num_y_channels():
             raise ValueError(
-                f"Expected {model.get_num_y_channels()} y channels, got {y.shape[1]}"
+                f"Expected {model.get_num_y_channels()} y-channels, got {y.shape[1]}."
             )
 
         if sigma is not None and sigma.shape != y.shape:
             raise ValueError(
-                f"Shapes of sigma (got {sigma.shape}) and y (got {y.shape}) must match"
+                f"Shapes of sigma (got {sigma.shape}) and y (got {y.shape}) must match."
             )
 
         if sigma is not None and not np.all(sigma != 0):
-            logger.warning("Ignoring points with zero uncertainty")
+            logger.warning("Ignoring points with zero uncertainty.")
 
         valid_x = np.isfinite(x)
         valid_y = np.isfinite(y)
@@ -575,15 +582,8 @@ class Fitter:
             None if sigma is None else np.logical_and(np.isfinite(sigma), sigma != 0)
         )
 
-        if model.get_num_y_channels() > 1:
-            valid_y = np.all(valid_y, axis=1)
-            valid_sigma = None if sigma is None else np.all(valid_sigma, axis=1)
-
-        valid_x = np.atleast_2d(valid_x.T).T
-        valid_y = np.atleast_2d(valid_y.T).T
-
-        if valid_sigma is not None:
-            valid_sigma = np.atleast_2d(np.isfinite(valid_sigma).T).T
+        valid_y = np.all(valid_y, axis=0)
+        valid_sigma = None if sigma is None else np.all(valid_sigma, axis=0)
 
         valid_pts = np.logical_and(valid_x, valid_y)
         if sigma is not None:
@@ -591,18 +591,13 @@ class Fitter:
         valid_pts = valid_pts.squeeze()
 
         x = x[valid_pts]
-        y = y[valid_pts]
-        sigma = None if sigma is None else sigma[valid_pts]
+        y = y[:, valid_pts]
+        sigma = None if sigma is None else sigma[:, valid_pts]
 
         inds = np.argsort(x)
         x = x[inds]
-
-        if model.get_num_y_channels() == 1:
-            y = y[inds]
-            sigma = None if sigma is None else sigma[inds]
-        else:
-            y = y[inds, :]
-            sigma = None if sigma is None else sigma[inds, :]
+        y = y[:, inds]
+        sigma = None if sigma is None else sigma[:, inds]
 
         self.x = x
         self.y = y
@@ -650,11 +645,11 @@ class Fitter:
         ]
 
         if self.free_parameters == []:
-            raise ValueError("Attempt to fit with no free parameters")
+            raise ValueError("Attempt to fit with no free parameters.")
 
         def free_func(
             x: Array[("num_samples",), np.float64], *free_param_values: float
-        ) -> Array[("num_samples", "num_y_channels"), np.float64]:
+        ) -> Array[("num_y_channels", "num_samples"), np.float64]:
             """Call the model function with the values of the free parameters."""
             params = {
                 param: value
@@ -701,17 +696,17 @@ class Fitter:
     @staticmethod
     def _fit(
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
-        sigma: Optional[Array[("num_samples", "num_y_channels"), np.float64]],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
+        sigma: Optional[Array[("num_y_channels", "num_samples"), np.float64]],
         parameters: Dict[str, ModelParameter],
-        free_func: Callable[..., Array[("num_samples", "num_y_channels"), np.float64]],
+        free_func: Callable[..., Array[("num_y_channels", "num_samples"), np.float64]],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Implementation of the parameter estimation.
 
         `Fitter` implementations must override this method to provide a fit with
         appropriate statistics.
 
-        :param x: rescaled x-axis data
+        :param x: rescaled x-axis data, must be a 1D array
         :param y: rescaled y-axis data
         :param sigma: rescaled standard deviations
         :param parameters: dictionary of rescaled model parameters
@@ -737,17 +732,19 @@ class Fitter:
         return None
 
     def evaluate(
-        self, x_fit: Optional[Union[Array[("num_samples",), np.float64], int]] = None
+        self,
+        x_fit: Optional[Union[Array[("num_samples",), np.float64], int]] = None,
+        transpose_and_squeeze=True,
     ) -> Tuple[
         Array[("num_samples",), np.float64],
-        Array[("num_samples", "num_y_channels"), np.float64],
+        Array[("num_y_channels", "num_samples"), np.float64],
     ]:
         """Evaluates the model function using the fitted parameter set.
 
         :param x_fit: optional x-axis points to evaluate the model at. If `None` we use
             the dataset values. If a scalar we generate an axis of linearly spaced
-            points between the minimum and maxim value of the x-axis dataset. Otherwise
-            it should be an array of x-axis data points to use.
+            points between the minimum and maximum value of the x-axis dataset.
+            Otherwise it should be an array of x-axis data points to use.
 
         :returns: tuple of x-axis values used and model values for those points
         """
@@ -757,8 +754,12 @@ class Fitter:
             x_fit = np.linspace(np.min(self.x), np.max(self.x), x_fit)
 
         y_fit = self.model.func(x_fit, self.values)
-        return x_fit, y_fit  # type: ignore
 
-    def residuals(self) -> Array[("num_samples", "num_y_channels"), np.float64]:
+        if transpose_and_squeeze:
+            return x_fit, y_fit.T.squeeze()  # type: ignore
+        else:
+            return x_fit, y_fit  # type: ignore
+
+    def residuals(self) -> Array[("num_y_channels", "num_samples"), np.float64]:
         """Returns an array of fit residuals."""
         return self.y - self.evaluate()[1]

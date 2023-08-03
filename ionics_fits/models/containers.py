@@ -60,7 +60,7 @@ class AggregateModel(Model):
         self,
         x: Array[("num_samples",), np.float64],
         param_values: Dict[str, float],
-    ) -> Array[("num_samples", "num_y_channels"), np.float64]:
+    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
         ys = []
         for model_name, model in self.models:
             model_params = {
@@ -69,28 +69,31 @@ class AggregateModel(Model):
             }
             ys.append(model.func(x, model_params))
 
-        return np.stack(ys).T
+        return np.array(ys)
 
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
+        y = np.atleast_2d(y)
         for idx, (model_name, model) in enumerate(self.models):
             params = {
                 param_name: model_parameters[f"{model_name}_{param_name}"]
                 for param_name in model.parameters.keys()
             }
-            model.estimate_parameters(x, y[:, idx], params)
+            model.estimate_parameters(x, y[idx], params)
 
     def calculate_derived_params(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        y = np.atleast_2d(y)
+
         derived_params = {}
         derived_uncertainties = {}
 
@@ -106,7 +109,7 @@ class AggregateModel(Model):
 
             derived = model.calculate_derived_params(
                 x=x,
-                y=y[:, idx],
+                y=y[idx],
                 fitted_params=model_fitted_params,
                 fit_uncertainties=model_fitted_uncertainties,
             )
@@ -131,7 +134,7 @@ class AggregateModel(Model):
 class RepeatedModel(Model):
     """Model formed by repeating a `Model` one more times
 
-    The `RepeatedModel` has multiple y channels, corresponding to the repetitions of
+    The `RepeatedModel` has multiple y-channels, corresponding to the repetitions of
     the wrapped model.
     """
 
@@ -146,7 +149,7 @@ class RepeatedModel(Model):
           generate data for the y channels
         :param common_params: optional list of names of model arguments, whose value is
           common to all y channels. All other model parameters are independent
-        :param num_repititions: the number of times the inner model is repeated
+        :param num_repetitions: the number of times the inner model is repeated
 
         Parameters of the new model:
           - all common parameters of the inner model are parameters of the outer model
@@ -191,7 +194,7 @@ class RepeatedModel(Model):
         self,
         x: Array[("num_samples",), np.float64],
         param_values: Dict[str, float],
-    ) -> Array[("num_samples", "num_y_channels"), np.float64]:
+    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
         common_values = {param: param_values[param] for param in self.common_params}
 
         ys = []
@@ -203,17 +206,18 @@ class RepeatedModel(Model):
                     for param in self.independent_params
                 }
             )
-            ys.append(np.atleast_2d(self.inner.func(x, values).T).T)
+            ys.append(np.atleast_2d(self.inner.func(x, values)))
 
-        return np.hstack(ys)
+        return np.vstack(ys)
 
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        y = np.atleast_2d(y.T).T
+        y = np.atleast_2d(y)
+
         dim = self.inner.get_num_y_channels()
 
         common_params = {param: model_parameters[param] for param in self.common_params}
@@ -225,7 +229,7 @@ class RepeatedModel(Model):
             }
             params.update(copy.deepcopy(common_params))
             self.inner.estimate_parameters(
-                x, y[:, idx * dim : (idx + 1) * dim].squeeze(), params
+                x, y[idx * dim : (idx + 1) * dim].squeeze(), params
             )
 
             for param in self.common_params:
@@ -241,10 +245,11 @@ class RepeatedModel(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        y = np.atleast_2d(y)
+
         derived_params = {}
         derived_uncertainties = {}
 
-        y = np.atleast_2d(y.T).T
         dim = self.inner.get_num_y_channels()
 
         for idx in range(self.num_repetitions):
@@ -266,7 +271,7 @@ class RepeatedModel(Model):
 
             derived = self.inner.calculate_derived_params(
                 x=x,
-                y=y[:, idx * dim : (idx + 1) * dim].squeeze(),
+                y=y[idx * dim : (idx + 1) * dim].squeeze(),
                 fitted_params=rep_params,
                 fit_uncertainties=rep_uncertainties,
             )
@@ -400,6 +405,10 @@ class MappedModel(Model):
             scaled_model.parameters[new_name].scale_factor = scale_factor
 
         return scaled_model
+
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return self.inner.get_num_y_channels()
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]

@@ -25,6 +25,10 @@ class Sinc(Model):
       None
     """
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
@@ -62,6 +66,9 @@ class Sinc(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata.
         """
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         model_parameters["y0"].heuristic = np.mean([y[0], y[-1]])
         y0 = model_parameters["y0"].get_initial_value()
 
@@ -108,6 +115,10 @@ class Sinc2(Model):
       None
     """
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
@@ -146,6 +157,9 @@ class Sinc2(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata.
         """
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         y0 = model_parameters["y0"].heuristic = np.mean([y[0], y[-1]])
 
         omega, spectrum = get_spectrum(x, y, trim_dc=True)

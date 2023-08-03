@@ -40,6 +40,10 @@ class Sinusoid(Model):
     fixed at 0 and phi0 is floated.
     """
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
