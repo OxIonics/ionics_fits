@@ -148,7 +148,7 @@ def check_single_param_set(
         )
 
     if config.residual_tol is not None and not is_close(
-        y, fit.evaluate(transpose_and_squeeze=False)[1], config.residual_tol
+        y, fit.evaluate()[1], config.residual_tol
     ):
         if config.plot_failures:
             _plot(

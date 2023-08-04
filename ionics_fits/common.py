@@ -733,20 +733,20 @@ class Fitter:
 
     def evaluate(
         self,
+        transpose_and_squeeze=False,
         x_fit: Optional[Array[("num_samples",), np.float64]] = None,
-        transpose_and_squeeze=True,
     ) -> Tuple[
         Array[("num_samples",), np.float64],
         Array[("num_y_channels", "num_samples"), np.float64],
     ]:
         """Evaluates the model function using the fitted parameter set.
 
-        :param x_fit: optional x-axis points to evaluate the model at. If `None` we use
-            the values stored as attribute `x` of the fitter.
         :param transpose_and_squeeze: if True, array `y_fit` is transposed
             and squeezed before being returned. This is intended to be used
             for plotting, since matplotlib requires different y-series to be
             stored as columns.
+        :param x_fit: optional x-axis points to evaluate the model at. If
+            `None`, we use the values stored as attribute `x` of the fitter.
 
         :returns: tuple of x-axis values used and corresponding y-axis values
             of the fitted model
@@ -760,4 +760,4 @@ class Fitter:
 
     def residuals(self) -> Array[("num_y_channels", "num_samples"), np.float64]:
         """Returns an array of fit residuals."""
-        return self.y - self.evaluate(transpose_and_squeeze=False)[1]
+        return self.y - self.evaluate()[1]
