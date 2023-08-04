@@ -7,6 +7,7 @@ import traceback
 
 from . import (
     common,
+    test_benchmarking,
     test_exponential,
     test_gaussian,
     test_lorentzian,
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
 
     targets = {
+        "benchmarking": test_benchmarking.fuzz_benchmarking,
         "exponential": test_exponential.fuzz_exponential,
         "gaussian": test_gaussian.fuzz_gaussian,
         "lorentzian": test_lorentzian.fuzz_lorentzian,

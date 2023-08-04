@@ -57,6 +57,10 @@ class Benchmarking(Model):
         self.alpha = 2**num_qubits / (2**num_qubits - 1)
         super().__init__(parameters=_generate_benchmarking_parameters(num_qubits))
 
+    def get_num_y_channels(self) -> int:
+        """Return the number of y-channels supported by the model."""
+        return 1
+
     def func(
         self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
@@ -89,6 +93,9 @@ class Benchmarking(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         model_parameters["p"].heuristic = 1.0
         model_parameters["y0"].heuristic = max(y)
         model_parameters["y_inf"].heuristic = 1 / 2**self.num_qubits
