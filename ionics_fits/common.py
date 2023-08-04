@@ -4,7 +4,7 @@ import copy
 import inspect
 import logging
 import numpy as np
-from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
+from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 from .utils import Array, ArrayLike
 
 
@@ -733,7 +733,7 @@ class Fitter:
 
     def evaluate(
         self,
-        x_fit: Optional[Union[Array[("num_samples",), np.float64], int]] = None,
+        x_fit: Optional[Array[("num_samples",), np.float64]] = None,
         transpose_and_squeeze=True,
     ) -> Tuple[
         Array[("num_samples",), np.float64],
@@ -749,17 +749,12 @@ class Fitter:
         :returns: tuple of x-axis values used and model values for those points
         """
         x_fit = x_fit if x_fit is not None else self.x
-
-        if np.isscalar(x_fit):
-            x_fit = np.linspace(np.min(self.x), np.max(self.x), x_fit)
-
         y_fit = self.model.func(x_fit, self.values)
 
         if transpose_and_squeeze:
-            return x_fit, y_fit.T.squeeze()  # type: ignore
-        else:
-            return x_fit, y_fit  # type: ignore
+            return x_fit, y_fit.T.squeeze()
+        return x_fit, y_fit
 
     def residuals(self) -> Array[("num_y_channels", "num_samples"), np.float64]:
         """Returns an array of fit residuals."""
-        return self.y - self.evaluate()[1]
+        return self.y - self.evaluate(transpose_and_squeeze=False)[1]
