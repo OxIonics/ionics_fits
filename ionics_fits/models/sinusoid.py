@@ -93,6 +93,9 @@ class Sinusoid(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         # We don't have good heuristics for these parameters
         model_parameters["y0"].heuristic = np.mean(y)
         model_parameters["tau"].heuristic = np.max(x)

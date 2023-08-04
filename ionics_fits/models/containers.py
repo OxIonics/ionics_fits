@@ -77,7 +77,6 @@ class AggregateModel(Model):
         y: Array[("num_y_channels", "num_samples"), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        y = np.atleast_2d(y)
         for idx, (model_name, model) in enumerate(self.models):
             params = {
                 param_name: model_parameters[f"{model_name}_{param_name}"]
@@ -92,8 +91,6 @@ class AggregateModel(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        y = np.atleast_2d(y)
-
         derived_params = {}
         derived_uncertainties = {}
 
@@ -216,8 +213,6 @@ class RepeatedModel(Model):
         y: Array[("num_y_channels", "num_samples"), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        y = np.atleast_2d(y)
-
         dim = self.inner.get_num_y_channels()
 
         common_params = {param: model_parameters[param] for param in self.common_params}
@@ -228,9 +223,7 @@ class RepeatedModel(Model):
                 for param in self.independent_params
             }
             params.update(copy.deepcopy(common_params))
-            self.inner.estimate_parameters(
-                x, y[idx * dim : (idx + 1) * dim].squeeze(), params
-            )
+            self.inner.estimate_parameters(x, y[idx * dim : (idx + 1) * dim], params)
 
             for param in self.common_params:
                 common_heuristics[param].append(params[param].get_initial_value())
@@ -245,8 +238,6 @@ class RepeatedModel(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        y = np.atleast_2d(y)
-
         derived_params = {}
         derived_uncertainties = {}
 
@@ -271,7 +262,7 @@ class RepeatedModel(Model):
 
             derived = self.inner.calculate_derived_params(
                 x=x,
-                y=y[idx * dim : (idx + 1) * dim].squeeze(),
+                y=y[idx * dim : (idx + 1) * dim],
                 fitted_params=rep_params,
                 fit_uncertainties=rep_uncertainties,
             )

@@ -484,7 +484,7 @@ class Fitter:
     results as attributes.
 
     Attributes:
-        x: 1D ndarray of shape (num_samples) containing x-axis values of valid points.
+        x: 1D ndarray of shape (num_samples,) containing x-axis values of valid points.
         y: 2D ndarray of shape (num_y_channels, num_samples) containing y-axis values
             of valid points.
         sigma: optional 2D ndarray of shape (num_y_channels, num_samples) containing
@@ -742,11 +742,14 @@ class Fitter:
         """Evaluates the model function using the fitted parameter set.
 
         :param x_fit: optional x-axis points to evaluate the model at. If `None` we use
-            the dataset values. If a scalar we generate an axis of linearly spaced
-            points between the minimum and maximum value of the x-axis dataset.
-            Otherwise it should be an array of x-axis data points to use.
+            the values stored as attribute `x` of the fitter.
+        :param transpose_and_squeeze: if True, array `y_fit` is transposed
+            and squeezed before being returned. This is intended to be used
+            for plotting, since matplotlib requires different y-series to be
+            stored as columns.
 
-        :returns: tuple of x-axis values used and model values for those points
+        :returns: tuple of x-axis values used and corresponding y-axis values
+            of the fitted model
         """
         x_fit = x_fit if x_fit is not None else self.x
         y_fit = self.model.func(x_fit, self.values)
