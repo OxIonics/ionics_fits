@@ -182,9 +182,9 @@ def _plot(
 
     _, ax = plt.subplots(fit.model.get_num_y_channels(), 2)
     for ch in range(fit.model.get_num_y_channels()):
-        y_model_ch = y_model[:, ch]
-        y_fit_ch = y_fit[:, ch]
-        y_heuristic_ch = y_heuristic[:, ch]
+        y_model_ch = y_model[ch]
+        y_fit_ch = y_fit[ch]
+        y_heuristic_ch = y_heuristic[ch]
 
         if fit.model.get_num_y_channels() == 1:
             ax = np.expand_dims(ax, axis=0)
@@ -259,9 +259,9 @@ def check_multiple_param_sets(
 
     test_params = dict(test_params)
 
-    def walk_params(remaining, scaned):
+    def walk_params(remaining, scanned):
         remaining = dict(remaining)
-        scaned = dict(scaned)
+        scanned = dict(scanned)
 
         param, values = remaining.popitem()
 
@@ -269,14 +269,14 @@ def check_multiple_param_sets(
             values = [values]
 
         for value in values:
-            scaned[param] = value
+            scanned[param] = value
             if remaining != {}:
-                walk_params(remaining, scaned)
+                walk_params(remaining, scanned)
             else:
                 check_single_param_set(
                     x=x,
                     model=model,
-                    test_params=scaned,
+                    test_params=scanned,
                     config=config,
                     fitter_cls=fitter_cls,
                 )

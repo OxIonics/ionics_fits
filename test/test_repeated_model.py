@@ -66,8 +66,8 @@ def test_repeated_model(plot_failures):
 
     y = model.func(w, params)
 
-    if y.shape != (len(w), 4):
-        raise ValueError("Incorrect y shape for repeated model")
+    if y.shape != (4, len(w)):
+        raise ValueError("Incorrect y-shape for repeated model.")
 
     common.check_multiple_param_sets(
         w,

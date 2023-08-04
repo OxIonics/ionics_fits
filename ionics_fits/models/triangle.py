@@ -31,6 +31,10 @@ class Triangle(Model):
       - k_p: slope for x >= x0
     """
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
@@ -79,7 +83,10 @@ class Triangle(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
-        # Written to be handle the case of data which is only well-modelled by a
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
+        # Written to handle the case of data which is only well-modelled by a
         # triangle function near `x0` but saturates further away
         model_parameters["y_max"].heuristic = max(y)
         model_parameters["y_min"].heuristic = min(y)

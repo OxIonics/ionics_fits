@@ -40,6 +40,10 @@ class Sinusoid(Model):
     fixed at 0 and phi0 is floated.
     """
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
@@ -89,6 +93,9 @@ class Sinusoid(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         # We don't have good heuristics for these parameters
         model_parameters["y0"].heuristic = np.mean(y)
         model_parameters["tau"].heuristic = np.max(x)

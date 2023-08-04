@@ -35,7 +35,7 @@ def test_aggregate_model_func(plot_failures):
 
     y_aggregate = model.func(x, params)
 
-    success = np.abs(np.max(np.stack((y_line, y_triangle)).T - y_aggregate)) < 1e-10
+    success = np.abs(np.max(np.vstack((y_line, y_triangle)) - y_aggregate)) < 1e-10
 
     if plot_failures and not success:
         _, ax = plt.subplots(2, 1)

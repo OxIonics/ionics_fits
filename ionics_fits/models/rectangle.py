@@ -31,6 +31,10 @@ class Rectangle(Model):
         self.thresh = thresh
         super().__init__()
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
@@ -65,6 +69,8 @@ class Rectangle(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
 
         unknowns = {
             param

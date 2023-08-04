@@ -42,6 +42,10 @@ class Power(Model):
         None
     """
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
@@ -79,6 +83,9 @@ class Power(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         unknowns = {
             param
             for param, param_data in model_parameters.items()
@@ -235,6 +242,10 @@ class Polynomial(Model):
         self.poly_degree = poly_degree
         super().__init__(parameters=_generate_poly_parameters(poly_degree))
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     def func(
         self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
@@ -270,6 +281,9 @@ class Polynomial(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata, rescaled if allowed.
         """
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         model_parameters["x0"].heuristic = 0.0
         x0 = model_parameters["x0"].get_initial_value()
 

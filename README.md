@@ -66,7 +66,7 @@ print(f"Amplitude: dataset = {params['a']:.3f}, fit = {fit.values['a']:.3f}")
 print(f"Phase: dataset = {params['phi']:.3f}, fit = {fit.values['phi']:.3f}")
 
 plt.plot(x, y, label="data")
-plt.plot(*fit.evaluate(), '-.o', label="fit")
+plt.plot(*fit.evaluate(True), '-.o', label="fit")
 plt.grid()
 plt.legend()
 plt.show()

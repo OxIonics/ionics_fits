@@ -25,6 +25,10 @@ class Lorentzian(Model):
         None
     """
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
@@ -62,6 +66,9 @@ class Lorentzian(Model):
         :param model_parameters: dictionary mapping model parameter names to their
             metadata.
         """
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
 

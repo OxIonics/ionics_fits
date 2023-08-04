@@ -63,6 +63,10 @@ class RabiFlop(Model):
         super().__init__()
         self.start_excited = start_excited
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model"""
+        return 1
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
@@ -175,6 +179,9 @@ class RabiFlopFreq(RabiFlop):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         model_parameters["t_dead"].heuristic = 0.0
         model_parameters["tau"].heuristic = np.inf
 
@@ -286,6 +293,9 @@ class RabiFlopTime(RabiFlop):
         y: Array[("num_samples",), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
+        # Ensure that y is a 1D array
+        y = np.squeeze(y)
+
         model_parameters["t_dead"].heuristic = 0.0
         model_parameters["tau"].heuristic = np.inf
 
