@@ -180,9 +180,7 @@ class MolmerSorensen(Model):
 
     def calculate_derived_params(
         self,
-        x: Tuple[
-            Array[("num_samples",), np.float64], Array[("num_samples",), np.float64]
-        ],
+        x: Tuple[Array[("num_samples",), np.float64]],
         y: Array[("num_y_channels", "num_samples"), np.float64],
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
