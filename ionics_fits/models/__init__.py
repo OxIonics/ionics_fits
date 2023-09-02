@@ -11,6 +11,7 @@ from .laser_rabi import (
     LaserFlopTimeThermal,
 )
 from .lorentzian import Lorentzian
+from .molmer_sorensen import MolmerSorensenFreq, MolmerSorensenTime
 from .polynomial import Power, Polynomial, Line, Parabola
 from . import quantum_phys
 from .rabi import RabiFlopFreq, RabiFlopTime
