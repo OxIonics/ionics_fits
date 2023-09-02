@@ -80,7 +80,7 @@ class MolmerSorensen(Model):
         self.segment_durations /= sum(self.segment_durations)
 
     def get_num_y_channels(self) -> int:
-        return [1, 3][self.num_qubits]
+        return [1, 3][self.num_qubits - 1]
 
     # pytype: disable=invalid-annotation
     def _func(
