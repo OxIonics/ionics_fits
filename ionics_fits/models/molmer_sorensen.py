@@ -299,4 +299,3 @@ class MolmerSorensenFreq(MolmerSorensen):
 
         omega = model_parameters["omega"].get_initial_value()
         model_parameters["t_pulse"].heuristic = np.pi / omega
-
