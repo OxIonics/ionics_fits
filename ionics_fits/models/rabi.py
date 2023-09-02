@@ -261,7 +261,7 @@ class RabiFlopTime(RabiFlop):
     frequency of the pulse is kept fixed and only its duration is varied.
 
     Since the detuning is not scanned as an independent variable, we replace `w_0` with
-    a new model parameter `delta`, defined by: delta = |w - w_0|.
+    a new model parameter `delta`, defined by: `delta = |w - w_0|`.
     """
 
     def __init__(self, start_excited: bool):
