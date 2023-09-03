@@ -245,12 +245,15 @@ class MolmerSorensenTime(MolmerSorensen):
         y: Array[("num_y_channels", "num_samples"), np.float64],
         model_parameters: Dict[str, ModelParameter],
     ):
-        # These heuristics are pretty basic, but seem to work fine...
         model_parameters["n_bar"].heuristic = 0.0
         if (
             not model_parameters["delta"].has_user_initial_value()
             and not model_parameters["omega"].has_user_initial_value()
         ):
+            # This case is pretty miserable because there is a very high degree
+            # of covariance between delta and omega so even if the heuristics are
+            # highly accurate, the optimizer will tend to struggle to converge on
+            # the right parameter values.
             model_parameters["delta"].heuristic = 0.0
 
         if not model_parameters["omega"].has_user_initial_value():
@@ -325,8 +328,8 @@ class MolmerSorensenFreq(MolmerSorensen):
     ):
         model_parameters["n_bar"].heuristic = 0.0
 
-        # find the centre frequency by looking at symmetry. Consider only the
-        # 1-ion transition probability
+        # estimate the centre frequency by looking for the symmetry point.
+        # Consider only the 1-ion transition probability
         y_test = y if self.num_qubits == 1 else np.atleast_2d(y[1, :])
         w_0 = model_parameters["w_0"].heuristic = heuristics.get_sym_x(x, y_test)
 
@@ -335,6 +338,10 @@ class MolmerSorensenFreq(MolmerSorensen):
             and model_parameters["omega"].has_user_initial_value()
         ):
             if not model_parameters["w_0"].has_user_initial_value():
+                # The symmetry heuristic is pretty good, but can struggle when
+                # the centre frequency is close to the edge of the scan range.
+                # Since w_0 is our only unknown here, we throw in a sampling
+                # heuristic for good measure.
                 w_0_grid, w_0_grid_cost = self.param_min_sqrs(
                     x=x,
                     y=y,
@@ -377,7 +384,7 @@ class MolmerSorensenFreq(MolmerSorensen):
         else:
             # this is a bit of a corner case, since the user can usually give us
             # an estimate of one of omega or t_pulse. In the absence of that we
-            # fall back to a grid search.
+            # fall back to a 2D grid search.
             omegas = np.arange(start=1, stop=25) / 100 * max(abs(x))
             costs = np.zeros_like(omegas)
             t_pulses = np.zeros_like(omegas)
