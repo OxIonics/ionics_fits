@@ -12,6 +12,7 @@ def get_sym_x(
     x: Array[("num_samples",), np.float64],
     y: Array[("num_y_channels", "num_samples"), np.float64],
 ) -> float:
+    """ Returns `x_0` such that y(x-x_0) is maximally symmetric. """
     x_span = x.ptp()
     num_samples = x.size
     window_min = min(x) + 0.125 * x_span
