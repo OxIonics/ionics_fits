@@ -302,12 +302,12 @@ class Model:
             if param != scanned_param
         }
 
-        scanned_param_values = np.asarray(scanned_param_values)
+        scanned_param_values = np.asarray(scanned_param_values).squeeze()
         costs = np.zeros(scanned_param_values.shape)
         for idx, value in np.ndenumerate(scanned_param_values):
             param_values[scanned_param] = value
             y_params = self.func(x, param_values)
-            costs[idx] = np.sqrt(np.sum(np.power(y - y_params, 2)))
+            costs[idx] = np.sqrt(np.sum(np.square(y - y_params)))
         opt = np.argmin(costs)
         return float(scanned_param_values[opt]), float(costs[opt])
 
