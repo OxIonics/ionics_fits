@@ -98,8 +98,12 @@ def make_laser_flop(base_class, distribution_fun):
             self.n_max = n_max
 
             n = np.arange(self.n_max + 1)
-            self._n_min = n_min = np.minimum(n, n + self.sideband_index)
-            n_max = np.maximum(n, n + self.sideband_index)
+            if self.start_excited:
+                self._n_min = n_min = np.minimum(n, n - self.sideband_index)
+                n_max = np.maximum(n, n - self.sideband_index)
+            else:
+                self._n_min = n_min = np.minimum(n, n + self.sideband_index)
+                n_max = np.maximum(n, n + self.sideband_index)
 
             # sqrt(n_min!/n_max!)
             self.fact = np.exp(
@@ -157,7 +161,10 @@ def make_laser_flop(base_class, distribution_fun):
                 angular frequency of driving field. They must have shapes such
                 that they are broadcastable.
             """
-            # coupling between |g>|n> and |e>|n+sideband_index>
+            # Rabi frequency as function of Fock state which the ion occupies
+            # initially. If the ion starts in |g>, corresponds to coupling between
+            # |g>|n> and |e>|n+sideband_index>. If the ion starts in |e>, corresponds
+            # to coupling between |g>|n-sideband_index> and |e>|n>.
             omega_vec = (
                 omega
                 * np.exp(-0.5 * np.power(eta, 2))
