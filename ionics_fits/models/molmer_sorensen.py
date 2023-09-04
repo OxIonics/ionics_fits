@@ -61,7 +61,7 @@ class MolmerSorensen(Model):
         """
         super().__init__()
 
-        if num_qubits not in [1, 2, 3]:
+        if num_qubits not in [1, 2]:
             raise ValueError("Model only supports 1 or 2 qubits")
         if walsh_idx not in [0, 1, 2, 3]:
             raise ValueError("Unsupported Walsh index")
