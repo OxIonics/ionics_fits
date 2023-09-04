@@ -74,6 +74,7 @@ def check_single_param_set(
     test_params: Dict[str, float],
     config: Optional[TestConfig] = None,
     fitter_cls: Optional[Type[fits.common.Fitter]] = fits.normal.NormalFitter,
+    user_estimates: Optional[List[str]] = None,
 ):
     """Validates the fit for a single set of parameter values.
 
@@ -82,6 +83,8 @@ def check_single_param_set(
     :param test_params: dictionary of parameter values to test
     :param test_config: test configuration
     :param fitter_cls: the fitter class to test with. Defaults to `NormalFitter`.
+    :param user_estimates: list of names of parameters to supply initial
+        guesses for
     """
     fitter_cls = fitter_cls if fitter_cls is not None else fits.normal.NormalFitter
 
@@ -102,6 +105,10 @@ def check_single_param_set(
         f"y={pprint.pformat(y, indent=4)}"
     )
 
+    if user_estimates is not None:
+        for parameter in user_estimates:
+            model.parameters[parameter].user_estimate = test_params[parameter]
+
     try:
         fit = fitter_cls(x=x, y=y, sigma=None, model=model)
     except RuntimeError as ex:
@@ -114,6 +121,7 @@ def check_single_param_set(
 
     params_str = pprint.pformat(test_params, indent=4)
     fitted_params_str = pprint.pformat(fit.values, indent=4)
+    initial_params_str = pprint.pformat(fit.initial_values, indent=4)
 
     if config.param_tol is not None and not params_close(
         test_params, fit.values, config.param_tol
@@ -128,7 +136,8 @@ def check_single_param_set(
             "Error in parameter values is too large:\n"
             f"test parameter set was: {params_str}\n"
             f"fitted parameters were: {fitted_params_str}\n"
-            f"estimated parameters were: {fit.initial_values}"
+            f"estimated parameters were: {initial_params_str}\n"
+            f"free parameters were: {fit.free_parameters}"
         )
 
     if (
@@ -157,9 +166,11 @@ def check_single_param_set(
             )
 
         raise ValueError(
-            "Fitted data not close to model:\n"
-            f"actual parameter set was {params_str}\n"
-            f"fitted parameters were: {fitted_params_str}"
+            "Error in parameter values is too large:\n"
+            f"test parameter set was: {params_str}\n"
+            f"fitted parameters were: {fitted_params_str}\n"
+            f"estimated parameters were: {initial_params_str}\n"
+            f"free parameters were: {fit.free_parameters}"
         )
 
     if config.plot_all:
@@ -175,16 +186,16 @@ def _plot(
     y_fit = fit.model.func(fit.x, fit.values)
     y_heuristic = fit.model.func(fit.x, fit.initial_values)
 
-    if fit.model.get_num_y_channels() == 1:
-        y_model = np.expand_dims(y_model, axis=1)
-        y_fit = np.expand_dims(y_fit, axis=1)
-        y_heuristic = np.expand_dims(y_heuristic, axis=1)
+    y_model = np.atleast_2d(y_model)
+    y_heuristic = np.atleast_2d(y_heuristic)
+    y_fit = np.atleast_2d(y_fit)
 
     _, ax = plt.subplots(fit.model.get_num_y_channels(), 2)
     for ch in range(fit.model.get_num_y_channels()):
-        y_model_ch = y_model[ch]
-        y_fit_ch = y_fit[ch]
-        y_heuristic_ch = y_heuristic[ch]
+
+        y_model_ch = y_model[ch, :]
+        y_fit_ch = y_fit[ch, :]
+        y_heuristic_ch = y_heuristic[ch, :]
 
         if fit.model.get_num_y_channels() == 1:
             ax = np.expand_dims(ax, axis=0)
@@ -232,6 +243,7 @@ def check_multiple_param_sets(
     test_params: Dict[str, List[float]],
     config: Optional[TestConfig] = None,
     fitter_cls: Type[fits.common.Fitter] = fits.normal.NormalFitter,
+    user_estimates: Optional[List[str]] = None,
 ):
     """Validates the fit for multiple sets of parameter values.
 
@@ -241,6 +253,8 @@ def check_multiple_param_sets(
         contain either a single value or an array of values to test.
     :param test_config: test configuration
     :param fitter_cls: the fitter class to test with
+    :param user_estimates: optional list of names of parameters to supply
+        initial guesses for
     """
     model_params = set(model.parameters.keys())
     input_params = set(test_params.keys())
@@ -279,6 +293,7 @@ def check_multiple_param_sets(
                     test_params=scanned,
                     config=config,
                     fitter_cls=fitter_cls,
+                    user_estimates=user_estimates,
                 )
 
     walk_params(test_params, {})
