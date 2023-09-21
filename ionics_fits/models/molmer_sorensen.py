@@ -68,17 +68,7 @@ class MolmerSorensen(Model):
 
         self.num_qubits = num_qubits
         self.start_excited = start_excited
-
-        if walsh_idx == 0:
-            self.segment_durations = [1]
-        elif walsh_idx == 1:
-            self.segment_durations = [1, 1]
-        elif walsh_idx == 2:
-            self.segment_durations = [1, 1, 1, 1]
-        else:
-            self.segment_durations = [1, 2, 1]
-        self.segment_durations = np.array(self.segment_durations, dtype=float)
-        self.segment_durations /= sum(self.segment_durations)
+        self.walsh_idx = walsh_idx
 
     def get_num_y_channels(self) -> int:
         return [1, 3][self.num_qubits - 1]
@@ -98,8 +88,18 @@ class MolmerSorensen(Model):
 
         t_pulse = x[0]
         delta = x[1] - w_0
-
         data_shape = np.broadcast(t_pulse, delta).shape
+
+        if self.walsh_idx == 0:
+            segment_durations = [1]
+        elif self.walsh_idx == 1:
+            segment_durations = [1, 1]
+        elif self.walsh_idx == 2:
+            segment_durations = [1, 1, 1, 1]
+        else:
+            segment_durations = [1, 2, 1]
+        segment_durations = np.array(segment_durations, dtype=float)
+        segment_durations /= sum(segment_durations)
 
         def displacement(delta, t_i, t_f):
             alpha = np.full(shape=data_shape, fill_value=-1j * t_pulse)
@@ -118,7 +118,7 @@ class MolmerSorensen(Model):
         alpha = np.zeros(data_shape, dtype=np.complex128)
         t_i = 0
         sign = +1
-        for duration in self.segment_durations:
+        for duration in segment_durations:
             t_f = t_i + duration * t_pulse
             alpha += sign * displacement(delta=delta, t_i=t_i, t_f=t_f)
             t_i = t_f
@@ -136,10 +136,10 @@ class MolmerSorensen(Model):
         # piecewise integration of the geometric phase
         phi = delta * t_pulse
         t_outer_i = 0
-        for outer_idx, outer_duration in enumerate(self.segment_durations):
+        for outer_idx, outer_duration in enumerate(segment_durations):
             t_outer_f = t_outer_i + outer_duration * t_pulse
 
-            inner_segments = self.segment_durations[0:outer_idx]
+            inner_segments = segment_durations[0:outer_idx]
             t_inner_i = 0
             for inner_idx, inner_duration in enumerate(inner_segments):
                 t_inner_f = t_inner_i + inner_duration * t_pulse
