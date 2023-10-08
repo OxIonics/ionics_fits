@@ -88,25 +88,29 @@ class BinomialFitter(Fitter):
             f"{pprint.pformat(p0_dict)}"
         )
 
-        def cost_fun(*free_param_values: float) -> float:
-            p = free_func(x, *free_param_values)
+        def cost_fun(free_param_values: float) -> float:
+            p = free_func(x, *free_param_values.tolist())
+
+            if any(p < 0) or any(p > 1):
+                raise RuntimeError("Model values must lie between 0 and 1")
+
             n = self.num_trials
-            k = y * n
-            P = stats.binom.pmf(k=k, n=n, p=p)
-            C = np.sum(np.log(P))
+            k = np.rint(y * n, out=np.zeros_like(y, dtype=int), casting="unsafe")
+            logP = stats.binom.logpmf(k=k, n=n, p=p)
+            C = -np.sum(logP)
             return C
 
         res = optimize.minimize(
             fun=cost_fun,
             x0=p0,
-            bounds=(lower, upper),
+            bounds=zip(lower, upper),
         )
 
         if not res.success:
             raise RuntimeError(f"MLE fit failed: {res.message}")
 
         p = {param: value for param, value in zip(free_parameters, res.x)}
-        p_err = None  # TODO
+        p_err = {param: np.nan for param in free_parameters}
 
         # p_err = np.sqrt(np.diag(p_cov))
         # p_err = {param: value for param, value in zip(free_parameters, p_err)}
