@@ -93,7 +93,6 @@ class MLEFitter(Fitter):
             raise RuntimeError(f"{self.TYPE} fit failed: {res.message}")
 
         p = {param: value for param, value in zip(free_parameters, res.x)}
-        p_err = {param: np.nan for param in free_parameters}
 
         y_fit = free_func(x, *res.x)
         residual_variance = np.sum((y - y_fit) ** 2) / (y.size - len(free_parameters))
