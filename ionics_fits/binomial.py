@@ -30,6 +30,31 @@ class BinomialFitter(MLEFitter):
 
     TYPE: str = "Binomial"
 
+    def __init__(
+        self,
+        x: ArrayLike[("num_samples",), np.float64],
+        y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
+        num_trials: int,
+        model: Model,
+    ):
+        """Fits a model to a dataset and stores the results.
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :param model: the model function to fit to. The model's parameter dictionary is
+            used to configure the fit (set parameter bounds etc). Modify this before
+            fitting to change the fit behaviour from the model class' defaults.
+        :param num_trials: number of Bernoulli trails for each sample
+        """
+        self.num_trials = num_trials
+
+        # https://github.com/OxIonics/ionics_fits/issues/105
+        model = copy.deepcopy(model)
+        for parameter in model.parameters.values():
+            parameter.scale_func = lambda x_scale, y_scale, _: None
+
+        super().__init__(x=x, y=y, model=model)
+
     def cost_fun(
         self,
         free_param_values: Array[("num_free_params",), np.float64],
@@ -58,28 +83,3 @@ class BinomialFitter(MLEFitter):
         logP = stats.binom.logpmf(k=k, n=n, p=p)
         C = -np.sum(logP)
         return C
-
-    def __init__(
-        self,
-        x: ArrayLike[("num_samples",), np.float64],
-        y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
-        num_trials: int,
-        model: Model,
-    ):
-        """Fits a model to a dataset and stores the results.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param model: the model function to fit to. The model's parameter dictionary is
-            used to configure the fit (set parameter bounds etc). Modify this before
-            fitting to change the fit behaviour from the model class' defaults.
-        :param num_trials: number of Bernoulli trails for each sample
-        """
-        self.num_trials = num_trials
-
-        # https://github.com/OxIonics/ionics_fits/issues/105
-        model = copy.deepcopy(model)
-        for parameter in model.parameters.values():
-            parameter.scale_func = lambda x_scale, y_scale, _: None
-
-        super().__init__(x=x, y=y, model=model)
