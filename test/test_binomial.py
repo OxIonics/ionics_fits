@@ -34,6 +34,10 @@ def test_binomial(plot_failures):
 
 def test_binomial_synthetic(plot_failures):
     """Test binomial fitting to multiple synthetic datasets"""
+    # TODO: set a seed to make this deterministic!
+    # TODO: make test quantitative? Fit histogram to a normal dist to check
+    #   error bars?
+    # TODO: use a more interesting fit model like a sinusoid with readout levels
     num_trials = 100
     x = np.linspace(-3, 3, 200) * 2 * np.pi
     model = fits.models.Sinusoid()
