@@ -95,10 +95,10 @@ class MLEFitter(Fitter):
         p = {param: value for param, value in zip(free_parameters, res.x)}
         p_err = {param: np.nan for param in free_parameters}
 
-        # p_err = np.sqrt(np.diag(p_cov))
-        # p_err = {param: value for param, value in zip(free_parameters, p_err)}
-        variance = result.fun/(len(ydata)-len(pstart)) 
-        p_err = errFit( result.hess_inv,  )
-        np.sqrt( np.diag( hess_inv * resVariance))
+        y_fit = free_func(x, *res.x)
+        residual_variance = np.sum((y - y_fit) ** 2) / (y.size - len(free_parameters))
+        p_cov = res.hess_inv.todense() * residual_variance
+        p_err = np.sqrt(np.diag(p_cov))
+        p_err = {param: value for param, value in zip(free_parameters, p_err)}
 
         return p, p_err
