@@ -1,3 +1,4 @@
+import copy
 import logging
 import numpy as np
 import pprint
@@ -44,6 +45,12 @@ class BinomialFitter(Fitter):
         :param num_trials: number of Bernoulli trails for each sample
         """
         self.num_trials = num_trials
+
+        # https://github.com/OxIonics/ionics_fits/issues/105
+        model = copy.deepcopy(model)
+        for parameter in model.parameters.values():
+            parameter.scale_func = lambda x_scale, y_scale, _: None
+
         super().__init__(x=x, y=y, model=model)
 
     def _fit(
@@ -93,6 +100,9 @@ class BinomialFitter(Fitter):
 
             if any(p < 0) or any(p > 1):
                 raise RuntimeError("Model values must lie between 0 and 1")
+
+            if np.any(y < 0) or np.any(y > 1):
+                raise RuntimeError("y values must lie between 0 and 1")
 
             n = self.num_trials
             k = np.rint(y * n, out=np.zeros_like(y, dtype=int), casting="unsafe")

@@ -17,9 +17,6 @@ def test_binomial(plot_failures):
         "x0": 0,
         "tau": np.inf,
     }
-    # FIXME!
-    model.parameters["a"].scale_func = lambda x_scale, y_scale, _: None
-
     model.parameters["a"].fixed_to = params["a"]
     model.parameters["y0"].fixed_to = params["y0"]
 
