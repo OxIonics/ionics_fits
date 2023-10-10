@@ -33,25 +33,30 @@ def test_binomial(plot_failures):
 
 
 def test_binomial_synthetic(plot_failures):
-    """Test binomial fitting to multiple synthetic datasets"""
-    # TODO: set a seed to make this deterministic!
-    # TODO: make test quantitative? Fit histogram to a normal dist to check
-    #   error bars?
-    # TODO: use a more interesting fit model like a sinusoid with readout levels
-    num_trials = 100
-    x = np.linspace(-3, 3, 200) * 2 * np.pi
+    """
+    Check that the BinomialFitter gives an unbiased parameter estimate with correct
+    parameter standard errors.
+    """
+    num_trials = 200
+    num_datasets = 1000
+
+    x = np.linspace(-1, 1, 200) * 2 * np.pi
     model = fits.models.Sinusoid()
     params = {
-        "a": 0.5,
+        "a": 0.5 * 0.995,
         "omega": 1,
         "phi": 1,
         "y0": 0.5,
         "x0": 0,
         "tau": np.inf,
     }
-    model.parameters["a"].fixed_to = params["a"]
-    model.parameters["y0"].fixed_to = params["y0"]
 
+    model.parameters["y0"].fixed_to = params["y0"]
+    model.parameters["omega"].fixed_to = params["omega"]
+    model.parameters["x0"].fixed_to = params["x0"]
+
+    model.parameters["a"].lower_bound = 0
+    model.parameters["a"].upper_bound = 0.5
     model.parameters["omega"].lower_bound = 0
     model.parameters["omega"].upper_bound = 10
     model.parameters["phi"].lower_bound = 0
@@ -61,24 +66,59 @@ def test_binomial_synthetic(plot_failures):
 
     y_model = model.func(x, params)
 
-    num_samples = 1000
-    phi_fit = np.zeros(num_samples)
+    a_fit = np.zeros(num_datasets)
+    a_err = np.zeros_like(a_fit)
 
-    for sample in range(num_samples):
+    for sample in range(num_datasets):
         y = stats.binom.rvs(n=num_trials, p=y_model, size=y_model.size)
         y = y / num_trials
 
         fit = fits.BinomialFitter(x=x, y=y, num_trials=num_trials, model=model)
 
-        phi_fit[sample] = fit.values["phi"]
+        a_fit[sample] = fit.values["a"]
+        a_err[sample] = fit.uncertainties["a"]
 
-    plt.hist(phi_fit, bins=50)
-    plt.axvline(x=1, color="black")
-    plt.axvline(x=1 + fit.uncertainties["phi"], color="black", linestyle="--")
-    plt.axvline(x=1 - fit.uncertainties["phi"], color="black", linestyle="--")
-    plt.grid()
-    plt.show()
+    a_fit_mean = np.mean(a_fit)
+    a_fit_err = np.abs(np.mean(a_fit) - params["a"])
+    a_std_err = np.mean(a_err)
+    a_fit_std = np.std(a_fit)
 
+    def plot_fits():
+        if not plot_failures:
+            return
 
-if __name__ == "__main__":
-    test_binomial_synthetic(True)
+        num_bins = 100
+        _, a_edges = np.histogram(a_fit, num_bins)
+        a_bin_centres = (a_edges[:-1] + a_edges[1:]) / 2
+
+        hist_results = plt.hist(a_fit / 0.5, bins=a_edges / 0.5, density=True)
+        a_hist = hist_results[0]
+
+        plt.axvline(x=params["a"] / 0.5, color="black", label="nominal")
+        plt.axvline(x=(params["a"] + a_fit_std) / 0.5, color="black", linestyle="--")
+        plt.axvline(x=(params["a"] - a_fit_std) / 0.5, color="black", linestyle="--")
+
+        plt.axvline(x=a_fit_mean / 0.5, color="blue", label="fitted")
+        plt.axvline(x=(a_fit_mean + a_std_err) / 0.5, color="blue", linestyle="--")
+        plt.axvline(x=(a_fit_mean - a_std_err) / 0.5, color="blue", linestyle="--")
+
+        hist_model = fits.models.Gaussian()
+        hist_fit = fits.NormalFitter(x=a_bin_centres, y=a_hist, model=hist_model)
+        norm_x, norm_y = hist_fit.evaluate()
+        plt.plot(norm_x / 0.5, norm_y)
+
+        plt.xlabel("contrast")
+        plt.ylabel("relative frequency")
+        plt.grid()
+        plt.legend()
+        plt.show()
+
+    if np.mean(a_fit) - params["a"] > 1e-3:
+        plot_fits()
+        raise ValueError(f"Error in fitted parameter value too high ({a_fit_err:.3e})")
+    if np.abs(1 - a_std_err / a_fit_std) > 0.25:
+        plot_fits()
+        raise ValueError(
+            "Standard error estimate does not match standard deviation of fitted "
+            f"parameter values: (standard errors {a_std_err:.3e}, {a_fit_std:.3e})"
+        )
