@@ -49,12 +49,6 @@ class BinomialFitter(MLEFitter):
         :param step_size: see :class MLEFitter:
         """
         self.num_trials = num_trials
-
-        # https://github.com/OxIonics/ionics_fits/issues/105
-        model = copy.deepcopy(model)
-        for parameter in model.parameters.values():
-            parameter.scale_func = lambda x_scale, y_scale, _: None
-
         super().__init__(x=x, y=y, model=model, step_size=step_size)
 
     def log_liklihood(
