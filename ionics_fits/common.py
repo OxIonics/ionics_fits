@@ -492,8 +492,6 @@ class Fitter:
         x: 1D ndarray of shape (num_samples,) containing x-axis values of valid points.
         y: 2D ndarray of shape (num_y_channels, num_samples) containing y-axis values
             of valid points.
-        sigma: optional 2D ndarray of shape (num_y_channels, num_samples) containing
-            y-axis standard deviations of valid points. Only used by `NormalFitter`.
         values: dictionary mapping model parameter names to their fitted values
         uncertainties: dictionary mapping model parameter names to their fit
             uncertainties. For sufficiently large datasets, well-formed problems and
@@ -508,22 +506,17 @@ class Fitter:
         initial_values: dictionary mapping model parameter names to the initial values
             used to seed the fit.
         model: the fit model
-        fit_significance: if applicable, the fit significance as a number between 0 and
-            1 (1 indicates perfect agreement between the fitted model and input
-            dataset). See :meth _fit_significance: for details.
         free_parameters: list of names of the model parameters floated during the fit
     """
 
     x: Array[("num_samples",), np.float64]
     y: Array[("num_y_channels", "num_samples"), np.float64]
-    sigma: Optional[Array[("num_y_channels", "num_samples"), np.float64]]
     values: Dict[str, float]
     uncertainties: Dict[str, float]
     derived_values: Dict[str, float]
     derived_uncertainties: Dict[str, float]
     initial_values: Dict[str, float]
     model: Model
-    fit_significance: Optional[float]
     free_parameters: List[str]
 
     def __init__(
@@ -531,15 +524,11 @@ class Fitter:
         x: ArrayLike[("num_samples",), np.float64],
         y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
         model: Model,
-        sigma: Optional[
-            ArrayLike[("num_y_channels", "num_samples"), np.float64]
-        ] = None,
     ):
         """Fits a model to a dataset and stores the results.
 
         :param x: x-axis data
         :param y: y-axis data
-        :param sigma: optional y-axis  standard deviations. Only used by `NormalFitter`
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
             fitting to change the fit behaviour from the model class' defaults.
@@ -549,7 +538,6 @@ class Fitter:
         # Sanitize input dataset
         x = np.array(x, dtype=np.float64, copy=True)
         y = np.array(y, dtype=np.float64, copy=True)
-        sigma = None if sigma is None else np.array(sigma, dtype=np.float64, copy=True)
 
         if x.ndim != 1:
             raise ValueError("x-axis data must be a 1D array.")
@@ -560,8 +548,6 @@ class Fitter:
         # Ensure a common shape for all data related to y-axis, regardless of
         # user input
         y = np.atleast_2d(y)
-        if sigma is not None:
-            sigma = np.atleast_2d(sigma)
 
         if x.shape[0] != y.shape[1]:
             raise ValueError(
@@ -573,40 +559,22 @@ class Fitter:
                 f"Expected {model.get_num_y_channels()} y-channels, got {y.shape[1]}."
             )
 
-        if sigma is not None and sigma.shape != y.shape:
-            raise ValueError(
-                f"Shapes of sigma (got {sigma.shape}) and y (got {y.shape}) must match."
-            )
-
-        if sigma is not None and not np.all(sigma != 0):
-            logger.warning("Ignoring points with zero uncertainty.")
-
         valid_x = np.isfinite(x)
-        valid_y = np.isfinite(y)
-        valid_sigma = (
-            None if sigma is None else np.logical_and(np.isfinite(sigma), sigma != 0)
-        )
-
-        valid_y = np.all(valid_y, axis=0)
-        valid_sigma = None if sigma is None else np.all(valid_sigma, axis=0)
-
-        valid_pts = np.logical_and(valid_x, valid_y)
-        if sigma is not None:
-            valid_pts = np.logical_and(valid_pts, valid_sigma)
-        valid_pts = valid_pts.squeeze()
+        valid_y = np.all(np.isfinite(y), axis=0)
+        valid_pts = np.logical_and(valid_x, valid_y).squeeze()
 
         x = x[valid_pts]
         y = y[:, valid_pts]
-        sigma = None if sigma is None else sigma[:, valid_pts]
 
         inds = np.argsort(x)
         x = x[inds]
         y = y[:, inds]
-        sigma = None if sigma is None else sigma[:, inds]
 
         self.x = x
         self.y = y
-        self.sigma = sigma
+
+        # Store so the normal fitter can reshape its sigmas
+        self._sorted_inds = np.arange(len(valid_pts))[valid_pts][inds]
 
         # Rescale coordinates to improve numerics (optimizers need to do things like
         # calculate numerical derivatives which is easiest if x and y are O(1)).
@@ -625,7 +593,9 @@ class Fitter:
 
         x = x / x_scale
         y = y / y_scale
-        sigma = None if sigma is None else sigma / y_scale
+
+        # Store so the normal fitter can rescale its sigmas
+        self._y_scale = y_scale
 
         scaled_model.estimate_parameters(x, y, scaled_model.parameters)
 
@@ -665,7 +635,7 @@ class Fitter:
             return y
 
         fitted_params, uncertainties = self._fit(
-            x, y, sigma, scaled_model.parameters, free_func
+            x, y, scaled_model.parameters, free_func
         )
         fitted_params.update(
             {param: value for param, value in self.fixed_parameters.items()}
@@ -696,13 +666,11 @@ class Fitter:
         self.values = fitted_params
         self.uncertainties = uncertainties
         self.initial_values = initial_values
-        self.fit_significance = self._fit_significance()
 
-    @staticmethod
     def _fit(
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_y_channels", "num_samples"), np.float64],
-        sigma: Optional[Array[("num_y_channels", "num_samples"), np.float64]],
         parameters: Dict[str, ModelParameter],
         free_func: Callable[..., Array[("num_y_channels", "num_samples"), np.float64]],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
@@ -713,7 +681,6 @@ class Fitter:
 
         :param x: rescaled x-axis data, must be a 1D array
         :param y: rescaled y-axis data
-        :param sigma: rescaled standard deviations
         :param parameters: dictionary of rescaled model parameters
         :param free_func: convenience wrapper for the model function, taking only values
             for the fit's free parameters
@@ -722,19 +689,6 @@ class Fitter:
             values and uncertainties.
         """
         raise NotImplementedError
-
-    def _fit_significance(self) -> Optional[float]:
-        """Returns an estimate of the goodness of fit as a number between 0 and 1.
-
-        This is the defined as the probability that fit residuals as large as the ones
-        we observe could have arisen through chance given our assumed statistics and
-        assuming that the fitted model perfectly represents the probability distribution
-
-        A value of `1` indicates a perfect fit (all data points lie on the fitted curve)
-        a value close to 0 indicates significant deviations of the dataset from the
-        fitted model.
-        """
-        return None
 
     def evaluate(
         self,

@@ -4,8 +4,8 @@ import pprint
 from scipy import optimize, stats
 from typing import Callable, Dict, Optional, Tuple, TYPE_CHECKING
 
-from . import Fitter, ModelParameter
-from .utils import Array
+from . import Fitter, Model, ModelParameter
+from .utils import Array, ArrayLike
 
 if TYPE_CHECKING:
     num_samples = float
@@ -18,18 +18,48 @@ logger = logging.getLogger(__name__)
 
 
 class NormalFitter(Fitter):
-    """Fitter for normally-distributed data.
+    """Fitter for Normally-distributed data.
 
     We use least-squares fitting as a maximum-likelihood parameter estimator for
-    normally distributed data. For data that is close to normal this is usually a pretty
-    good approximation of a true MLE estimator. YMMV...
+    normally distributed data. For data that is close to normal this is usually
+    a pretty good approximation of a true MLE estimator. YMMV...
     """
 
-    @staticmethod
+    def __init__(
+        self,
+        x: ArrayLike[("num_samples",), np.float64],
+        y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
+        model: Model,
+        sigma: Optional[
+            ArrayLike[("num_y_channels", "num_samples"), np.float64]
+        ] = None,
+    ):
+        """Fits a model to a dataset and stores the results.
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :param sigma: optional y-axis standard deviations.
+        :param model: the model function to fit to. The model's parameter dictionary is
+            used to configure the fit (set parameter bounds etc). Modify this before
+            fitting to change the fit behaviour from the model class' defaults.
+        """
+        if sigma is not None:
+            sigma = np.atleast_2d(np.array(sigma, dtype=np.float64))
+            y = np.atleast_2d(y)
+
+            if sigma.shape != y.shape:
+                raise ValueError(
+                    f"Shapes of sigma (got {sigma.shape}) and y data "
+                    f"(got {y.shape}) must match."
+                )
+        self.sigma = sigma
+
+        super().__init__(x=x, y=y, model=model)
+
     def _fit(
+        self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_y_channels", "num_samples"), np.float64],
-        sigma: Optional[Array[("num_y_channels", "num_samples"), np.float64]],
         parameters: Dict[str, ModelParameter],
         free_func: Callable[..., Array[("num_y_channels", "num_samples"), np.float64]],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
@@ -40,7 +70,6 @@ class NormalFitter(Fitter):
 
         :param x: rescaled x-axis data, must be a 1D array
         :param y: rescaled y-axis data
-        :param sigma: rescaled standard deviations
         :param parameters: dictionary of rescaled model parameters
         :param free_func: convenience wrapper for the model function, taking only values
             for the fit's free parameters
@@ -48,6 +77,16 @@ class NormalFitter(Fitter):
         :returns: tuple of dictionaries mapping model parameter names to their fitted
             values and uncertainties.
         """
+        sigma = self.sigma
+        if sigma is not None:
+            sigma = sigma[:, self._sorted_inds]
+
+            if not np.all(sigma != 0) or not np.all(np.isfinite(sigma)):
+                raise RuntimeError(
+                    "Dataset contains points with zero or infite uncertainty."
+                )
+        sigma = None if sigma is None else sigma / self._y_scale
+
         free_parameters = [
             param_name
             for param_name, param_data in parameters.items()
@@ -134,12 +173,3 @@ class NormalFitter(Fitter):
         p = stats.chi2.sf(chi_2, n)
 
         return p
-
-    def _fit_significance(self) -> Optional[float]:
-        """Returns an estimate of the goodness of fit as a number between 0 and 1 or
-        `None` if `sigma` has not been supplied. See :meth chi_squared: for details.
-        """
-        if self.sigma is None:
-            return None
-
-        return self.chi_squared(self.x, self.y, self.sigma)

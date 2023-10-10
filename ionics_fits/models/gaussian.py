@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 class Gaussian(Model):
     """Gaussian model according to:
-    y = a / (sigma * sqrt(2*pi)) * exp(-(x-x0)^2/(2*sigma)^2) + y0
+    y = a / (sigma * sqrt(2*pi)) * exp(-0.5*((x-x0)/(sigma))^2) + y0
 
     Fit parameters (all floated by default unless stated otherwise):
       - x0: x-axis offset
@@ -44,9 +44,7 @@ class Gaussian(Model):
         ),
     ) -> Array[("num_samples",), np.float64]:
         y = (
-            a
-            / (sigma * np.sqrt(2 * np.pi))
-            * np.exp(-np.power((x - x0) / (2 * sigma), 2))
+            a / (sigma * np.sqrt(2 * np.pi)) * np.exp(-0.5 * ((x - x0) / sigma) ** 2)
             + y0
         )
         return y

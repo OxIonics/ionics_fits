@@ -53,8 +53,6 @@ class TestConfig:
     """Configuration settings for a model test.
 
     Attributes (test are only performed if values are not `None`):
-        :param significance_tol: tolerance to check fitted parameters against
-        :param p_tol: tolerance to check fit significance against
         :param residual_tol: tolerance to check fit residuals against
         :param plot_failures: if `True` we plot the dataset/fit results for failed tests
         :param plot_all: if `True` we plot every run, not just failures (used in
@@ -62,7 +60,6 @@ class TestConfig:
     """
 
     param_tol: Optional[float] = 1e-3
-    significance_tol: Optional[float] = None
     residual_tol: Optional[float] = None
     plot_failures: bool = True
     plot_all: bool = False
@@ -74,6 +71,7 @@ def check_single_param_set(
     test_params: Dict[str, float],
     config: Optional[TestConfig] = None,
     fitter_cls: Optional[Type[fits.common.Fitter]] = fits.normal.NormalFitter,
+    fitter_args: Optional[Dict] = None,
     user_estimates: Optional[List[str]] = None,
 ):
     """Validates the fit for a single set of parameter values.
@@ -82,7 +80,8 @@ def check_single_param_set(
     :param model: the model to test.
     :param test_params: dictionary of parameter values to test
     :param test_config: test configuration
-    :param fitter_cls: the fitter class to test with. Defaults to `NormalFitter`.
+    :param fitter_cls: the fitter class to test with. Defaults to `NormalFitter`
+    :param fitter_args: optional dictionary of kwargs to pass to the fitter class
     :param user_estimates: list of names of parameters to supply initial
         guesses for
     """
@@ -110,7 +109,11 @@ def check_single_param_set(
             model.parameters[parameter].user_estimate = test_params[parameter]
 
     try:
-        fit = fitter_cls(x=x, y=y, sigma=None, model=model)
+        if fitter_args is not None:
+            fit = fitter_cls(x=x, y=y, model=model, **fitter_args)
+        else:
+            fit = fitter_cls(x=x, y=y, model=model)
+
     except RuntimeError as ex:
         raise RuntimeError(
             f"{model.__class__.__name__} fit failed! Parameters were:\n"
@@ -138,22 +141,6 @@ def check_single_param_set(
             f"fitted parameters were: {fitted_params_str}\n"
             f"estimated parameters were: {initial_params_str}\n"
             f"free parameters were: {fit.free_parameters}"
-        )
-
-    if (
-        config.significance_tol is not None
-        and fit.fit_significance is not None
-        and fit.fit_significance < config.significance_tol
-    ):
-        if config.plot_failures:
-            _plot(
-                fit,
-                y,
-            )
-
-        raise ValueError(
-            f"Fit significance too low: {fit.fit_significance:.2f} < "
-            f"{config.residual_tol:.2f}",
         )
 
     if config.residual_tol is not None and not is_close(
@@ -243,6 +230,7 @@ def check_multiple_param_sets(
     test_params: Dict[str, List[float]],
     config: Optional[TestConfig] = None,
     fitter_cls: Type[fits.common.Fitter] = fits.normal.NormalFitter,
+    fitter_args: Optional[Dict] = None,
     user_estimates: Optional[List[str]] = None,
 ):
     """Validates the fit for multiple sets of parameter values.
@@ -253,6 +241,7 @@ def check_multiple_param_sets(
         contain either a single value or an array of values to test.
     :param test_config: test configuration
     :param fitter_cls: the fitter class to test with
+    :param fitter_args: optional dictionary of kwargs to pass to the fitter class
     :param user_estimates: optional list of names of parameters to supply
         initial guesses for
     """
@@ -306,6 +295,7 @@ def fuzz(
     fuzzed_params: Dict[str, Tuple[float, float]],
     test_config: Optional[TestConfig] = None,
     fitter_cls: Optional[Type[fits.common.Fitter]] = fits.normal.NormalFitter,
+    fitter_args: Optional[Dict] = None,
     num_trials: int = 100,
     stop_at_failure: bool = True,
     param_generator: Optional[
@@ -325,6 +315,7 @@ def fuzz(
         distribution.
     :param test_config: test configuration
     :param fitter_cls: the fitter class to test with
+    :param fitter_args: optional dictionary of kwargs to pass to the fitter class
     :param num_trials: number of random parameter sets to test
     :param stop_at_failure: if True we stop fuzzing the first time a test fails.
     :param param_generator: Callable that takes a dictionary of fuzzed parameters and
@@ -372,6 +363,7 @@ def fuzz(
                 test_params=test_params,
                 config=test_config,
                 fitter_cls=fitter_cls,
+                fitter_args=fitter_args,
             )
 
         except Exception:
