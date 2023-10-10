@@ -228,7 +228,7 @@ and `Fitters`. `ModelParameter`s represent the parameters for a given model. The
 are used to store metadata, such as fit bounds. `Model`s are general-purpose
 functions to be fitted, such as sinusoids or Lorentzians, but are
 agnostic about the statistics. `Fitter`s do the fitting (maximum likelihood parameter
-estimation) and validation based on some underlying statistics (normal, binomial, etc). 
+estimation).
 
 # Testing methodology
 

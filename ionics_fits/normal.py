@@ -52,6 +52,7 @@ class NormalFitter(Fitter):
                     f"Shapes of sigma (got {sigma.shape}) and y data "
                     f"(got {y.shape}) must match."
                 )
+
         self.sigma = sigma
 
         super().__init__(x=x, y=y, model=model)
@@ -81,9 +82,9 @@ class NormalFitter(Fitter):
         if sigma is not None:
             sigma = sigma[:, self._sorted_inds]
 
-            if not np.all(sigma != 0) or not np.all(np.isfinite(sigma)):
+            if np.any(sigma == 0) or not np.all(np.isfinite(sigma)):
                 raise RuntimeError(
-                    "Dataset contains points with zero or infite uncertainty."
+                    "Dataset contains points with zero or infinite uncertainty."
                 )
         sigma = None if sigma is None else sigma / self._y_scale
 
