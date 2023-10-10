@@ -1,16 +1,15 @@
 Lightweight Python library for data fitting with an emphasis on AMO (Atomic Molecular
 and Optical physics) and Quantum Information.
 
-`fits` was inspired by the [Oxford Ion Trap Group fitting library](https://github.com/OxfordIonTrapGroup/oitg/tree/master/oitg/fitting) originally
-authored by @tballance. It is still in the alpha phase and is likely to be renamed
-(although `fits` is still available on pypi)...please feel free to help bikeshed names.
+`ionics_fits` was inspired by the [Oxford Ion Trap Group fitting library](https://github.com/OxfordIonTrapGroup/oitg/tree/master/oitg/fitting) originally
+authored by @tballance.
 
 # Getting started
 
 ## Installation
 
 Install from `pypi` with `pip install ionics_fits` or add to your poetry project with
-`poetry add fits`.
+`poetry add ionics_fits`.
 
 ## Example Usage
 
@@ -34,7 +33,7 @@ dictionary (see the `fits.common.ModelParameter` class for more information). Th
 allows one to:
 - change the bounds for parameters
 - change which parameters are fixed to a constant value / floated
-- supply initial values for parameters instead of relying on the heuristics
+- supply initial estimates parameters instead of relying on the heuristics
 
 Example usage:
 ```python
@@ -127,7 +126,7 @@ probably better suited to your own codebase.
 ## Extensibility
 
 The library is designed to be extensible and ergonomic to user. Want to use different
-statistics? Easy, just provide a new class that inherits from `FitBase`. Want to do some
+statistics? Easy, just provide a new class that inherits from `MLEFitter`. Want to do some
 custom post-fit processing? Override the `calculate_derived_parameters` method. Want to
 tweak the parameter estimator for a model? Create a new model class that inherits from
 the original model and modify away. If you're struggling to do what you want, it's
@@ -224,9 +223,11 @@ want.
 
 # Ontology
 
-There are two main kinds of object in the library: `fit`s and `model`s. Models are
-general-purpose functions to be fitted, such as sinusoids or Lorentzians, but are
-agnostic about the statistics. Fits do the fitting (maximum likelihood parameter
+There are three main kinds of object in the library: `ModelParameter`s, `Model`s
+and `Fitters`. `ModelParameter`s represent the parameters for a given model. They
+are used to store metadata, such as fit bounds. `Model`s are general-purpose
+functions to be fitted, such as sinusoids or Lorentzians, but are
+agnostic about the statistics. `Fitter`s do the fitting (maximum likelihood parameter
 estimation) and validation based on some underlying statistics (normal, binomial, etc). 
 
 # Testing methodology
