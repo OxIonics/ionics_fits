@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class BinomialFitter(MLEFitter):
-    """Fitter for Binomially-distributed data.
+    """Maximum-likelihood parameter estimator for Binomially-distributed data.
 
     The model is interpreted as giving the success probability for a Bernoulli
     trial under a given set of parameters: `p = M(x; params)`
@@ -36,6 +36,7 @@ class BinomialFitter(MLEFitter):
         y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
         num_trials: int,
         model: Model,
+        step_size: float = 1e-4,
     ):
         """Fits a model to a dataset and stores the results.
 
@@ -45,6 +46,7 @@ class BinomialFitter(MLEFitter):
             used to configure the fit (set parameter bounds etc). Modify this before
             fitting to change the fit behaviour from the model class' defaults.
         :param num_trials: number of Bernoulli trails for each sample
+        :param step_size: see :class MLEFitter:
         """
         self.num_trials = num_trials
 
@@ -53,23 +55,15 @@ class BinomialFitter(MLEFitter):
         for parameter in model.parameters.values():
             parameter.scale_func = lambda x_scale, y_scale, _: None
 
-        super().__init__(x=x, y=y, model=model)
+        super().__init__(x=x, y=y, model=model, step_size=step_size)
 
-    def cost_fun(
+    def log_liklihood(
         self,
         free_param_values: Array[("num_free_params",), np.float64],
         x: ArrayLike[("num_samples",), np.float64],
         y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
         free_func: Callable[..., Array[("num_y_channels", "num_samples"), np.float64]],
     ) -> float:
-        """Returns the negative log-likelihood of a given dataset
-
-        :param free_param_values: array of floated parameter values
-        :param x: x-axis data
-        :param y: y-axis data
-        :param free_func: convenience wrapper for the model function, taking only values
-            for the fit's free parameters
-        """
         p = free_func(x, *free_param_values.tolist())
 
         if any(p < 0) or any(p > 1):
@@ -82,4 +76,5 @@ class BinomialFitter(MLEFitter):
         k = np.rint(y * n, out=np.zeros_like(y, dtype=int), casting="unsafe")
         logP = stats.binom.logpmf(k=k, n=n, p=p)
         C = -np.sum(logP)
+
         return C
