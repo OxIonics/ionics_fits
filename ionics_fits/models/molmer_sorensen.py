@@ -45,9 +45,12 @@ class MolmerSorensen(Model):
 
     Model parameters:
         - omega: sideband Rabi frequency
-        - w_0: resonance frequency offset
+        - w_0: angular resonance frequency offset
         - n_bar: average initial occupancy of the motional mode (fixed to 0 by
             default)
+
+    Derived parameters:
+        - f_0: resonance frequency offset
 
     All frequencies are in angular units.
     """
@@ -286,6 +289,10 @@ class MolmerSorensenFreq(MolmerSorensen):
     when the gate duration is kept fixed and only the interaction detuning is
     varied. The pulse duration is specified using a new `t_pulse` model
     parameter.
+
+    Derived parameters in addition to those inherited from `MolmerSorensen`:
+        - f_loop: frequency at which the loop in motional phase space closes
+            at the end of the pulse.
     """
 
     def __init__(self, num_qubits: int, start_excited: bool, walsh_idx: int):
