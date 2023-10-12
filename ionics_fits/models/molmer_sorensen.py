@@ -402,3 +402,25 @@ class MolmerSorensenFreq(MolmerSorensen):
             best = np.argmin(costs)
             model_parameters["omega"].heuristic = omegas[best]
             model_parameters["t_pulse"].heuristic = t_pulses[best]
+
+    def calculate_derived_params(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        derived_params, derived_uncertainties = super().calculate_derived_params(
+            x, y, fitted_params, fit_uncertainties
+        )
+
+        # Detuning required for loop closure at end of pulse
+        derived_params["f_loop"] = (self.walsh_idx + 1) / fitted_params[
+            "t_pulse"
+        ] + derived_params["f_0"]
+        derived_uncertainties["f_loop"] = np.sqrt(
+            ((self.walsh_idx + 1) * fit_uncertainties["t_pulse"]) ** 2
+            + derived_uncertainties["f_0"] ** 2
+        )
+
+        return derived_params, derived_uncertainties
