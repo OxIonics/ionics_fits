@@ -50,9 +50,9 @@ class MolmerSorensen(Model):
             default)
 
     Derived parameters:
-        - f_0: resonance frequency offset
+        - f_0: resonance frequency offset (Hz)
 
-    All frequencies are in angular units.
+    All frequencies are in angular units unless stated otherwise.
     """
 
     def __init__(self, num_qubits: int, start_excited: bool, walsh_idx: int):
@@ -290,9 +290,9 @@ class MolmerSorensenFreq(MolmerSorensen):
     varied. The pulse duration is specified using a new `t_pulse` model
     parameter.
 
-    Derived parameters in addition to those inherited from `MolmerSorensen`:
-        - f_loop: frequency at which the loop in motional phase space closes
-            at the end of the pulse.
+    Derived parameters:
+        - f_loop_{n}: frequency offset of nth loop closure (Hz) for n = [1, 5]
+
     """
 
     def __init__(self, num_qubits: int, start_excited: bool, walsh_idx: int):
@@ -421,13 +421,12 @@ class MolmerSorensenFreq(MolmerSorensen):
             x, y, fitted_params, fit_uncertainties
         )
 
-        # Detuning required for loop closure at end of pulse
-        derived_params["f_loop"] = (self.walsh_idx + 1) / fitted_params[
-            "t_pulse"
-        ] + derived_params["f_0"]
-        derived_uncertainties["f_loop"] = np.sqrt(
-            ((self.walsh_idx + 1) * fit_uncertainties["t_pulse"]) ** 2
-            + derived_uncertainties["f_0"] ** 2
-        )
-
+        for n in range(1, 6):
+            derived_params[f"f_loop_{n}"] = (
+                n / fitted_params["t_pulse"] + derived_params["f_0"]
+            )
+            derived_uncertainties[f"f_loop_{n}"] = np.sqrt(
+                (n * fit_uncertainties["t_pulse"]) ** 2
+                + derived_uncertainties["f_0"] ** 2
+            )
         return derived_params, derived_uncertainties
