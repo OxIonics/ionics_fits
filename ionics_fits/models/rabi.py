@@ -154,11 +154,12 @@ class RabiFlopFreq(RabiFlop):
 
         self.parameters["t_pulse"] = ModelParameter(lower_bound=0.0)
 
-        self.parameters["t_pulse"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: x_scale
-        self.parameters["tau"].scale_func = lambda x_scale, y_scale, _: x_scale
-        self.parameters["t_dead"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         self.parameters["w_0"].scale_func = lambda x_scale, y_scale, _: x_scale
+
+        self.parameters["t_pulse"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
+        self.parameters["tau"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
+        self.parameters["t_dead"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
@@ -273,7 +274,8 @@ class RabiFlopTime(RabiFlop):
 
         self.parameters["delta"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
         self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
-        self.parameters["tau"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
+
+        self.parameters["tau"].scale_func = lambda x_scale, y_scale, _: x_scale
         self.parameters["t_dead"].scale_func = lambda x_scale, y_scale, _: x_scale
 
     def func(
