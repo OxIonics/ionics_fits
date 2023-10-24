@@ -183,7 +183,6 @@ class RabiFlopFreq(RabiFlop):
         y = np.squeeze(y)
 
         model_parameters["t_dead"].heuristic = 0.0
-        model_parameters["tau"].heuristic = np.inf
 
         if self.start_excited:
             model_parameters["P_readout_e"].heuristic = y[0]
@@ -253,6 +252,8 @@ class RabiFlopFreq(RabiFlop):
         )
         model_parameters["w_0"].heuristic = w_0
 
+        model_parameters["tau"].heuristic = 10 * t_pulse
+
 
 class RabiFlopTime(RabiFlop):
     """Fit model for Rabi flopping pulse duration scans.
@@ -297,7 +298,7 @@ class RabiFlopTime(RabiFlop):
         y = np.squeeze(y)
 
         model_parameters["t_dead"].heuristic = 0.0
-        model_parameters["tau"].heuristic = np.inf
+        model_parameters["tau"].heuristic = 10 * x.ptp()
 
         if self.start_excited:
             model_parameters["P_readout_e"].heuristic = y[0]
