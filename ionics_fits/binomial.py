@@ -1,7 +1,10 @@
 import logging
+from typing import Callable, Optional, TYPE_CHECKING
+
 import numpy as np
 from scipy import stats
-from typing import Callable, TYPE_CHECKING
+from statsmodels.stats import proportion
+
 
 from . import MLEFitter, Model
 from .utils import Array, ArrayLike
@@ -62,12 +65,35 @@ class BinomialFitter(MLEFitter):
         if any(p < 0) or any(p > 1):
             raise RuntimeError("Model values must lie between 0 and 1")
 
-        if np.any(y < 0) or np.any(y > 1):
-            raise RuntimeError("y values must lie between 0 and 1")
-
         n = self.num_trials
         k = np.rint(y * n, out=np.zeros_like(y, dtype=int), casting="unsafe")
         logP = stats.binom.logpmf(k=k, n=n, p=p)
         C = -np.sum(logP)
 
         return C
+
+    def calc_sigma(
+        self,
+    ) -> Optional[Array[("num_y_channels", "num_samples"), np.float64]]:
+        """Return an array of standard error values for each y-axis data point
+        if available.
+        """
+        k = np.rint(
+            self.y * self.num_trials,
+            out=np.zeros_like(self.y, dtype=int),
+            casting="unsafe",
+        )
+
+        lower, upper = proportion.proportion_confint(
+            count=k,
+            nobs=self.num_trials,
+            alpha=1 - 0.6827,  # 1 sigma for Normal distributions
+            method="beta",
+        )
+
+        # Replace NaNs for points where k={0, num_trials}
+        lower[np.isnan(lower)] = 0
+        upper[np.isnan(upper)] = 1
+
+        sigma = 0.5 * (lower + upper)
+        return sigma
