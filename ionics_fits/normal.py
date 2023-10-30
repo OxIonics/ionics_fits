@@ -71,7 +71,7 @@ class NormalFitter(Fitter):
         :returns: tuple of dictionaries mapping model parameter names to their fitted
             values and uncertainties.
         """
-        sigma = self.sigma / self.y_scale
+        sigma = None if self.sigma is None else self.sigma / self.y_scale
 
         free_parameters = [
             param_name
