@@ -106,9 +106,9 @@ parameter values consistent with our prior knowledge of the system (e.g. we know
 fringe contrast must lie within certain bounds).
 
 First, any prior knowledge about the system should be incorporated by specifying fixed
-parameter values and parameter bounds. After that, the fit is validated. At present,
-validation is done using the Chi-squared as a test for goodness of fit. It is likely
-that additional validation tests will be added as the package grows.
+parameter values and parameter bounds. After that, the fit is validated using a
+[`FitValidator`](../master/ionics_fits/validators.py). Validators provide a flexible
+and extensible framework for using statistical tests to validate fits.
 
 ## General purpose
 
