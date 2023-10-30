@@ -5,3 +5,4 @@ from .binomial import BinomialFitter
 from .normal import NormalFitter
 from . import models
 from . import utils
+from . import validators
