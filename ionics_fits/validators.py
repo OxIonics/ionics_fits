@@ -32,6 +32,9 @@ class NSigmaValidator(FitValidator):
         """Fit validator which checks that at least
         :param significance_threshold: of points lie within :param n_sigma:
         standard errors of the fitted value.
+
+        This is a relatively forgiving (easy to configure in a way that gives
+        minimal "good" fits which fail validation) general-purpose fit validator.
         """
         self.n_sigma = n_sigma
         self.significance_threshold = significance_threshold
