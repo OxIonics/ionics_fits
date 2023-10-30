@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 class MLEFitter(Fitter):
     """Base class for maximum Likelihood Parameter Estimation fitters.
 
-    Implementations should override the :meth log_liglihood: function.
+    Implementations should override the :meth log_liglihood: and
+    :meth calc_sigma: methods.
     """
 
     TYPE: str = "MLE"
@@ -52,6 +53,9 @@ class MLEFitter(Fitter):
         model = copy.deepcopy(model)
         for parameter in model.parameters.values():
             parameter.scale_func = lambda x_scale, y_scale, _: None
+
+        if np.any(y < 0) or np.any(y > 1):
+            raise RuntimeError("y values must lie between 0 and 1")
 
         super().__init__(x=x, y=y, model=model)
 

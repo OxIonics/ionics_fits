@@ -492,6 +492,8 @@ class Fitter:
         x: 1D ndarray of shape (num_samples,) containing x-axis values of valid points.
         y: 2D ndarray of shape (num_y_channels, num_samples) containing y-axis values
             of valid points.
+        sigma: 2D ndarray of shape (num_y_channels, num_samples) containing y-axis
+            standard errors where available.
         values: dictionary mapping model parameter names to their fitted values
         uncertainties: dictionary mapping model parameter names to their fit
             uncertainties. For sufficiently large datasets, well-formed problems and
@@ -507,10 +509,13 @@ class Fitter:
             used to seed the fit.
         model: the fit model
         free_parameters: list of names of the model parameters floated during the fit
+        x_scale: the applied x-axis scale factor
+        y_scale: the applied y-axis scale factor
     """
 
     x: Array[("num_samples",), np.float64]
     y: Array[("num_y_channels", "num_samples"), np.float64]
+    sigma: Optional[Array[("num_y_channels", "num_samples"), np.float64]] = None
     values: Dict[str, float]
     uncertainties: Dict[str, float]
     derived_values: Dict[str, float]
@@ -518,6 +523,8 @@ class Fitter:
     initial_values: Dict[str, float]
     model: Model
     free_parameters: List[str]
+    x_scale: float
+    y_scale: float
 
     def __init__(
         self,
@@ -533,71 +540,77 @@ class Fitter:
             used to configure the fit (set parameter bounds etc). Modify this before
             fitting to change the fit behaviour from the model class' defaults.
         """
-        model = copy.deepcopy(model)
+        self.model = copy.deepcopy(model)
 
-        # Sanitize input dataset
-        x = np.array(x, dtype=np.float64, copy=True)
-        y = np.array(y, dtype=np.float64, copy=True)
+        self.x = np.array(x, dtype=np.float64, copy=True)
+        self.y = np.atleast_2d(np.array(y, dtype=np.float64, copy=True))
 
-        if x.ndim != 1:
+        self.sigma = self.calc_sigma()
+        self.sigma = np.atleast_2d(self.sigma) if self.sigma is not None else None
+
+        if self.x.ndim != 1:
             raise ValueError("x-axis data must be a 1D array.")
 
-        if y.ndim > 2:
+        if self.y.ndim != 2:
             raise ValueError("y-axis data must be a 1D or 2D array.")
 
-        # Ensure a common shape for all data related to y-axis, regardless of
-        # user input
-        y = np.atleast_2d(y)
-
-        if x.shape[0] != y.shape[1]:
+        if self.x.shape[0] != self.y.shape[1]:
             raise ValueError(
                 "Number of x-axis and y-axis samples must match "
-                f"(got {x.shape} and {y.shape})."
-            )
-        if y.shape[0] != model.get_num_y_channels():
-            raise ValueError(
-                f"Expected {model.get_num_y_channels()} y-channels, got {y.shape[1]}."
+                f"(got {self.x.shape} and {self.y.shape})."
             )
 
-        valid_x = np.isfinite(x)
-        valid_y = np.all(np.isfinite(y), axis=0)
+        if self.y.shape[0] != self.model.get_num_y_channels():
+            raise ValueError(
+                f"Expected {self.model.get_num_y_channels()} y channels, "
+                f"got {self.y.shape[0]}."
+            )
+
+        if self.sigma is not None and self.sigma.shape != self.y.shape:
+            raise ValueError(
+                f"Shapes of sigma and y must match (got {self.sigma.shape} and "
+                f"{self.y.shape})."
+            )
+
+        valid_x = np.isfinite(self.x)
+        valid_y = np.all(np.isfinite(self.y), axis=0)
         valid_pts = np.logical_and(valid_x, valid_y).squeeze()
 
-        x = x[valid_pts]
-        y = y[:, valid_pts]
+        (inds,) = np.where(valid_pts)
+        sorted_inds = inds[np.argsort(self.x[valid_pts])]
 
-        inds = np.argsort(x)
-        x = x[inds]
-        y = y[:, inds]
+        self.x = self.x[sorted_inds]
+        self.y = self.y[:, sorted_inds]
 
-        self.x = x
-        self.y = y
+        if self.sigma is not None:
 
-        # Store so the normal fitter can reshape its sigmas
-        self._sorted_inds = np.arange(len(valid_pts))[valid_pts][inds]
+            self.sigma = self.sigma[:, sorted_inds]
+            if np.any(self.sigma == 0) or not np.all(np.isfinite(self.sigma)):
+                raise RuntimeError(
+                    "Dataset contains points with zero or infinite uncertainty."
+                )
 
         # Rescale coordinates to improve numerics (optimizers need to do things like
         # calculate numerical derivatives which is easiest if x and y are O(1)).
         #
         # Currently we use a single scale factor for all y channels. This may change in
         # future
-        x_scale = np.max(np.abs(x))
-        y_scale = np.max(np.abs(y))
+        self.x_scale = np.max(np.abs(self.x))
+        self.y_scale = np.max(np.abs(self.y))
 
-        if model.can_rescale(x_scale, y_scale):
-            scaled_model = model.get_scaled_model(model, x_scale, y_scale)
+        if self.model.can_rescale(self.x_scale, self.y_scale):
+            scaled_model = self.model.get_scaled_model(
+                self.model, self.x_scale, self.y_scale
+            )
         else:
-            x_scale = 1
-            y_scale = 1
-            scaled_model = copy.deepcopy(model)
+            self.x_scale = 1
+            self.y_scale = 1
+            scaled_model = copy.deepcopy(self.model)
 
-        x = x / x_scale
-        y = y / y_scale
+        x_scaled = self.x / self.x_scale
+        y_scaled = self.y / self.y_scale
 
-        # Store so the normal fitter can rescale its sigmas
-        self._y_scale = y_scale
-
-        scaled_model.estimate_parameters(x, y, scaled_model.parameters)
+        scaled_model.estimate_parameters(x_scaled, y_scaled, scaled_model.parameters)
 
         for param, param_data in scaled_model.parameters.items():
             try:
@@ -635,7 +648,7 @@ class Fitter:
             return y
 
         fitted_params, uncertainties = self._fit(
-            x, y, scaled_model.parameters, free_func
+            x_scaled, y_scaled, scaled_model.parameters, free_func
         )
         fitted_params.update(
             {param: value for param, value in self.fixed_parameters.items()}
@@ -660,9 +673,10 @@ class Fitter:
         (
             self.derived_values,
             self.derived_uncertainties,
-        ) = model.calculate_derived_params(self.x, self.y, fitted_params, uncertainties)
+        ) = self.model.calculate_derived_params(
+            self.x, self.y, fitted_params, uncertainties
+        )
 
-        self.model = model
         self.values = fitted_params
         self.uncertainties = uncertainties
         self.initial_values = initial_values
@@ -720,3 +734,11 @@ class Fitter:
     def residuals(self) -> Array[("num_y_channels", "num_samples"), np.float64]:
         """Returns an array of fit residuals."""
         return self.y - self.evaluate()[1]
+
+    def calc_sigma(
+        self,
+    ) -> Optional[Array[("num_y_channels", "num_samples"), np.float64]]:
+        """Return an array of standard error values for each y-axis data point
+        if available.
+        """
+        return None

@@ -43,17 +43,10 @@ class NormalFitter(Fitter):
             used to configure the fit (set parameter bounds etc). Modify this before
             fitting to change the fit behaviour from the model class' defaults.
         """
-        if sigma is not None:
-            sigma = np.atleast_2d(np.array(sigma, dtype=np.float64))
-            y = np.atleast_2d(y)
-
-            if sigma.shape != y.shape:
-                raise ValueError(
-                    f"Shapes of sigma (got {sigma.shape}) and y data "
-                    f"(got {y.shape}) must match."
-                )
-
-        self.sigma = sigma
+        if sigma is None:
+            self.sigma = None
+        else:
+            self.sigma = np.array(sigma, dtype=np.float64, copy=True)
 
         super().__init__(x=x, y=y, model=model)
 
@@ -78,15 +71,7 @@ class NormalFitter(Fitter):
         :returns: tuple of dictionaries mapping model parameter names to their fitted
             values and uncertainties.
         """
-        sigma = self.sigma
-        if sigma is not None:
-            sigma = sigma[:, self._sorted_inds]
-
-            if np.any(sigma == 0) or not np.all(np.isfinite(sigma)):
-                raise RuntimeError(
-                    "Dataset contains points with zero or infinite uncertainty."
-                )
-        sigma = None if sigma is None else sigma / self._y_scale
+        sigma = None if self.sigma is None else self.sigma / self.y_scale
 
         free_parameters = [
             param_name
@@ -136,6 +121,14 @@ class NormalFitter(Fitter):
         p_err = {param: value for param, value in zip(free_parameters, p_err)}
 
         return p, p_err
+
+    def calc_sigma(
+        self,
+    ) -> Optional[Array[("num_y_channels", "num_samples"), np.float64]]:
+        """Return an array of standard error values for each y-axis data point
+        if available.
+        """
+        return self.sigma
 
     def chi_squared(
         self,
