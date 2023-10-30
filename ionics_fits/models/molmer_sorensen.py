@@ -45,11 +45,14 @@ class MolmerSorensen(Model):
 
     Model parameters:
         - omega: sideband Rabi frequency
-        - w_0: resonance frequency offset
+        - w_0: angular resonance frequency offset
         - n_bar: average initial occupancy of the motional mode (fixed to 0 by
             default)
 
-    All frequencies are in angular units.
+    Derived parameters:
+        - f_0: resonance frequency offset (Hz)
+
+    All frequencies are in angular units unless stated otherwise.
     """
 
     def __init__(self, num_qubits: int, start_excited: bool, walsh_idx: int):
@@ -286,6 +289,10 @@ class MolmerSorensenFreq(MolmerSorensen):
     when the gate duration is kept fixed and only the interaction detuning is
     varied. The pulse duration is specified using a new `t_pulse` model
     parameter.
+
+    Derived parameters:
+        - f_loop_{n}: frequency offset of nth loop closure (Hz) for n = [1, 5]
+
     """
 
     def __init__(self, num_qubits: int, start_excited: bool, walsh_idx: int):
@@ -402,3 +409,24 @@ class MolmerSorensenFreq(MolmerSorensen):
             best = np.argmin(costs)
             model_parameters["omega"].heuristic = omegas[best]
             model_parameters["t_pulse"].heuristic = t_pulses[best]
+
+    def calculate_derived_params(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        derived_params, derived_uncertainties = super().calculate_derived_params(
+            x, y, fitted_params, fit_uncertainties
+        )
+
+        for n in range(1, 6):
+            derived_params[f"f_loop_{n}"] = (
+                n / fitted_params["t_pulse"] + derived_params["f_0"]
+            )
+            derived_uncertainties[f"f_loop_{n}"] = np.sqrt(
+                (n * fit_uncertainties["t_pulse"]) ** 2
+                + derived_uncertainties["f_0"] ** 2
+            )
+        return derived_params, derived_uncertainties
