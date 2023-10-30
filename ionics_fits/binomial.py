@@ -91,9 +91,5 @@ class BinomialFitter(MLEFitter):
             method="beta",
         )
 
-        # Replace NaNs for points where k={0, num_trials}
-        lower[np.isnan(lower)] = 0
-        upper[np.isnan(upper)] = 1
-
         sigma = 0.5 * (lower + upper)
         return sigma
