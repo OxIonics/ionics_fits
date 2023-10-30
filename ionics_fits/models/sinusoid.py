@@ -8,6 +8,7 @@ from . import utils
 
 if TYPE_CHECKING:
     num_samples = float
+    num_y_channels = float
 
 
 class Sinusoid(Model):
@@ -27,7 +28,7 @@ class Sinusoid(Model):
       - f: frequency
       - phi_cosine: cosine phase (phi + pi/2)
       - contrast: peak-to-peak amplitude of the pure sinusoid
-      - min/max: min / max values of the pure sinusoid
+      - y_min/y_max: min / max values of the pure sinusoid
       - period: period of oscillation
       - TODO: peak values of the damped sinusoid as well as `x` value that the peak
           occurs at.
@@ -156,18 +157,18 @@ class Sinusoid(Model):
         derived_params["f"] = fitted_params["omega"] / (2 * np.pi)
         derived_params["phi_cosine"] = fitted_params["phi"] + np.pi / 2
         derived_params["contrast"] = 2 * np.abs(fitted_params["a"])
-        derived_params["min"] = fitted_params["y0"] - np.abs(fitted_params["a"])
-        derived_params["max"] = fitted_params["y0"] + np.abs(fitted_params["a"])
+        derived_params["y_min"] = fitted_params["y0"] - np.abs(fitted_params["a"])
+        derived_params["y_max"] = fitted_params["y0"] + np.abs(fitted_params["a"])
         derived_params["period"] = 2 * np.pi / fitted_params["omega"]
 
         derived_uncertainties = {}
         derived_uncertainties["f"] = fit_uncertainties["omega"] / (2 * np.pi)
         derived_uncertainties["phi_cosine"] = fit_uncertainties["phi"]
         derived_uncertainties["contrast"] = 2 * fit_uncertainties["a"]
-        derived_uncertainties["min"] = np.sqrt(
+        derived_uncertainties["y_min"] = np.sqrt(
             fit_uncertainties["y0"] ** 2 + fit_uncertainties["a"] ** 2
         )
-        derived_uncertainties["max"] = np.sqrt(
+        derived_uncertainties["y_max"] = np.sqrt(
             fit_uncertainties["y0"] ** 2 + fit_uncertainties["a"] ** 2
         )
         derived_uncertainties["period"] = (
@@ -175,3 +176,104 @@ class Sinusoid(Model):
         )
 
         return derived_params, derived_uncertainties
+
+
+class SinusoidMinMax(Sinusoid):
+    """Sinusoid parametrised in terms of min and max values instead of amplitude and
+    offset.
+
+    This model replaces the `a` and `y0` parameters used by :class Sinusoid: with
+    `y_min` and `y_max` parameters.
+    """
+
+    def __init__(self):
+        super().__init__()
+        del self.parameters["a"]
+        del self.parameters["y0"]
+
+        self.parameters["min"] = ModelParameter(
+            scale_func=lambda x_scale, y_scale, _: y_scale
+        )
+        self.parameters["max"] = ModelParameter(
+            scale_func=lambda x_scale, y_scale, _: y_scale
+        )
+
+    def func(
+        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
+    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+        inner_params = dict(param_values)
+
+        y_min = inner_params.pop("y_min")
+        y_max = inner_params.pop("y_max")
+
+        inner_params["a"] = y_max - y_min
+        inner_params["y0"] = 0.5 * (y_max - y_min)
+
+        return super().func(x=x, param_values=inner_params)
+
+    def estimate_parameters(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        model_parameters: Dict[str, ModelParameter],
+    ):
+        model_parameters["a"] = ModelParameter()
+        model_parameters["y0"] = ModelParameter()
+
+        super().estimate_parameters()
+
+        a = model_parameters.pop("a").get_initial_value()
+        y0 = model_parameters.pop("y0").get_initial_value()
+
+        self.parameters["y_min"].heuristic = y0 - a
+        self.parameters["y_min"].heuristic = y0 + a
+
+    def calculate_derived_params(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+
+        y_min = fitted_params["y_min"]
+        y_max = fitted_params["y_max"]
+        y_min_err = fit_uncertainties["y_min"]
+        y_max_err = fit_uncertainties["y_max"]
+
+        a = y_max - y_min
+        y0 = 0.5 * (y_min + y_max)
+
+        a_err = y0_err = np.sqrt(y_max**2 + y_min**2)
+
+        fitted_params["a"] = a
+        fitted_params["y0"] = y0
+        fitted_params["y_min"] = y_min
+        fitted_params["y_max"] = y_max
+
+        fit_uncertainties["a"] = a_err
+        fit_uncertainties["y0"] = y0_err
+        fitted_params["y_min"] = y_min_err
+        fitted_params["y_max"] = y_max_err
+
+        derived_params, derived_uncertainties = super().calculate_derived_params(
+            x=x, y=y, fitted_params=fitted_params, fit_uncertainties=fit_uncertainties
+        )
+
+        del fitted_params["a"]
+        del fitted_params["y0"]
+
+        del fit_uncertainties["a"]
+        del fit_uncertainties["y0"]
+
+        del derived_params["y_min"]
+        del derived_params["y_max"]
+
+        del derived_uncertainties["y_min"]
+        del derived_uncertainties["y_max"]
+
+        derived_params["a"] = a
+        derived_params["y0"] = y0
+
+        derived_uncertainties["a"] = a_err
+        derived_uncertainties["y0"] = y0_err

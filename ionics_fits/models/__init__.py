@@ -17,6 +17,6 @@ from . import quantum_phys
 from .rabi import RabiFlopFreq, RabiFlopTime
 from .rectangle import Rectangle
 from .sinc import Sinc, Sinc2
-from .sinusoid import Sinusoid
+from .sinusoid import Sinusoid, SinusoidMinMax
 from .triangle import Triangle
 from . import utils
