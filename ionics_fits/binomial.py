@@ -91,5 +91,5 @@ class BinomialFitter(MLEFitter):
             method="beta",
         )
 
-        sigma = 0.5 * (lower + upper)
+        sigma = 0.5 * (upper - lower)
         return sigma
