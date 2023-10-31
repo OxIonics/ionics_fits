@@ -118,9 +118,9 @@ class MLEFitter(Fitter):
         )
 
         # maxls setting helps with ABNORMAL_TERMINATION_IN_LNSRCH
+        invalid_err = np.geterr()["invalid"]
         try:
             # The minimizer is prone to giving generating harmless runtime warnings
-            invalid_err = np.geterr()["invalid"]
             np.seterr(invalid="ignore")
 
             res = optimize.minimize(
