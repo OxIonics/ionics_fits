@@ -13,27 +13,37 @@ if TYPE_CHECKING:
 
 class Sinusoid(Model):
     """Generalised sinusoid fit according to:
-    y = Gamma * a * sin[omega * (x - x0) + phi] + y0
-    where Gamma = exp(-x / tau).
+      y = offset + 0.5 * Gamma * contrast * sin[omega * (x - x0) + phi])
+    where:
+      - offset = y0 + 0.5 * (P_upper + P_lower)
+      - contrast = 2 * a + (P_upper - P_lower)
+      - Gamma = exp(-x / tau)
 
     Fit parameters (all floated by default unless stated otherwise):
       - a: initial (x = 0) amplitude of the sinusoid
       - omega: angular frequency
       - phi: phase offset (radians)
-      - y0: y-axis offset
+      - y0: y-axis offset (sinusoid mean value) when P_upper & P_lower are 0
       - x0: x-axis offset (fixed to 0 by default)
       - tau: decay/growth constant (fixed to np.inf by default)
 
     Derived parameters:
+      - offset: sinusoid mean value
+      - contrast: peak-to-peak amplitude of the pure (ignoring decay) sinusoid
       - f: frequency
       - phi_cosine: cosine phase (phi + pi/2)
-      - contrast: peak-to-peak amplitude of the pure sinusoid
-      - y_min/y_max: min / max values of the pure sinusoid
+      - y_min/y_max: min / max values of the pure (ignoring decay) sinusoid. These are
+        equivalent to P_upper/ P_lower when y0=a=0.
       - period: period of oscillation
       - TODO: peak values of the damped sinusoid as well as `x` value that the peak
           occurs at.
 
     All phases are in radians, frequencies are in angular units.
+
+    There are two ways of controlling the offset and contrast: {a, y0} (amplitude and
+    offset) and {P_upper, P_lower} (min and max value). Only one pair of these should be
+    floated at a time. By default, {a, y0} are floated and {P_upper, P_lower} are both
+    fixed to 0.
 
     x0 and phi0 are equivalent parametrisations for the phase offset, but in some cases
     it works out convenient to have access to both (e.g. one as a fixed offset, the
@@ -52,6 +62,20 @@ class Sinusoid(Model):
         a: ModelParameter(
             lower_bound=0, scale_func=lambda x_scale, y_scale, _: y_scale
         ),
+        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
+        P_upper: ModelParameter(
+            fixed_to=0,
+            lower_bound=0.0,
+            upper_bound=1.0,
+            scale_func=lambda x_scale, y_scale, _: y_scale,
+        ),
+        P_lower: ModelParameter(
+            fixed_to=0,
+            lower_bound=0.0,
+            upper_bound=1.0,
+            scale_func=lambda x_scale, y_scale, _: y_scale,
+        ),
+        x0: ModelParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
         omega: ModelParameter(
             lower_bound=0, scale_func=lambda x_scale, y_scale, _: 1 / x_scale
         ),
@@ -59,16 +83,16 @@ class Sinusoid(Model):
             period=2 * np.pi,
             offset=-np.pi,
         ),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        x0: ModelParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
         tau: ModelParameter(
             lower_bound=0,
             fixed_to=np.inf,
             scale_func=lambda x_scale, y_scale, _: x_scale,
         ),
     ) -> Array[("num_samples",), np.float64]:
+        offset = y0 + 0.5 * (P_upper + P_lower)
+        contrast = 2 * a + P_upper - P_lower
         Gamma = np.exp(-x / tau)
-        y = Gamma * a * np.sin(omega * (x - x0) + phi) + y0
+        y = offset + 0.5 * Gamma * contrast * np.sin(omega * (x - x0) + phi)
         return y
 
     # pytype: enable=invalid-annotation
@@ -98,15 +122,31 @@ class Sinusoid(Model):
         y = np.squeeze(y)
 
         # We don't have good heuristics for these parameters
-        model_parameters["y0"].heuristic = np.mean(y)
+        offset = np.mean(y)
         model_parameters["tau"].heuristic = np.max(x)
 
         omega, spectrum = utils.get_spectrum(x, y, density_units=False, trim_dc=True)
         spectrum = np.abs(spectrum)
         peak = np.argmax(spectrum)
 
-        model_parameters["a"].heuristic = spectrum[peak] * 2
+        contrast = 4 * spectrum[peak]
         model_parameters["omega"].heuristic = omega[peak]
+
+        unknowns = {
+            param_name
+            for (param_name, param) in model_parameters.items()
+            if not param.has_user_initial_value()
+        }
+        if not {"P_upper", "P_lower"}.intersection(unknowns):
+            model_parameters["y0"].heuristic = offset
+            model_parameters["a"].heuristic = 0.5 * contrast
+        elif not {"a", "y0"}.intersection(unknowns):
+            model_parameters["P_upper"].heuristic = offset + 0.5 * contrast
+            model_parameters["P_lower"].heuristic = offset - 0.5 * contrast
+        else:
+            raise ValueError(
+                "Cannot float a combination of {a, y0} and {P_upper, P_lower}"
+            )
 
         phi_params = copy.deepcopy(model_parameters)
         phi_params["x0"].heuristic = 0.0
@@ -154,23 +194,46 @@ class Sinusoid(Model):
             values and uncertainties.
         """
         derived_params = {}
+        derived_uncertainties = {}
+
+        a = fitted_params["a"]
+        y0 = fitted_params["y0"]
+        P_upper = fitted_params["P_upper"]
+        P_lower = fitted_params["P_lower"]
+
+        offset = y0 + 0.5 * (P_upper + P_lower)
+        contrast = 2 * a + P_upper - P_lower
+
+        derived_params["offset"] = offset
+        derived_params["contrast"] = contrast
+
+        a_err = fit_uncertainties["a"]
+        y0_err = fit_uncertainties["y0"]
+        P_upper_err = fit_uncertainties["P_upper"]
+        P_lower_err = fit_uncertainties["P_lower"]
+
+        offset_err = np.sqrt(
+            y0_err**2 + (0.5 * P_upper_err) ** 2 + (0.5 * P_lower_err) ** 2
+        )
+        contrast_err = np.sqrt((2 * a_err) ** 2 + P_upper_err**2 + P_lower_err**2)
+
+        derived_uncertainties["offset"] = offset_err
+        derived_uncertainties["contrast"] = contrast_err
+
+        derived_params["y_min"] = offset - 0.5 * contrast
+        derived_params["y_max"] = offset + 0.5 * contrast
         derived_params["f"] = fitted_params["omega"] / (2 * np.pi)
         derived_params["phi_cosine"] = fitted_params["phi"] + np.pi / 2
-        derived_params["contrast"] = 2 * np.abs(fitted_params["a"])
-        derived_params["y_min"] = fitted_params["y0"] - np.abs(fitted_params["a"])
-        derived_params["y_max"] = fitted_params["y0"] + np.abs(fitted_params["a"])
         derived_params["period"] = 2 * np.pi / fitted_params["omega"]
 
-        derived_uncertainties = {}
-        derived_uncertainties["f"] = fit_uncertainties["omega"] / (2 * np.pi)
-        derived_uncertainties["phi_cosine"] = fit_uncertainties["phi"]
-        derived_uncertainties["contrast"] = 2 * fit_uncertainties["a"]
         derived_uncertainties["y_min"] = np.sqrt(
-            fit_uncertainties["y0"] ** 2 + fit_uncertainties["a"] ** 2
+            offset_err**2 + (0.5 * contrast_err) ** 2
         )
         derived_uncertainties["y_max"] = np.sqrt(
-            fit_uncertainties["y0"] ** 2 + fit_uncertainties["a"] ** 2
+            offset_err**2 + (0.5 * contrast_err) ** 2
         )
+        derived_uncertainties["f"] = fit_uncertainties["omega"] / (2 * np.pi)
+        derived_uncertainties["phi_cosine"] = fit_uncertainties["phi"]
         derived_uncertainties["period"] = (
             2 * np.pi * fit_uncertainties["omega"] / (fitted_params["omega"] ** 2)
         )

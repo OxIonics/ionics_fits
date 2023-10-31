@@ -118,13 +118,20 @@ class MLEFitter(Fitter):
         )
 
         # maxls setting helps with ABNORMAL_TERMINATION_IN_LNSRCH
-        res = optimize.minimize(
-            fun=self.log_liklihood,
-            args=(x, y, free_func),
-            x0=p0,
-            bounds=zip(lower, upper),
-            options={"maxls": 100},
-        )
+        try:
+            # The minimizer is prone to giving generating harmless runtime warnings
+            invalid_err = np.geterr()["invalid"]
+            np.seterr(invalid="ignore")
+
+            res = optimize.minimize(
+                fun=self.log_liklihood,
+                args=(x, y, free_func),
+                x0=p0,
+                bounds=zip(lower, upper),
+                options={"maxls": 100},
+            )
+        finally:
+            np.seterr(invalid=invalid_err)
 
         if not res.success:
             raise RuntimeError(f"{self.TYPE} fit failed: {res.message}")

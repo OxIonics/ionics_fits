@@ -14,6 +14,8 @@ def test_sinusoid(plot_failures: bool):
         "y0": 1,
         "x0": 0,
         "tau": np.inf,
+        "P_lower": 0,
+        "P_upper": 0,
     }
     model = fits.models.Sinusoid()
     common.check_multiple_param_sets(
@@ -31,6 +33,8 @@ def test_sinusoid_x0(plot_failures: bool):
         "y0": 1,
         "x0": 1,
         "tau": np.inf,
+        "P_lower": 0,
+        "P_upper": 0,
     }
     model = fits.models.Sinusoid()
     model.parameters["x0"].fixed_to = None
@@ -51,7 +55,12 @@ def fuzz_sinusoid(
     w_nyquist = 0.5 * (1 / dx) * 2 * np.pi
     w_min = 1 / x.ptp() * 2 * np.pi
 
-    static_params = {"tau": np.inf, "x0": 0}
+    static_params = {
+        "tau": np.inf,
+        "x0": 0,
+        "P_lower": 0,
+        "P_upper": 0,
+    }
     fuzzed_params = {
         "a": (0, 3),
         "omega": (2 * w_min, 0.5 * w_nyquist),

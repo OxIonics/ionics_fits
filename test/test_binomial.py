@@ -12,15 +12,19 @@ def test_binomial(plot_failures):
     x = np.linspace(-3, 3, 200) * 2 * np.pi
     model = fits.models.Sinusoid()
     params = {
-        "a": 0.5,
+        "a": 0,
+        "y0": 0,
+        "P_lower": 0,
+        "P_upper": 1,
         "omega": 1,
         "phi": 1,
-        "y0": 0.5,
         "x0": 0,
         "tau": np.inf,
     }
     model.parameters["a"].fixed_to = params["a"]
     model.parameters["y0"].fixed_to = params["y0"]
+    model.parameters["P_lower"].fixed_to = None
+    model.parameters["P_upper"].fixed_to = None
 
     common.check_single_param_set(
         x=x,
@@ -42,21 +46,28 @@ def test_binomial_synthetic(plot_failures):
 
     x = np.linspace(-1, 1, 200) * 2 * np.pi
     model = fits.models.Sinusoid()
+    contrast = 0.995
+    offset = 0.5
+
     params = {
-        "a": 0.5 * 0.995,
+        "P_lower": offset - 0.5 * contrast,
+        "P_upper": offset + 0.5 * contrast,
+        "a": 0,
+        "y0": 0,
         "omega": 1,
         "phi": 1,
-        "y0": 0.5,
         "x0": 0,
         "tau": np.inf,
     }
 
+    model.parameters["P_lower"].fixed_to = None
+    model.parameters["P_upper"].fixed_to = None
+    model.parameters["a"].fixed_to = params["a"]
     model.parameters["y0"].fixed_to = params["y0"]
     model.parameters["omega"].fixed_to = params["omega"]
     model.parameters["x0"].fixed_to = params["x0"]
+    model.parameters["phi"].fixed_to = params["phi"]
 
-    model.parameters["a"].lower_bound = 0
-    model.parameters["a"].upper_bound = 0.5
     model.parameters["omega"].lower_bound = 0
     model.parameters["omega"].upper_bound = 10
     model.parameters["phi"].lower_bound = 0
@@ -66,8 +77,8 @@ def test_binomial_synthetic(plot_failures):
 
     y_model = model.func(x, params)
 
-    a_fit = np.zeros(num_datasets)
-    a_err = np.zeros_like(a_fit)
+    contrast_fit = np.zeros(num_datasets)
+    contrast_err = np.zeros_like(contrast_fit)
 
     for sample in range(num_datasets):
         y = stats.binom.rvs(n=num_trials, p=y_model, size=y_model.size)
@@ -75,37 +86,42 @@ def test_binomial_synthetic(plot_failures):
 
         fit = fits.BinomialFitter(x=x, y=y, num_trials=num_trials, model=model)
 
-        a_fit[sample] = fit.values["a"]
-        a_err[sample] = fit.uncertainties["a"]
+        contrast_fit[sample] = fit.derived_values["contrast"]
+        contrast_err[sample] = fit.derived_uncertainties["contrast"]
 
-    a_fit_mean = np.mean(a_fit)
-    a_fit_err = np.abs(np.mean(a_fit) - params["a"])
-    a_std_err = np.mean(a_err)
-    a_fit_std = np.std(a_fit)
+    contrast_fit_mean = np.mean(contrast_fit)
+    contrast_fit_err = np.abs(np.mean(contrast_fit) - contrast)
+    contrast_std_err = np.mean(contrast_err)
+    contrast_fit_std = np.std(contrast_fit)
 
     def plot_fits():
         if not plot_failures:
             return
 
         num_bins = 100
-        _, a_edges = np.histogram(a_fit, num_bins)
-        a_bin_centres = (a_edges[:-1] + a_edges[1:]) / 2
+        _, contrast_edges = np.histogram(contrast_fit, num_bins)
+        contrast_bin_centres = (contrast_edges[:-1] + contrast_edges[1:]) / 2
 
-        hist_results = plt.hist(a_fit / 0.5, bins=a_edges / 0.5, density=True)
-        a_hist = hist_results[0]
+        hist_results = plt.hist(contrast_fit, bins=contrast_edges, density=True)
+        contrast_hist = hist_results[0]
 
-        plt.axvline(x=params["a"] / 0.5, color="black", label="nominal")
-        plt.axvline(x=(params["a"] + a_fit_std) / 0.5, color="black", linestyle="--")
-        plt.axvline(x=(params["a"] - a_fit_std) / 0.5, color="black", linestyle="--")
+        plt.axvline(x=contrast, color="black", label="nominal")
+        plt.axvline(x=contrast + contrast_fit_std, color="black", linestyle="--")
+        plt.axvline(x=contrast - contrast_fit_std, color="black", linestyle="--")
 
-        plt.axvline(x=a_fit_mean / 0.5, color="blue", label="fitted")
-        plt.axvline(x=(a_fit_mean + a_std_err) / 0.5, color="blue", linestyle="--")
-        plt.axvline(x=(a_fit_mean - a_std_err) / 0.5, color="blue", linestyle="--")
+        plt.axvline(x=contrast_fit_mean, color="blue", label="fitted")
+        plt.axvline(
+            x=contrast_fit_mean + contrast_std_err, color="blue", linestyle="--"
+        )
+        plt.axvline(
+            x=contrast_fit_mean - contrast_std_err, color="blue", linestyle="--"
+        )
 
         hist_model = fits.models.Gaussian()
-        hist_fit = fits.NormalFitter(x=a_bin_centres, y=a_hist, model=hist_model)
-        norm_x, norm_y = hist_fit.evaluate()
-        plt.plot(norm_x / 0.5, norm_y)
+        hist_fit = fits.NormalFitter(
+            x=contrast_bin_centres, y=contrast_hist, model=hist_model
+        )
+        plt.plot(*hist_fit.evaluate(True))
 
         plt.xlabel("contrast")
         plt.ylabel("relative frequency")
@@ -113,12 +129,19 @@ def test_binomial_synthetic(plot_failures):
         plt.legend()
         plt.show()
 
-    if np.mean(a_fit) - params["a"] > 1e-3:
+    print(np.mean(contrast_fit), contrast)
+    print(contrast_std_err, contrast_fit_std)
+    print(contrast_err)
+
+    if np.mean(contrast_fit) - contrast > 1e-3:
         plot_fits()
-        raise ValueError(f"Error in fitted parameter value too high ({a_fit_err:.3e})")
-    if np.abs(1 - a_std_err / a_fit_std) > 0.25:
+        raise ValueError(
+            f"Error in fitted parameter value too high ({contrast_fit_err:.3e})"
+        )
+    if np.abs(1 - contrast_std_err / contrast_fit_std) > 0.25:
         plot_fits()
         raise ValueError(
             "Standard error estimate does not match standard deviation of fitted "
-            f"parameter values: (standard errors {a_std_err:.3e}, {a_fit_std:.3e})"
+            f"parameter values: (standard errors {contrast_std_err:.3e}, "
+            f"{contrast_fit_std:.3e})"
         )
