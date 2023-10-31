@@ -41,6 +41,7 @@ def test_binomial_synthetic(plot_failures):
     Check that the BinomialFitter gives an unbiased parameter estimate with correct
     parameter standard errors.
     """
+    np.random.seed(516428)
     num_trials = 200
     num_datasets = 1000
 
@@ -128,10 +129,6 @@ def test_binomial_synthetic(plot_failures):
         plt.grid()
         plt.legend()
         plt.show()
-
-    print(np.mean(contrast_fit), contrast)
-    print(contrast_std_err, contrast_fit_std)
-    print(contrast_err)
 
     if np.mean(contrast_fit) - contrast > 1e-3:
         plot_fits()
