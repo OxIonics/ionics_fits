@@ -15,6 +15,7 @@ from .molmer_sorensen import MolmerSorensenFreq, MolmerSorensenTime
 from .polynomial import Power, Polynomial, Line, Parabola
 from . import quantum_phys
 from .rabi import RabiFlopFreq, RabiFlopTime
+from .ramsey import Ramsey
 from .rectangle import Rectangle
 from .sinc import Sinc, Sinc2
 from .sinusoid import Sinusoid
