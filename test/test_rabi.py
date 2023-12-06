@@ -100,7 +100,7 @@ def test_rabi_time_inverted(plot_failures: bool):
     _test_rabi_time(plot_failures=plot_failures, P_readout_e=0.0)
 
 
-def test_tau(plot_failures: bool):
+def test_rabi_tau(plot_failures: bool):
     """Check that rabi flops with decay are handled correctly."""
     t_pulse = np.linspace(0, 20e-6, 100) * 2 * np.pi
     t_pi = 5e-6
@@ -117,6 +117,34 @@ def test_tau(plot_failures: bool):
     model.parameters["P_readout_g"].fixed_to = params["P_readout_g"]
     model.parameters["delta"].fixed_to = params["delta"]
     model.parameters["tau"].fixed_to = None
+
+    common.check_single_param_set(
+        t_pulse,
+        model,
+        params,
+        common.TestConfig(
+            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
+        ),
+    )
+
+
+def test_rabi_time_offset(plot_failures: bool):
+    """Check that Rabi flops where `min(t) >> t_pi` are handled properly."""
+    t_pi = 5e-6
+    t_pulse = np.linspace(100.3, 103.7, 30) * t_pi
+
+    params = {
+        "P_readout_e": 1.0,
+        "P_readout_g": 0.0,
+        "delta": 0,
+        "omega": np.pi / t_pi,
+        "t_dead": 0.0,
+        "tau": np.inf,
+    }
+    model = fits.models.RabiFlopTime(start_excited=True)
+    model.parameters["P_readout_e"].fixed_to = params["P_readout_e"]
+    model.parameters["P_readout_g"].fixed_to = params["P_readout_g"]
+    model.parameters["delta"].fixed_to = params["delta"]
 
     common.check_single_param_set(
         t_pulse,
