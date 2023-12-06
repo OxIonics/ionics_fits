@@ -350,3 +350,31 @@ class RabiFlopTime(RabiFlop):
 
             model_parameters["delta"].heuristic = deltas[opt_idx]
             model_parameters["omega"].heuristic = omegas[opt_idx]
+
+        # Corner-case: if the time axis starts from t_0 >> t_pi the above heuristic
+        # can fail. This is because the accuracy of the sinusoid fit is limited by the
+        # step size in frequency space. Once the uncertainty in the Rabi frequency
+        # estimate becomes such that we don't know if we've done n or (n + 1) flops
+        # before t_0 the fits will start failing.
+        d_omega = 2 * np.pi / x.ptp()  # approx uncertainty in Rabi freq from FFT
+        t_pi = np.pi / model_parameters["omega"].get_initial_value()
+        d_t_pi = np.pi / d_omega
+        n_pi = min(x) / t_pi
+        err = d_t_pi * n_pi  # number of t_pi worth of uncertainty in the fit
+
+        if err > 0.1:
+            n_pi_min = max(n_pi - 4 * err, 0.0)
+            n_pi_max = n_pi + 4 * err
+            num_pts = int(np.rint(20 * (n_pi_max - n_pi_min)))
+
+            omega_min = np.pi * n_pi_min / min(x)
+            omega_max = np.pi * n_pi_max / min(x)
+            omegas = np.linspace(omega_min, omega_max, num_pts)
+
+            model_parameters["omega"].heuristic, _ = self.param_min_sqrs(
+                x=x,
+                y=y,
+                parameters=model_parameters,
+                scanned_param="omega",
+                scanned_param_values=omegas,
+            )
