@@ -1,10 +1,12 @@
 from __future__ import annotations
-import dataclasses
+
 import copy
+import dataclasses
 import inspect
 import logging
 import numpy as np
 from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
+
 from .utils import Array, ArrayLike
 
 
@@ -137,7 +139,11 @@ class Model:
     the data statistics.
     """
 
-    def __init__(self, parameters: Optional[Dict[str, ModelParameter]] = None):
+    def __init__(
+        self,
+        parameters: Optional[Dict[str, ModelParameter]] = None,
+        internal_parameters: Optional[List[ModelParameter]] = None,
+    ):
         """
         :param parameters: optional dictionary mapping names of model parameters to
             their metadata. This should be `None` (default) if the model has a static
@@ -145,6 +151,9 @@ class Model:
             the call signature of :meth _func:. The model parameters are stored as
             `self.parameters` and may be modified after construction to change the model
             behaviour during fitting (e.g. to change the bounds, fixed parameters, etc).
+        :param internal_parameters: optional list of "internal" model parameters, which
+            are not exposed to the user as arguments of :meth func:. These are typically
+            used by models which encapsulate / modify the behaviour of other models.
         """
         if parameters is None:
             spec = inspect.getfullargspec(self._func)
@@ -157,13 +166,15 @@ class Model:
             }
         else:
             self.parameters = parameters
+        self.internal_parameters = internal_parameters or []
 
     def can_rescale(self, x_scale: float, y_scale: float) -> bool:
         """Returns True if the model can be rescaled"""
+        parameters = list(self.parameters.values()) + self.internal_parameters
         return all(
             [
                 param_data.can_rescale(x_scale, y_scale, self)
-                for param_data in self.parameters.values()
+                for param_data in parameters
             ]
         )
 
@@ -177,8 +188,11 @@ class Model:
         :returns: a scaled copy of model
         """
         scaled_model = copy.deepcopy(model)
-        for param in scaled_model.parameters.values():
-            param.rescale(x_scale, y_scale, scaled_model)
+        parameters = (
+            list(scaled_model.parameters.values()) + scaled_model.internal_parameters
+        )
+        for param_data in parameters:
+            param_data.rescale(x_scale, y_scale, scaled_model)
 
         return scaled_model
 
@@ -737,8 +751,6 @@ class Fitter:
 
     def calc_sigma(
         self,
-    ) -> Optional[Array[("num_y_channels", "num_samples"), np.float64]]:
-        """Return an array of standard error values for each y-axis data point
-        if available.
-        """
-        return None
+    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+        """Return an array of standard error values for each y-axis data point."""
+        raise NotImplementedError

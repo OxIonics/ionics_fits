@@ -314,39 +314,39 @@ class MappedModel(Model):
 
     def __init__(
         self,
-        inner: Model,
-        mapped_params: Dict[str, str],
+        wrapped_model: Model,
+        param_mapping: Dict[str, str],
         fixed_params: Optional[Dict[str, float]] = None,
     ):
         """Init
 
-        :param inner: The wrapped model, the implementation of `inner` will be used
-            after the parameter mapping has been done.
-        :param mapped_params: dictionary mapping names of parameters in the new
+        :param wrapped_model: The wrapped model.
+        :param param_mapping: dictionary mapping names of parameters in the new
             model to names of parameters used in the wrapped model.
         :param fixed_params: dictionary mapping names of parameters used in the
             wrapped model to values they are fixed to in the new model. These
             will not be parameters of the new model.
         """
-        inner_params = inner.parameters
+        self.wrapped_model = copy.deepcopy(wrapped_model)
+        wrapped_model = None  # prevent accidental use of the uncopied model
+        wrapped_params = self.wrapped_model.parameters
 
-        if fixed_params is None:
-            fixed_params = {}
+        fixed_params = fixed_params or {}
 
-        if unknown_mapped_params := set(mapped_params.values()) - inner_params.keys():
+        if unknown_mapped_params := set(param_mapping.values()) - wrapped_params.keys():
             raise ValueError(
                 "The target of parameter mappings must be parameters of the inner "
-                f"model. The mapping targets are not: {unknown_mapped_params}"
+                f"model. The following mapping targets are not: {unknown_mapped_params}"
             )
 
-        if unknown_fixed_params := fixed_params.keys() - inner_params.keys():
+        if unknown_fixed_params := fixed_params.keys() - wrapped_params.keys():
             raise ValueError(
                 "Fixed parameters must be parameters of the inner model. The "
                 f"follow fixed parameters are not: {unknown_fixed_params}"
             )
 
-        if missing_params := inner_params.keys() - (
-            fixed_params.keys() | mapped_params.values()
+        if missing_params := wrapped_params.keys() - (
+            fixed_params.keys() | param_mapping.values()
         ):
             raise ValueError(
                 "All parameters of the inner model must be either mapped of "
@@ -354,52 +354,39 @@ class MappedModel(Model):
                 f"{missing_params}"
             )
 
-        if duplicated_params := fixed_params.keys() & mapped_params.values():
+        if duplicated_params := fixed_params.keys() & param_mapping.values():
             raise ValueError(
                 "Parameters cannot be both mapped and fixed. The following "
                 f"parameters are both: {duplicated_params}"
             )
 
-        params = {
-            new_name: inner_params[old_name]
-            for new_name, old_name in mapped_params.items()
+        self.fixed_params = {
+            param_name: self.wrapped_model.parameters[param_name]
+            for param_name in fixed_params.keys()
         }
-        super().__init__(parameters=params)
-        self.inner = inner
-        self.mapped_args = mapped_params
-        self.fixed_params = fixed_params or {}
+        for param_name, fixed_to in fixed_params.items():
+            self.fixed_params[param_name].fixed_to = fixed_to
+
+        self.param_mapping = param_mapping
+        exposed_params = {
+            new_name: self.wrapped_model.parameters[old_name]
+            for new_name, old_name in param_mapping.items()
+        }
+        internal_parameters = (
+            list(self.fixed_params.values()) + self.wrapped_model.internal_parameters
+        )
+        super().__init__(
+            parameters=exposed_params,
+            internal_parameters=internal_parameters,
+        )
 
     def can_rescale(self, x_scale: float, y_scale: float) -> bool:
         """Returns True if the model can be rescaled"""
-        return self.inner.can_rescale(x_scale, y_scale)
-
-    @staticmethod
-    def get_scaled_model(model, x_scale: float, y_scale: float):
-        """Returns a scaled copy of a given model object
-
-        :param model: model to be copied and rescaled
-        :param x_scale: x-axis scale factor
-        :param y_scale: y-axis scale factor
-        :returns: a scaled copy of model
-        """
-        scaled_model = copy.deepcopy(model)
-        for param_name, param in scaled_model.inner.parameters.items():
-            param.rescale(x_scale, y_scale, scaled_model.inner)
-
-        for fixed_param in scaled_model.fixed_params.keys():
-            scale_factor = scaled_model.inner.parameters[fixed_param].scale_factor
-            scaled_model.fixed_params[fixed_param] /= scale_factor
-
-        # Expose the scale factors to the fitter so it knows how to rescale the results
-        for new_name, old_name in scaled_model.mapped_args.items():
-            scale_factor = scaled_model.inner.parameters[old_name].scale_factor
-            scaled_model.parameters[new_name].scale_factor = scale_factor
-
-        return scaled_model
+        return self.wrapped_model.can_rescale(x_scale, y_scale)
 
     def get_num_y_channels(self) -> int:
         """Returns the number of y channels supported by the model"""
-        return self.inner.get_num_y_channels()
+        return self.wrapped_model.get_num_y_channels()
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
@@ -416,10 +403,15 @@ class MappedModel(Model):
         """
         new_params = {
             old_name: param_values[new_name]
-            for new_name, old_name in self.mapped_args.items()
+            for new_name, old_name in self.param_mapping.items()
         }
-        new_params.update(self.fixed_params)
-        return self.inner.func(x, new_params)
+        new_params.update(
+            {
+                param_name: param_data.fixed_to
+                for param_name, param_data in self.fixed_params.items()
+            }
+        )
+        return self.wrapped_model.func(x, new_params)
 
     def _inner_estimate_parameters(
         self,
@@ -427,7 +419,7 @@ class MappedModel(Model):
         y: Array[("num_samples", "num_y_channels"), np.float64],
         inner_parameters: Dict[str, ModelParameter],
     ) -> Dict[str, float]:
-        return self.inner.estimate_parameters(x, y, inner_parameters)
+        return self.wrapped_model.estimate_parameters(x, y, inner_parameters)
 
     def estimate_parameters(
         self,
@@ -451,21 +443,13 @@ class MappedModel(Model):
             metadata, rescaled if allowed.
         """
         inner_parameters = {
-            original_param: copy.deepcopy(model_parameters[new_param])
-            for new_param, original_param in self.mapped_args.items()
+            old_name: model_parameters[new_name]
+            for new_name, old_name in self.param_mapping.items()
         }
-
-        inner_parameters.update(
-            {
-                param: ModelParameter(
-                    lower_bound=value, upper_bound=value, fixed_to=value
-                )
-                for param, value in self.fixed_params.items()
-            }
-        )
+        inner_parameters.update(self.fixed_params)
 
         self._inner_estimate_parameters(x, y, inner_parameters)
-
-        for new_param, original_param in self.mapped_args.items():
-            initial_value = inner_parameters[original_param].get_initial_value()
-            model_parameters[new_param].heuristic = initial_value
+        return {
+            new_name: inner_parameters[old_name]
+            for new_name, old_name in self.param_mapping.items()
+        }
