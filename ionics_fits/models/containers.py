@@ -56,6 +56,14 @@ class AggregateModel(Model):
     def get_num_y_channels(self) -> int:
         return len(self.models)
 
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return all(
+            [
+                model.can_rescale(x_scale=x_scale, y_scale=y_scale)
+                for _, model in self.models
+            ]
+        )
+
     def func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -181,6 +189,9 @@ class RepeatedModel(Model):
 
     def get_num_y_channels(self) -> int:
         return self.num_repetitions * self.inner.get_num_y_channels()
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return self.inner.can_rescale(x_scale, y_scale)
 
     def func(
         self,
@@ -381,27 +392,15 @@ class MappedModel(Model):
             internal_parameters=internal_parameters,
         )
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        """Returns True if the model can be rescaled"""
-        return self.wrapped_model.can_rescale(x_scale, y_scale)
-
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return self.wrapped_model.get_num_y_channels()
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return self.wrapped_model.can_rescale(x_scale, y_scale)
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples", "num_y_channels"), np.float64]:
-        """Evaluates the model at a given set of x-axis points and with a given set of
-        parameter values and returns the result.
-
-        Overload this to provide a model function with a dynamic set of parameters,
-        otherwise prefer to override `_func`.
-
-        :param x: x-axis data
-        :param param_values: dictionary of parameter values
-        :returns: array of model values
-        """
         new_params = {
             old_name: param_values[new_name]
             for new_name, old_name in self.param_mapping.items()
@@ -419,17 +418,4 @@ class MappedModel(Model):
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples", "num_y_channels"), np.float64],
     ):
-        """Set heuristic values for model parameters.
-
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
-
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
-        """
         self.wrapped_model.estimate_parameters(x, y)

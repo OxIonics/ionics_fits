@@ -2,7 +2,7 @@ import copy
 import numpy as np
 from typing import Dict, Tuple, TYPE_CHECKING
 
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
 from ..utils import Array
 from . import utils
 
@@ -41,29 +41,28 @@ class Sinusoid(Model):
     """
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return True
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        a: ModelParameter(
-            lower_bound=0, scale_func=lambda x_scale, y_scale, _: y_scale
-        ),
-        omega: ModelParameter(
-            lower_bound=0, scale_func=lambda x_scale, y_scale, _: 1 / x_scale
-        ),
+        a: ModelParameter(lower_bound=0, scale_func=common.scale_y),
+        omega: ModelParameter(lower_bound=0, scale_func=common.scale_x_inv),
         phi: utils.PeriodicModelParameter(
             period=2 * np.pi,
             offset=-np.pi,
+            scale_func=common.scale_invariant,
         ),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        x0: ModelParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
+        y0: ModelParameter(scale_func=common.scale_y),
+        x0: ModelParameter(fixed_to=0, scale_func=common.scale_x),
         tau: ModelParameter(
             lower_bound=0,
             fixed_to=np.inf,
-            scale_func=lambda x_scale, y_scale, _: x_scale,
+            scale_func=common.scale_x,
         ),
     ) -> Array[("num_samples",), np.float64]:
         Gamma = np.exp(-x / tau)
@@ -121,21 +120,6 @@ class Sinusoid(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """
-        Returns dictionaries of values and uncertainties for the derived model
-        parameters (parameters which are calculated from the fit results rather than
-        being directly part of the fit) based on values of the fitted parameters and
-        their uncertainties.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param: fitted_params: dictionary mapping model parameter names to their
-            fitted values.
-        :param fit_uncertainties: dictionary mapping model parameter names to
-            their fit uncertainties.
-        :returns: tuple of dictionaries mapping derived parameter names to their
-            values and uncertainties.
-        """
         derived_params = {}
         derived_params["f"] = fitted_params["omega"] / (2 * np.pi)
         derived_params["phi_cosine"] = fitted_params["phi"] + np.pi / 2

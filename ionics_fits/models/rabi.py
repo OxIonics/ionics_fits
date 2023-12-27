@@ -4,7 +4,7 @@ import numpy as np
 
 from .sinc import Sinc2
 from .sinusoid import Sinusoid
-from .. import Model, ModelParameter, NormalFitter
+from .. import common, Model, ModelParameter, NormalFitter
 from .utils import get_spectrum
 from ..utils import Array
 
@@ -64,8 +64,10 @@ class RabiFlop(Model):
         self.start_excited = start_excited
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return True
 
     # pytype: disable=invalid-annotation
     def _func(
@@ -80,17 +82,21 @@ class RabiFlop(Model):
         P_readout_e: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            scale_func=lambda x_scale, y_scale, _: y_scale,
+            scale_func=common.scale_y,
         ),
         P_readout_g: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            scale_func=lambda x_scale, y_scale, _: y_scale,
+            scale_func=common.scale_y,
         ),
-        omega: ModelParameter(lower_bound=0.0),
-        tau: ModelParameter(lower_bound=0.0, fixed_to=np.inf),
-        t_dead: ModelParameter(lower_bound=0.0, fixed_to=0.0),
-        w_0: ModelParameter(),
+        omega: ModelParameter(lower_bound=0.0, scale_func=common.scale_undefined),
+        tau: ModelParameter(
+            lower_bound=0.0, fixed_to=np.inf, scale_func=common.scale_undefined
+        ),
+        t_dead: ModelParameter(
+            lower_bound=0.0, fixed_to=0.0, scale_func=common.scale_undefined
+        ),
+        w_0: ModelParameter(scale_func=common.scale_undefined),
     ) -> Array[("num_samples",), np.float64]:
         """:param x: tuple of (t_pulse, w)"""
         t = np.clip(x[0] - t_dead, a_min=0.0, a_max=None)
@@ -147,22 +153,19 @@ class RabiFlopFreq(RabiFlop):
     def __init__(self, start_excited: bool):
         super().__init__(start_excited)
 
-        self.parameters["t_pulse"] = ModelParameter(lower_bound=0.0)
+        self.parameters["t_pulse"] = ModelParameter(
+            lower_bound=0.0, scale_func=common.scale_x_inv
+        )
 
-        self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: x_scale
-        self.parameters["w_0"].scale_func = lambda x_scale, y_scale, _: x_scale
+        self.parameters["omega"].scale_func = common.scale_x
+        self.parameters["w_0"].scale_func = common.scale_x
 
-        self.parameters["t_pulse"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
-        self.parameters["tau"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
-        self.parameters["t_dead"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
+        self.parameters["tau"].scale_func = common.scale_x_inv
+        self.parameters["t_dead"].scale_func = common.scale_x_inv
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
-        """Returns measurement outcome as function of pulse frequency.
-
-        :param x: Angular frequency
-        """
         param_values = param_values.copy()
         t_pulse = param_values.pop("t_pulse")
         return self._func(
@@ -263,22 +266,17 @@ class RabiFlopTime(RabiFlop):
     def __init__(self, start_excited: bool):
         super().__init__(start_excited)
 
-        self.parameters["delta"] = ModelParameter()
+        self.parameters["delta"] = ModelParameter(scale_func=common.scale_x_inv)
         del self.parameters["w_0"]
 
-        self.parameters["delta"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
-        self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
+        self.parameters["omega"].scale_func = common.scale_x_inv
 
-        self.parameters["tau"].scale_func = lambda x_scale, y_scale, _: x_scale
-        self.parameters["t_dead"].scale_func = lambda x_scale, y_scale, _: x_scale
+        self.parameters["tau"].scale_func = common.scale_x
+        self.parameters["t_dead"].scale_func = common.scale_x
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
-        """Returns measurement outcome as function of pulse duration.
-
-        :param x: Pulse duration
-        """
         param_values = param_values.copy()
         delta = param_values.pop("delta")
         param_values["w_0"] = 0.0

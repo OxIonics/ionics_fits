@@ -21,11 +21,64 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def scale_invariant(x_scale: float, y_scale: float) -> float:
+    """Scale function for model parameters whose value is invariant under rescaling of
+    the x- and y-axes"""
+    return 1
+
+
+def scale_x(x_scale: float, y_scale: float) -> float:
+    """
+    Scale function for model parameters whose value scales linearly with the x-axis
+    """
+    return x_scale
+
+
+def scale_x_inv(x_scale: float, y_scale: float) -> float:
+    """
+    Scale function for model parameters whose value scales with 1/x_scale
+    """
+    return 1 / x_scale
+
+
+def scale_y(x_scale: float, y_scale: float) -> float:
+    """
+    Scale function for model parameters whose value scales linearly with the x-axis
+    """
+    return y_scale
+
+
+def scale_power(x_power: int, y_power: int) -> Callable[[float, float], float]:
+    """Returns a scale function for model parameters whose value scales as a power of
+    the x- and y-axes
+    """
+
+    def scale_func(x_scale: float, y_scale: float) -> float:
+        return (x_scale**x_power) * (y_scale**y_power)
+
+    return scale_func
+
+
+def scale_undefined(x_scale: float, y_scale: float) -> float:
+    """This is typically used when the appropriate scale factor to use must be
+    determined at runtime"""
+    raise RuntimeError(
+        "Attempt to rescale model parameter with undefined scale function"
+    )
+
+
 @dataclasses.dataclass
 class ModelParameter:
     """Metadata associated with a model parameter.
 
     Attributes:
+        scale_func: callable returning a scale factor which the parameter must be
+            *multiplied* by if it was fitted using `x` / `y` data that has been
+            *multiplied* by the given scale factors. Scale factors are used to improve
+            numerical stability by avoiding asking the optimizer to work with very large
+            or very small values of `x` and `y`. The callable takes the x-axis and
+            y-axis scale factors as arguments. A number of default scale functions are
+            provided for convenience.
         lower_bound: lower bound for the parameter. Fitted values are guaranteed to be
             greater than or equal to the lower bound. Parameter bounds may be used by
             fit heuristics to help find good starting points for the optimizer.
@@ -47,43 +100,21 @@ class ModelParameter:
             used as an initial value during fitting. It is set by the
             `estimate_parameters` method of the model in which the parameter is used
             and should not be set by the user.
-        scale_func: callable returning a scale factor which the parameter must be
-            *multiplied* by if it was fitted using `x` / `y` data that has been
-            *multiplied* by the given scale factors. Scale factors are used to improve
-            numerical stability by avoiding asking the optimizer to work with very large
-            or very small values of `x` and `y`. The callable takes three arguments: the
-            x-axis and y-axis scale factors and the model instance. If any `scale_func`
-            returns a value that is `0`, not finite (e.g. `nan`) or `None` we do not
-            rescale the coordinates. c.f. :meth can_rescale: and :meth rescale:.
     """
 
+    scale_func: Callable[[float, float], float]
     lower_bound: float = -np.inf
     upper_bound: float = np.inf
     fixed_to: Optional[float] = None
     user_estimate: Optional[float] = None
     heuristic: Optional[float] = None
     scale_factor: float = 1
-    scale_func: Callable[
-        [
-            float,
-            float,
-            Model,
-        ],
-        Optional[float],
-    ] = lambda x_scale, y_scale, model: 1
 
-    def can_rescale(self, x_scale: float, y_scale: float, model: Model) -> bool:
-        """Returns `True` if the parameter can be rescaled."""
-        scale_factor = self.scale_func(x_scale, y_scale, model)
-        return (
-            scale_factor is not None and np.isfinite(scale_factor) and scale_factor != 0
-        )
-
-    def rescale(self, x_scale: float, y_scale: float, model: Model):
+    def rescale(self, x_scale: float, y_scale: float):
         """Rescales the parameter metadata based on the specified x and y data scale
         factors and returns the overall scale factor used.
         """
-        scale_factor = self.scale_func(x_scale, y_scale, model)
+        scale_factor = self.scale_func(x_scale, y_scale)
 
         if scale_factor is None:
             raise ValueError("Scale factor must not be None during rescale")
@@ -190,13 +221,7 @@ class Model:
 
     def can_rescale(self, x_scale: float, y_scale: float) -> bool:
         """Returns True if the model can be rescaled"""
-        parameters = list(self.parameters.values()) + self.internal_parameters
-        return all(
-            [
-                param_data.can_rescale(x_scale, y_scale, self)
-                for param_data in parameters
-            ]
-        )
+        raise NotImplementedError
 
     @staticmethod
     def get_scaled_model(model, x_scale: float, y_scale: float):
@@ -208,11 +233,16 @@ class Model:
         :returns: a scaled copy of model
         """
         scaled_model = copy.deepcopy(model)
-        parameters = (
-            list(scaled_model.parameters.values()) + scaled_model.internal_parameters
-        )
-        for param_data in parameters:
-            param_data.rescale(x_scale, y_scale, scaled_model)
+
+        for param_name, param_data in scaled_model.parameters.items():
+            if param_data.scale_func == scale_undefined:
+                raise RuntimeError(
+                    f"Parameter {param_name} has an undefined scale function"
+                )
+            param_data.rescale(x_scale, y_scale)
+
+        for param_data in scaled_model.internal_parameters:
+            param_data.rescale(x_scale, y_scale)
 
         return scaled_model
 

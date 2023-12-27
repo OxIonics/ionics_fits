@@ -1,7 +1,7 @@
 from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
 
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
 from ..utils import Array
 
 if TYPE_CHECKING:
@@ -24,21 +24,23 @@ class Exponential(Model):
     """
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return True
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
         x_dead: ModelParameter(
-            lower_bound=0, fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale
+            lower_bound=0,
+            fixed_to=0,
+            scale_func=common.scale_x,
         ),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        y_inf: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        tau: ModelParameter(
-            lower_bound=0, scale_func=lambda x_scale, y_scale, _: x_scale
-        ),
+        y0: ModelParameter(scale_func=common.scale_y),
+        y_inf: ModelParameter(scale_func=common.scale_y),
+        tau: ModelParameter(lower_bound=0, scale_func=common.scale_x),
     ) -> Array[("num_samples",), np.float64]:
         y = y0 + (y_inf - y0) * (1 - np.exp(-(x - x_dead) / tau))
         y = np.where(x >= x_dead, y, y0)
@@ -67,21 +69,6 @@ class Exponential(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """
-        Returns dictionaries of values and uncertainties for the derived model
-        parameters (parameters which are calculated from the fit results rather than
-        being directly part of the fit) based on values of the fitted parameters and
-        their uncertainties.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param: fitted_params: dictionary mapping model parameter names to their
-            fitted values.
-        :param fit_uncertainties: dictionary mapping model parameter names to
-            their fit uncertainties.
-        :returns: tuple of dictionaries mapping derived parameter names to their
-            values and uncertainties.
-        """
         derived_params = {"x_1_e": fitted_params["x_dead"] + fitted_params["tau"]}
         derived_uncertainties = {
             "x_1_e": np.sqrt(

@@ -11,7 +11,7 @@ from .quantum_phys import (
     thermal_state_probs,
 )
 from . import rabi
-from .. import ModelParameter
+from .. import common, ModelParameter
 from ..utils import Array
 
 
@@ -140,18 +140,22 @@ def make_laser_flop(base_class, distribution_fun):
             P_readout_e: ModelParameter(
                 lower_bound=0.0,
                 upper_bound=1.0,
-                scale_func=lambda x_scale, y_scale, _: y_scale,
+                scale_func=common.scale_y,
             ),
             P_readout_g: ModelParameter(
                 lower_bound=0.0,
                 upper_bound=1.0,
-                scale_func=lambda x_scale, y_scale, _: y_scale,
+                scale_func=common.scale_y,
             ),
-            eta: ModelParameter(lower_bound=0.0),
-            omega: ModelParameter(lower_bound=0.0),
-            tau: ModelParameter(lower_bound=0.0, fixed_to=np.inf),
-            t_dead: ModelParameter(lower_bound=0.0, fixed_to=0.0),
-            w_0: ModelParameter(),
+            eta: ModelParameter(lower_bound=0.0, scale_func=common.scale_invariant),
+            omega: ModelParameter(lower_bound=0.0, scale_func=common.scale_undefined),
+            tau: ModelParameter(
+                lower_bound=0.0, fixed_to=np.inf, scale_func=common.scale_undefined
+            ),
+            t_dead: ModelParameter(
+                lower_bound=0.0, fixed_to=0.0, scale_func=common.scale_undefined
+            ),
+            w_0: ModelParameter(scale_func=common.scale_undefined),
             **kwargs,  # Fock state distribution function parameters
         ) -> Array[("num_samples",), np.float64]:
             """

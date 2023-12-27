@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 import numpy as np
 
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
 from ..utils import Array
 
 if TYPE_CHECKING:
@@ -32,17 +32,19 @@ class Rectangle(Model):
         super().__init__()
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return True
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        a: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        x_l: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
-        x_r: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
+        a: ModelParameter(scale_func=common.scale_y),
+        y0: ModelParameter(scale_func=common.scale_y),
+        x_l: ModelParameter(scale_func=common.scale_x),
+        x_r: ModelParameter(scale_func=common.scale_x),
     ) -> Array[("num_samples",), np.float64]:
         return np.where(np.logical_and(x_r > x, x > x_l), y0 + a, y0)
 

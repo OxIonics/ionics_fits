@@ -51,8 +51,7 @@ class MLEFitter(Fitter):
 
         # https://github.com/OxIonics/ionics_fits/issues/105
         model = copy.deepcopy(model)
-        for parameter in model.parameters.values():
-            parameter.scale_func = lambda x_scale, y_scale, _: None
+        model.can_rescale = lambda x_scale, y_scale: False
 
         if np.any(y < 0) or np.any(y > 1):
             raise RuntimeError("y values must lie between 0 and 1")

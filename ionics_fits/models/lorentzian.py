@@ -3,7 +3,7 @@ import numpy as np
 
 from .exponential import Exponential
 from .utils import get_spectrum
-from .. import NormalFitter, Model, ModelParameter
+from .. import common, NormalFitter, Model, ModelParameter
 from ..utils import Array
 
 
@@ -26,19 +26,19 @@ class Lorentzian(Model):
     """
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return True
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        a: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        fwhmh: ModelParameter(
-            lower_bound=0, scale_func=lambda x_scale, y_scale, _: x_scale
-        ),
+        x0: ModelParameter(scale_func=common.scale_x),
+        y0: ModelParameter(scale_func=common.scale_y),
+        a: ModelParameter(scale_func=common.scale_y),
+        fwhmh: ModelParameter(lower_bound=0, scale_func=common.scale_x),
     ) -> Array[("num_samples",), np.float64]:
         y = a * fwhmh**2 / ((x - x0) ** 2 + fwhmh**2) + y0
         return y

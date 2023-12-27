@@ -2,7 +2,7 @@ import copy
 from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
 
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
 from ..utils import Array
 
 if TYPE_CHECKING:
@@ -32,23 +32,23 @@ class Triangle(Model):
     """
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return True
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        k: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale / x_scale),
-        sym: ModelParameter(lower_bound=-1, upper_bound=1, fixed_to=0),
-        y_min: ModelParameter(
-            fixed_to=-np.inf, scale_func=lambda x_scale, y_scale, _: y_scale
+        x0: ModelParameter(scale_func=common.scale_x),
+        y0: ModelParameter(scale_func=common.scale_y),
+        k: ModelParameter(scale_func=common.scale_power(x_power=-1, y_power=1)),
+        sym: ModelParameter(
+            lower_bound=-1, upper_bound=1, fixed_to=0, scale_func=common.scale_invariant
         ),
-        y_max: ModelParameter(
-            fixed_to=+np.inf, scale_func=lambda x_scale, y_scale, _: y_scale
-        ),
+        y_min: ModelParameter(fixed_to=-np.inf, scale_func=common.scale_y),
+        y_max: ModelParameter(fixed_to=+np.inf, scale_func=common.scale_y),
     ) -> Array[("num_samples",), np.float64]:
         k_p = k * (1 + sym)
         k_m = k * (1 - sym)
@@ -159,21 +159,6 @@ class Triangle(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """
-        Returns dictionaries of values and uncertainties for the derived model
-        parameters (parameters which are calculated from the fit results rather than
-        being directly part of the fit) based on values of the fitted parameters and
-        their uncertainties.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param: fitted_params: dictionary mapping model parameter names to their
-            fitted values.
-        :param fit_uncertainties: dictionary mapping model parameter names to
-            their fit uncertainties.
-        :returns: tuple of dictionaries mapping derived parameter names to their
-            values and uncertainties.
-        """
         derived_params = {}
         k = fitted_params["k"]
         sym = fitted_params["sym"]

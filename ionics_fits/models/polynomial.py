@@ -1,19 +1,13 @@
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import Dict, TYPE_CHECKING
 
 import numpy as np
 
 from .containers import MappedModel
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
 from ..utils import Array
 
 if TYPE_CHECKING:
     num_samples = float
-
-
-def _power_x_scale(x_scale: float, y_scale: float, model: Model) -> Optional[float]:
-    if model.parameters["n"].fixed_to is None:
-        return None
-    return y_scale / np.float_power(x_scale, model.parameters["n"].fixed_to)
 
 
 class Power(Model):
@@ -43,20 +37,29 @@ class Power(Model):
     """
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return False if self.parameters["n"].fixed_to is None else True
+
+    @staticmethod
+    def get_scaled_model(model, x_scale: float, y_scale: float):
+        def scale_func(x_scale, y_scale) -> float:
+            # NB the common scale functions do not support float powers
+            return y_scale / np.float_power(x_scale, model.parameters["n"].fixed_to)
+
+        model.parameters["a"].scale_func = scale_func
+        return super().get_scaled_model(model=model, x_scale=x_scale, y_scale=y_scale)
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        a: ModelParameter(fixed_to=1, scale_func=_power_x_scale),
-        x0: ModelParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        n: ModelParameter(),
+        a: ModelParameter(fixed_to=1, scale_func=common.scale_undefined),
+        x0: ModelParameter(fixed_to=0, scale_func=common.scale_x),
+        y0: ModelParameter(scale_func=common.scale_y),
+        n: ModelParameter(scale_func=common.scale_invariant),
     ) -> Array[("num_samples",), np.float64]:
-        """Evaluates the model at a given set of x-axis points and with a given set of
-        parameter values and returns the result."""
         assert all(x - x0 >= 0), "`x - x0` must be > 0"
         return a * np.float_power(x - x0, n) + y0
 
@@ -180,26 +183,15 @@ class Power(Model):
 
 
 def poly_fit_parameter(n):
-    def scale_func(x_scale, y_scale, _):
-        return y_scale / np.power(x_scale, n)
-
     return ModelParameter(
         fixed_to=None,
-        scale_func=scale_func,
+        scale_func=common.scale_power(x_power=-n, y_power=1),
     )
-
-
-def _poly_x_scale(x_scale: float, y_scale: float, model: Model) -> Optional[float]:
-    # If a non-zero value has been set for `x0` we can't rescale the dataset
-    # FIXME
-    # if model.parameters["x0"].fixed_to == 0.0:
-    # return 1
-    return None
 
 
 def _generate_poly_parameters(poly_degree):
     params = {f"a_{n}": poly_fit_parameter(n) for n in range(poly_degree + 1)}
-    params.update({"x0": ModelParameter(fixed_to=0, scale_func=_poly_x_scale)})
+    params.update({"x0": ModelParameter(fixed_to=0, scale_func=common.scale_x)})
     return params
 
 
@@ -228,14 +220,14 @@ class Polynomial(Model):
         super().__init__(parameters=_generate_poly_parameters(poly_degree))
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return True if self.parameters["x0"].fixed_to == 0.0 else False
 
     def func(
         self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
-        """Evaluates the model at a given set of x-axis points and with a given
-        parameter set and returns the result."""
         x0 = params["x0"]
         p = np.array(
             [params[f"a_{n}"] for n in range(self.poly_degree, -1, -1)],

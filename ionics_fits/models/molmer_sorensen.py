@@ -2,7 +2,7 @@ from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
 from ..utils import Array
 from . import heuristics
 
@@ -76,16 +76,20 @@ class MolmerSorensen(Model):
     def get_num_y_channels(self) -> int:
         return [1, 3][self.num_qubits - 1]
 
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        # return True
+        return False  # https://github.com/OxIonics/ionics_fits/issues/105
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Tuple[
             Array[("num_samples",), np.float64], Array[("num_samples",), np.float64]
         ],
-        omega: ModelParameter(lower_bound=0.0),
-        w_0: ModelParameter(),
+        omega: ModelParameter(lower_bound=0.0, scale_func=common.scale_undefined),
+        w_0: ModelParameter(scale_func=common.scale_undefined),
         n_bar: ModelParameter(
-            lower_bound=0.0, fixed_to=0.0, scale_func=lambda x_scale, y_scale, _: 1
+            lower_bound=0.0, fixed_to=0.0, scale_func=common.scale_invariant
         ),
     ) -> Array[("num_y_channels", "num_samples"), np.float64]:
 
@@ -218,16 +222,10 @@ class MolmerSorensenTime(MolmerSorensen):
             num_qubits=num_qubits, start_excited=start_excited, walsh_idx=walsh_idx
         )
 
-        self.parameters["delta"] = ModelParameter()
+        self.parameters["delta"] = ModelParameter(scale_func=common.scale_x_inv)
         del self.parameters["w_0"]
 
-        # https://github.com/OxIonics/ionics_fits/issues/105
-        self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: None
-        self.parameters["delta"].scale_func = lambda x_scale, y_scale, _: None
-        self.parameters["n_bar"].scale_func = lambda x_scale, y_scale, _: None
-
-        # self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
-        # self.parameters["delta"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
+        self.parameters["omega"].scale_func = common.scale_x_inv
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
@@ -299,18 +297,12 @@ class MolmerSorensenFreq(MolmerSorensen):
             num_qubits=num_qubits, start_excited=start_excited, walsh_idx=walsh_idx
         )
 
-        self.parameters["t_pulse"] = ModelParameter(lower_bound=0.0)
+        self.parameters["t_pulse"] = ModelParameter(
+            lower_bound=0.0, scale_func=common.scale_x_inv
+        )
 
-        # https://github.com/OxIonics/ionics_fits/issues/105
-        self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: None
-        self.parameters["w_0"].scale_func = lambda x_scale, y_scale, _: None
-        self.parameters["t_pulse"].scale_func = lambda x_scale, y_scale, _: None
-        self.parameters["n_bar"].scale_func = lambda x_scale, y_scale, _: None
-
-        # self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: x_scale
-        # self.parameters["w_0"].scale_func = lambda x_scale, y_scale, _: x_scale
-        # self.parameters["t_pulse"].scale_func =
-        #    lambda x_scale, y_scale, _: 1 / x_scale
+        self.parameters["omega"].scale_func = common.scale_x
+        self.parameters["w_0"].scale_func = common.scale_x
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]

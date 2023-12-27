@@ -2,34 +2,11 @@ from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
 from ..utils import Array
 
 if TYPE_CHECKING:
     num_samples = float
-
-
-def _scale_func(x_scale, y_scale, model):
-    # Prevent rescaling
-    return None
-
-
-def _generate_benchmarking_parameters(num_qubits):
-    params = {
-        "p": ModelParameter(lower_bound=0.0, upper_bound=1.0, scale_func=_scale_func),
-        "y0": ModelParameter(
-            lower_bound=0.0,
-            upper_bound=1.0,
-            scale_func=lambda x_scale, y_scale, _: y_scale,
-        ),
-        "y_inf": ModelParameter(
-            fixed_to=1 / 2**num_qubits,
-            lower_bound=0,
-            upper_bound=1,
-            scale_func=lambda x_scale, y_scale, _: y_scale,
-        ),
-    }
-    return params
 
 
 class Benchmarking(Model):
@@ -53,22 +30,35 @@ class Benchmarking(Model):
 
         :param num_qubits: The number of qubits involved in the benchmarking sequence.
         """
+        super().__init__()
+        self.parameters["y_inf"].fixed_to = 1 / 2**num_qubits
         self.num_qubits = num_qubits
         self.alpha = 2**num_qubits / (2**num_qubits - 1)
-        super().__init__(parameters=_generate_benchmarking_parameters(num_qubits))
 
     def get_num_y_channels(self) -> int:
-        """Return the number of y-channels supported by the model."""
         return 1
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return False
+
+    def _func(
+        self,
+        x: Array[("num_samples",), np.float64],
+        p: ModelParameter(
+            lower_bound=0.0, upper_bound=1.0, scale_func=common.scale_undefined
+        ),
+        y0: ModelParameter(
+            lower_bound=0.0,
+            upper_bound=1.0,
+            scale_func=common.scale_y,
+        ),
+        y_inf: ModelParameter(
+            # fixed_to set to `1 / 2**num_qubits` in the constructor
+            lower_bound=0,
+            upper_bound=1,
+            scale_func=common.scale_y,
+        ),
     ) -> Array[("num_samples",), np.float64]:
-        """Evaluates the model at a given set of x-axis points and with a given
-        parameter set and returns the result."""
-        p = params["p"]
-        y0 = params["y0"]
-        y_inf = params["y_inf"]
         y = (y0 - y_inf) * p**x + y_inf
         return y
 
@@ -91,21 +81,6 @@ class Benchmarking(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """
-        Returns dictionaries of values and uncertainties for the derived model
-        parameters (parameters which are calculated from the fit results rather than
-        being directly part of the fit) based on values of the fitted parameters and
-        their uncertainties.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param: fitted_params: dictionary mapping model parameter names to their
-            fitted values.
-        :param fit_uncertainties: dictionary mapping model parameter names to
-            their fit uncertainties.
-        :returns: tuple of dictionaries mapping derived parameter names to their
-            values and uncertainties.
-        """
         p = fitted_params["p"]
         y0 = fitted_params["y0"]
 

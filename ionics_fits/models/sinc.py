@@ -4,7 +4,7 @@ import numpy as np
 from .rectangle import Rectangle
 from .triangle import Triangle
 from .utils import get_spectrum
-from .. import NormalFitter, Model, ModelParameter
+from .. import common, NormalFitter, Model, ModelParameter
 from ..utils import Array
 
 if TYPE_CHECKING:
@@ -26,19 +26,19 @@ class Sinc(Model):
     """
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return True
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        a: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        w: ModelParameter(
-            lower_bound=0, scale_func=lambda x_scale, y_scale, _: 1 / x_scale
-        ),
+        x0: ModelParameter(scale_func=common.scale_x),
+        y0: ModelParameter(scale_func=common.scale_y),
+        a: ModelParameter(scale_func=common.scale_y),
+        w: ModelParameter(lower_bound=0, scale_func=common.scale_x_inv),
     ) -> Array[("num_samples",), np.float64]:
         x = w * (x - x0) / np.pi  # np.sinc(x) = sin(pi*x) / (pi*x)
         y = a * np.sinc(x) + y0
@@ -100,19 +100,19 @@ class Sinc2(Model):
     """
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
+        return True
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        a: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        w: ModelParameter(
-            lower_bound=0, scale_func=lambda x_scale, y_scale, _: 1 / x_scale
-        ),
+        x0: ModelParameter(scale_func=common.scale_x),
+        y0: ModelParameter(scale_func=common.scale_y),
+        a: ModelParameter(scale_func=common.scale_y),
+        w: ModelParameter(lower_bound=0, scale_func=common.scale_x_inv),
     ) -> Array[("num_samples",), np.float64]:
         x = w * (x - x0) / np.pi  # np.sinc(x) = sin(pi*x) / (pi*x)
         y = a * np.power(np.sinc(x), 2) + y0
