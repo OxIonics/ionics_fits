@@ -274,16 +274,11 @@ class Model:
         `user_estimate` attributes) to find initial guesses for other parameters.
 
         The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        TODO: this should act directly on self.model_parameters rather than taking
-        model parameters as an argument (this is a hangover from an old design)
+        contain any infinite or nan values. If the model allows rescaling then rescaled
+        units will be used everywhere (`x` and `y` as well as parameter values).
 
         :param x: x-axis data, rescaled if allowed.
         :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
         """
         raise NotImplementedError
 
