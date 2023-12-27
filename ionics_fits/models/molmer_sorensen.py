@@ -246,36 +246,35 @@ class MolmerSorensenTime(MolmerSorensen):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_y_channels", "num_samples"), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        model_parameters["n_bar"].heuristic = 0.0
+        self.parameters["n_bar"].heuristic = 0.0
         if (
-            not model_parameters["delta"].has_user_initial_value()
-            and not model_parameters["omega"].has_user_initial_value()
+            not self.parameters["delta"].has_user_initial_value()
+            and not self.parameters["omega"].has_user_initial_value()
         ):
             # This case is pretty miserable because there is a very high degree
             # of covariance between delta and omega so even if the heuristics are
             # highly accurate, the optimizer will tend to struggle to converge on
             # the right parameter values.
-            model_parameters["delta"].heuristic = 0.0
+            self.parameters["delta"].heuristic = 0.0
 
-        if not model_parameters["omega"].has_user_initial_value():
+        if not self.parameters["omega"].has_user_initial_value():
             omegas = np.array([np.linspace(0.1, 10, 25)]) * np.pi / max(x)
-            model_parameters["omega"].heuristic, _ = self.param_min_sqrs(
+            self.parameters["omega"].heuristic, _ = self.param_min_sqrs(
                 x=x,
                 y=y,
-                parameters=model_parameters,
+                parameters=self.parameters,
                 scanned_param="omega",
                 scanned_param_values=omegas,
             )
 
-        elif not model_parameters["delta"].has_user_initial_value():
-            omega = model_parameters["omega"].get_initial_value()
+        elif not self.parameters["delta"].has_user_initial_value():
+            omega = self.parameters["omega"].get_initial_value()
             deltas = np.array([np.linspace(0, 10, 25)]) * omega
-            model_parameters["delta"].heuristic, _ = self.param_min_sqrs(
+            self.parameters["delta"].heuristic, _ = self.param_min_sqrs(
                 x=x,
                 y=y,
-                parameters=model_parameters,
+                parameters=self.parameters,
                 scanned_param="delta",
                 scanned_param_values=deltas,
             )
@@ -331,20 +330,19 @@ class MolmerSorensenFreq(MolmerSorensen):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_y_channels", "num_samples"), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        model_parameters["n_bar"].heuristic = 0.0
+        self.parameters["n_bar"].heuristic = 0.0
 
         # estimate the centre frequency by looking for the symmetry point.
         # Consider only the 1-ion transition probability
         y_test = y if self.num_qubits == 1 else np.atleast_2d(y[1, :])
-        w_0 = model_parameters["w_0"].heuristic = heuristics.get_sym_x(x, y_test)
+        w_0 = self.parameters["w_0"].heuristic = heuristics.get_sym_x(x, y_test)
 
         if (
-            model_parameters["t_pulse"].has_user_initial_value()
-            and model_parameters["omega"].has_user_initial_value()
+            self.parameters["t_pulse"].has_user_initial_value()
+            and self.parameters["omega"].has_user_initial_value()
         ):
-            if not model_parameters["w_0"].has_user_initial_value():
+            if not self.parameters["w_0"].has_user_initial_value():
                 # The symmetry heuristic is pretty good, but can struggle when
                 # the centre frequency is close to the edge of the scan range.
                 # Since w_0 is our only unknown here, we throw in a sampling
@@ -352,37 +350,37 @@ class MolmerSorensenFreq(MolmerSorensen):
                 w_0_grid, w_0_grid_cost = self.param_min_sqrs(
                     x=x,
                     y=y,
-                    parameters=model_parameters,
+                    parameters=self.parameters,
                     scanned_param="w_0",
                     scanned_param_values=np.linspace(min(x), max(x), 50),
                 )
                 param_values = {
                     name: param.get_initial_value()
-                    for name, param in model_parameters.items()
+                    for name, param in self.parameters.items()
                 }
                 y_sym = self.func(x, param_values)
                 w_0_sym_cost = np.sqrt(np.sum(np.square(y - y_sym)))
                 w_0 = w_0 if w_0_sym_cost < w_0_grid_cost else w_0_grid
-                model_parameters["w_0"].heuristic = w_0
+                self.parameters["w_0"].heuristic = w_0
             return
 
-        if model_parameters["t_pulse"].has_user_initial_value():
-            t_pulse = model_parameters["t_pulse"].get_initial_value()
-            model_parameters["omega"].heuristic, _ = self.param_min_sqrs(
+        if self.parameters["t_pulse"].has_user_initial_value():
+            t_pulse = self.parameters["t_pulse"].get_initial_value()
+            self.parameters["omega"].heuristic, _ = self.param_min_sqrs(
                 x=x,
                 y=y,
-                parameters=model_parameters,
+                parameters=self.parameters,
                 scanned_param="omega",
                 scanned_param_values=np.array([np.linspace(0.25, 5, 10)])
                 * np.pi
                 / t_pulse,
             )
-        elif model_parameters["omega"].has_user_initial_value():
-            omega = model_parameters["omega"].get_initial_value()
-            model_parameters["t_pulse"].heuristic, _ = self.param_min_sqrs(
+        elif self.parameters["omega"].has_user_initial_value():
+            omega = self.parameters["omega"].get_initial_value()
+            self.parameters["t_pulse"].heuristic, _ = self.param_min_sqrs(
                 x=x,
                 y=y,
-                parameters=model_parameters,
+                parameters=self.parameters,
                 scanned_param="t_pulse",
                 scanned_param_values=np.array([np.linspace(0.25, 5, 10)])
                 * np.pi
@@ -396,19 +394,19 @@ class MolmerSorensenFreq(MolmerSorensen):
             costs = np.zeros_like(omegas)
             t_pulses = np.zeros_like(omegas)
             for idx, omega in np.ndenumerate(omegas):
-                model_parameters["omega"].heuristic = omega
+                self.parameters["omega"].heuristic = omega
                 t_pulses[idx], costs[idx] = self.param_min_sqrs(
                     x=x,
                     y=y,
-                    parameters=model_parameters,
+                    parameters=self.parameters,
                     scanned_param="t_pulse",
                     scanned_param_values=np.array([np.linspace(0.1, 5, 20)])
                     * np.pi
                     / omega,
                 )
             best = np.argmin(costs)
-            model_parameters["omega"].heuristic = omegas[best]
-            model_parameters["t_pulse"].heuristic = t_pulses[best]
+            self.parameters["omega"].heuristic = omegas[best]
+            self.parameters["t_pulse"].heuristic = t_pulses[best]
 
     def calculate_derived_params(
         self,

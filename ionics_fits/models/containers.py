@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 
-from .. import Model, ModelParameter
+from .. import Model
 from ..utils import Array
 
 
@@ -75,14 +75,9 @@ class AggregateModel(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_y_channels", "num_samples"), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        for idx, (model_name, model) in enumerate(self.models):
-            params = {
-                param_name: model_parameters[f"{model_name}_{param_name}"]
-                for param_name in model.parameters.keys()
-            }
-            model.estimate_parameters(x, y[idx], params)
+        for idx, (_, model) in enumerate(self.models):
+            model.estimate_parameters(x, y[idx])
 
     def calculate_derived_params(
         self,
@@ -211,25 +206,31 @@ class RepeatedModel(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_y_channels", "num_samples"), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
         dim = self.inner.get_num_y_channels()
 
-        common_params = {param: model_parameters[param] for param in self.common_params}
+        common_params = {param: self.parameters[param] for param in self.common_params}
         common_heuristics = {param: [] for param in self.common_params}
+
+        # FIXME - add "clear heuristics method instead"
+        inner_params = self.inner.parameters  # store for later
+
         for idx in range(self.num_repetitions):
             params = {
-                param: model_parameters[f"{param}_{idx}"]
+                param: self.parameters[f"{param}_{idx}"]
                 for param in self.independent_params
             }
             params.update(copy.deepcopy(common_params))
-            self.inner.estimate_parameters(x, y[idx * dim : (idx + 1) * dim], params)
+            self.inner.parameters = params
+            self.inner.estimate_parameters(x, y[idx * dim : (idx + 1) * dim])
 
             for param in self.common_params:
                 common_heuristics[param].append(params[param].get_initial_value())
 
         for param in self.common_params:
-            model_parameters[param].heuristic = np.mean(common_heuristics[param])
+            self.parameters[param].heuristic = np.mean(common_heuristics[param])
+
+        self.inner.parameters = inner_params
 
     def calculate_derived_params(
         self,
@@ -413,19 +414,10 @@ class MappedModel(Model):
         )
         return self.wrapped_model.func(x, new_params)
 
-    def _inner_estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
-        inner_parameters: Dict[str, ModelParameter],
-    ) -> Dict[str, float]:
-        return self.wrapped_model.estimate_parameters(x, y, inner_parameters)
-
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples", "num_y_channels"), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
         """Set heuristic values for model parameters.
 
@@ -439,17 +431,5 @@ class MappedModel(Model):
 
         :param x: x-axis data, rescaled if allowed.
         :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
         """
-        inner_parameters = {
-            old_name: model_parameters[new_name]
-            for new_name, old_name in self.param_mapping.items()
-        }
-        inner_parameters.update(self.fixed_params)
-
-        self._inner_estimate_parameters(x, y, inner_parameters)
-        return {
-            new_name: inner_parameters[old_name]
-            for new_name, old_name in self.param_mapping.items()
-        }
+        self.wrapped_model.estimate_parameters(x, y)

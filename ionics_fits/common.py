@@ -266,7 +266,6 @@ class Model:
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_y_channels", "num_samples"), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
         """Set heuristic values for model parameters.
 
@@ -647,7 +646,7 @@ class Fitter:
         x_scaled = self.x / self.x_scale
         y_scaled = self.y / self.y_scale
 
-        scaled_model.estimate_parameters(x_scaled, y_scaled, scaled_model.parameters)
+        scaled_model.estimate_parameters(x_scaled, y_scaled)
 
         for param, param_data in scaled_model.parameters.items():
             try:

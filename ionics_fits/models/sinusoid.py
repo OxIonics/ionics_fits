@@ -76,38 +76,22 @@ class Sinusoid(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        """Set heuristic values for model parameters.
-
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
-
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
-        """
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
         # We don't have good heuristics for these parameters
-        model_parameters["y0"].heuristic = np.mean(y)
-        model_parameters["tau"].heuristic = np.max(x)
+        self.parameters["y0"].heuristic = np.mean(y)
+        self.parameters["tau"].heuristic = np.max(x)
 
         omega, spectrum = utils.get_spectrum(x, y, density_units=False, trim_dc=True)
         spectrum = np.abs(spectrum)
         peak = np.argmax(spectrum)
 
-        model_parameters["a"].heuristic = spectrum[peak] * 2
-        model_parameters["omega"].heuristic = omega[peak]
+        self.parameters["a"].heuristic = spectrum[peak] * 2
+        self.parameters["omega"].heuristic = omega[peak]
 
-        phi_params = copy.deepcopy(model_parameters)
+        phi_params = copy.deepcopy(self.parameters)
         phi_params["x0"].heuristic = 0.0
         phi, _ = self.param_min_sqrs(
             x=x,
@@ -116,19 +100,19 @@ class Sinusoid(Model):
             scanned_param="phi",
             scanned_param_values=np.linspace(-np.pi, np.pi, num=20),
         )
-        phi = model_parameters["phi"].clip(phi)
+        phi = self.parameters["phi"].clip(phi)
 
-        if model_parameters["x0"].fixed_to is None:
-            if model_parameters["phi"].fixed_to is None:
+        if self.parameters["x0"].fixed_to is None:
+            if self.parameters["phi"].fixed_to is None:
                 raise ValueError("Only one of 'x0' and 'phi' may be floated at once")
 
-            model_parameters["phi"].heuristic = 0
-            model_parameters["x0"].heuristic = (
-                -phi / model_parameters["omega"].get_initial_value()
+            self.parameters["phi"].heuristic = 0
+            self.parameters["x0"].heuristic = (
+                -phi / self.parameters["omega"].get_initial_value()
             )
         else:
-            model_parameters["phi"].heuristic = phi
-            model_parameters["x0"].heuristic = 0.0
+            self.parameters["phi"].heuristic = phi
+            self.parameters["x0"].heuristic = 0.0
 
     def calculate_derived_params(
         self,

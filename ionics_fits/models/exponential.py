@@ -50,31 +50,15 @@ class Exponential(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        """Set heuristic values for model parameters.
-
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
-
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
-        """
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
         # Exponentials are generally pretty easy to fit so we keep the estimator simple
-        model_parameters["x_dead"].heuristic = 0
-        model_parameters["y0"].heuristic = y[0]
-        model_parameters["y_inf"].heuristic = y[-1]
-        model_parameters["tau"].heuristic = x.ptp()
+        self.parameters["x_dead"].heuristic = 0
+        self.parameters["y0"].heuristic = y[0]
+        self.parameters["y_inf"].heuristic = y[-1]
+        self.parameters["tau"].heuristic = x.ptp()
 
     def calculate_derived_params(
         self,

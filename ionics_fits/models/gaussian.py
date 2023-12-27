@@ -55,23 +55,7 @@ class Gaussian(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        """Set heuristic values for model parameters.
-
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
-
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
-        """
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
@@ -91,28 +75,28 @@ class Gaussian(Model):
         sigma = width / 2
         a = peak * np.pi * np.sqrt(2)
 
-        model_parameters["y0"].heuristic = np.mean([y[0], y[-1]])
-        y0 = model_parameters["y0"].get_initial_value()
+        self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
+        y0 = self.parameters["y0"].get_initial_value()
         peak_idx = np.argmax(np.abs(y - y0))
         y_peak = y[peak_idx]
         sgn = 1 if y_peak > y0 else -1
 
-        model_parameters["a"].heuristic = a * sgn
-        model_parameters["sigma"].heuristic = sigma
+        self.parameters["a"].heuristic = a * sgn
+        self.parameters["sigma"].heuristic = sigma
 
         cut_off = 2 * omega[np.argmin(np.abs(abs_spectrum - W))]
 
         x0 = self.find_x_offset_sym_peak(
             x=x,
             y=y,
-            parameters=model_parameters,
+            parameters=self.parameters,
             omega=omega,
             spectrum=spectrum,
             omega_cut_off=cut_off,
             test_pts=x[peak_idx],
         )
 
-        model_parameters["x0"].heuristic = x0
+        self.parameters["x0"].heuristic = x0
 
     def calculate_derived_params(
         self,

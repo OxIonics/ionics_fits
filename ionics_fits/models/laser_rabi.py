@@ -1,6 +1,6 @@
 import copy
 import inspect
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Tuple, TYPE_CHECKING
 
 import numpy as np
 from scipy import special
@@ -207,19 +207,18 @@ def make_laser_flop(base_class, distribution_fun):
             self,
             x: Array[("num_samples",), np.float64],
             y: Array[("num_samples",), np.float64],
-            model_parameters: Dict[str, ModelParameter],
         ):
             # Pick sensible starting values which are usually good enough for the fit to
             # converge from.
-            model_parameters["eta"].heuristic = 0.1
-            if "n_bar" in model_parameters.keys():
-                model_parameters["n_bar"].heuristic = 1
-            if "alpha" in model_parameters.keys():
-                model_parameters["alpha"].heuristic = 1
-            if "zeta" in model_parameters.keys():
-                model_parameters["zeta"].heuristic = 1
+            self.parameters["eta"].heuristic = 0.1
+            if "n_bar" in self.parameters.keys():
+                self.parameters["n_bar"].heuristic = 1
+            if "alpha" in self.parameters.keys():
+                self.parameters["alpha"].heuristic = 1
+            if "zeta" in self.parameters.keys():
+                self.parameters["zeta"].heuristic = 1
 
-            super().estimate_parameters(x=x, y=y, model_parameters=model_parameters)
+            super().estimate_parameters(x=x, y=y)
 
     return LaserFlop
 
