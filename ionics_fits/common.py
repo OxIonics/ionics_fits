@@ -152,8 +152,10 @@ class Model:
             `self.parameters` and may be modified after construction to change the model
             behaviour during fitting (e.g. to change the bounds, fixed parameters, etc).
         :param internal_parameters: optional list of "internal" model parameters, which
-            are not exposed to the user as arguments of :meth func:. These are typically
-            used by models which encapsulate / modify the behaviour of other models.
+            are not exposed to the user as arguments of :meth func:. Internal parameters
+            are rescaled in the same way as regular model parameters, but are not
+            otherwise used by :class Model:. These are typically used by models which
+            encapsulate / modify the behaviour of other models.
         """
         if parameters is None:
             spec = inspect.getfullargspec(self._func)
