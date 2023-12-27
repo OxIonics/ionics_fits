@@ -9,6 +9,12 @@ if TYPE_CHECKING:
     num_samples = float
 
 
+def _p_scale_func(x_scale: float, y_scale: float) -> float:
+    if x_scale != 1.0:
+        raise RuntimeError("Benchmarking model cannot be rescaled along x")
+    return 1
+
+
 class Benchmarking(Model):
     """Benchmarking success probability decay model
 
@@ -38,15 +44,13 @@ class Benchmarking(Model):
     def get_num_y_channels(self) -> int:
         return 1
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        return False
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return False, True
 
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        p: ModelParameter(
-            lower_bound=0.0, upper_bound=1.0, scale_func=common.scale_undefined
-        ),
+        p: ModelParameter(lower_bound=0.0, upper_bound=1.0, scale_func=_p_scale_func),
         y0: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,

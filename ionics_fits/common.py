@@ -219,8 +219,11 @@ class Model:
         args.update(kwargs)
         return self.func(x, args)
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        """Returns True if the model can be rescaled"""
+    def can_rescale(self) -> Tuple[bool, bool]:
+        """
+        Returns a Tuple of bools specifying whether the model can be rescaled along
+        the x- and y-axes
+        """
         raise NotImplementedError
 
     @staticmethod
@@ -656,17 +659,13 @@ class Fitter:
         #
         # Currently we use a single scale factor for all y channels. This may change in
         # future
-        self.x_scale = np.max(np.abs(self.x))
-        self.y_scale = np.max(np.abs(self.y))
+        rescale_x, rescale_y = self.model.can_rescale()
+        self.x_scale = np.max(np.abs(self.x)) if rescale_x else 1.0
+        self.y_scale = np.max(np.abs(self.y)) if rescale_y else 1.0
 
-        if self.model.can_rescale(self.x_scale, self.y_scale):
-            scaled_model = self.model.get_scaled_model(
-                self.model, self.x_scale, self.y_scale
-            )
-        else:
-            self.x_scale = 1
-            self.y_scale = 1
-            scaled_model = copy.deepcopy(self.model)
+        scaled_model = self.model.get_scaled_model(
+            self.model, self.x_scale, self.y_scale
+        )
 
         x_scaled = self.x / self.x_scale
         y_scaled = self.y / self.y_scale

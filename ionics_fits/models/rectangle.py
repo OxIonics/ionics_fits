@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import Tuple, TYPE_CHECKING
 import numpy as np
 
 from .. import common, Model, ModelParameter
@@ -34,8 +34,8 @@ class Rectangle(Model):
     def get_num_y_channels(self) -> int:
         return 1
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        return True
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return True, True
 
     # pytype: disable=invalid-annotation
     def _func(

@@ -56,13 +56,9 @@ class AggregateModel(Model):
     def get_num_y_channels(self) -> int:
         return len(self.models)
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        return all(
-            [
-                model.can_rescale(x_scale=x_scale, y_scale=y_scale)
-                for _, model in self.models
-            ]
-        )
+    def can_rescale(self) -> Tuple[bool, bool]:
+        rescale_x, rescale_y = zip(*[model.can_rescale() for _, model in self.models])
+        return all(rescale_x), all(rescale_y)
 
     def func(
         self,
@@ -190,8 +186,8 @@ class RepeatedModel(Model):
     def get_num_y_channels(self) -> int:
         return self.num_repetitions * self.inner.get_num_y_channels()
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        return self.inner.can_rescale(x_scale, y_scale)
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return self.inner.can_rescale()
 
     def func(
         self,
@@ -395,8 +391,8 @@ class MappedModel(Model):
     def get_num_y_channels(self) -> int:
         return self.wrapped_model.get_num_y_channels()
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        return self.wrapped_model.can_rescale(x_scale, y_scale)
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return self.wrapped_model.can_rescale()
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]

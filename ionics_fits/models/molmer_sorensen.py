@@ -76,9 +76,8 @@ class MolmerSorensen(Model):
     def get_num_y_channels(self) -> int:
         return [1, 3][self.num_qubits - 1]
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        # return True
-        return False  # https://github.com/OxIonics/ionics_fits/issues/105
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return True, False
 
     # pytype: disable=invalid-annotation
     def _func(

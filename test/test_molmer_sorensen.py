@@ -13,13 +13,12 @@ def test_ms_time(plot_failures: bool):
     """Test for molmer_sorensen.MolmerSorensenTime"""
 
     def _test_ms_time(num_qubits, walsh_idx, start_excited, user_estimates):
-        # https://github.com/OxIonics/ionics_fits/issues/105
-        t = np.linspace(0, 1, 100)
-        t_ref = 0.3
+        t = np.linspace(0, 1, 100) * 1e-6
+        t_ref = 0.3e-6
 
         params = {
             "omega": np.array([0.5, 1, 2]) * np.pi / t_ref,
-            "delta": 0,  # np.array([0.25, 0, -0.125, 0.5]) * np.pi / t_ref,
+            "delta": 0,
             "n_bar": 0,
         }
 

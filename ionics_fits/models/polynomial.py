@@ -1,4 +1,4 @@
-from typing import Dict, TYPE_CHECKING
+from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
@@ -39,13 +39,16 @@ class Power(Model):
     def get_num_y_channels(self) -> int:
         return 1
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        return False if self.parameters["n"].fixed_to is None else True
+    def can_rescale(self) -> Tuple[bool, bool]:
+        rescale_x = False if self.parameters["n"].fixed_to is None else True
+        return rescale_x, True
 
     @staticmethod
     def get_scaled_model(model, x_scale: float, y_scale: float):
         def scale_func(x_scale, y_scale) -> float:
             # NB the common scale functions do not support float powers
+            if x_scale == 1.0:
+                return y_scale
             return y_scale / np.float_power(x_scale, model.parameters["n"].fixed_to)
 
         model.parameters["a"].scale_func = scale_func
@@ -222,8 +225,9 @@ class Polynomial(Model):
     def get_num_y_channels(self) -> int:
         return 1
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        return True if self.parameters["x0"].fixed_to == 0.0 else False
+    def can_rescale(self) -> Tuple[bool, bool]:
+        rescale_x = True if self.parameters["x0"].fixed_to == 0.0 else False
+        return rescale_x, True
 
     def func(
         self, x: Array[("num_samples",), np.float64], params: Dict[str, float]

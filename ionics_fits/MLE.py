@@ -49,12 +49,18 @@ class MLEFitter(Fitter):
         """
         self.step_size = step_size
 
-        # https://github.com/OxIonics/ionics_fits/issues/105
-        model = copy.deepcopy(model)
-        model.can_rescale = lambda x_scale, y_scale: False
-
         if np.any(y < 0) or np.any(y > 1):
             raise RuntimeError("y values must lie between 0 and 1")
+
+        # Since we interpret the y-axis as a probability distribution, it should not be
+        # rescaled
+        def can_rescale() -> Tuple[bool, bool]:
+            rescale_x = self._can_rescale()[0]
+            return rescale_x, False
+
+        model = copy.deepcopy(model)
+        self._can_rescale = model.can_rescale
+        model.can_rescale = can_rescale
 
         super().__init__(x=x, y=y, model=model)
 
