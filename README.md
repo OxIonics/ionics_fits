@@ -71,6 +71,18 @@ plt.legend()
 plt.show()
 ```
 
+Models provide a callable interface (see `Model.__call__` for details) to make using
+them outside of fits convenient. For example:
+
+```python
+import numpy as np
+import ionics_fits as fits
+
+x = np.linspace(0, 1, 100) * 2 * np.pi
+sinusoid = fits.models.Sinusoid()
+y = sinusoid(x=x, a=1, omega=2, phi=0, y0=0)
+```
+
 # Developing
 
 Before committing:

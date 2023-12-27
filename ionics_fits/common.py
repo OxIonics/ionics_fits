@@ -168,6 +168,24 @@ class Model:
             self.parameters = parameters
         self.internal_parameters = internal_parameters or []
 
+    def __call__(
+        self, x: Array[("num_samples",), np.float64], **kwargs: float
+    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+        """Evaluates the model.
+
+        - keyword arguments specify values for model parameters (see model definition)
+        - all model parameters which are not `fixed_to` a value by default must be
+          specified
+        - any parameters which are not specified default to their `fixed_to` values
+        """
+        args = {
+            param_name: param_data.fixed_to
+            for param_name, param_data in self.parameters.items()
+            if param_data.fixed_to is not None
+        }
+        args.update(kwargs)
+        return self.func(x, args)
+
     def can_rescale(self, x_scale: float, y_scale: float) -> bool:
         """Returns True if the model can be rescaled"""
         parameters = list(self.parameters.values()) + self.internal_parameters
@@ -205,6 +223,9 @@ class Model:
     ) -> Array[("num_y_channels", "num_samples"), np.float64]:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
+
+        To use the model as a function outside of a fit, :meth __call__: generally
+        provides a more convenient interface.
 
         Overload this to provide a model function with a dynamic set of parameters,
         otherwise prefer to override `_func`.
