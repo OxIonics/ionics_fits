@@ -47,6 +47,7 @@ class Benchmarking(Model):
     def can_rescale(self) -> Tuple[bool, bool]:
         return False, True
 
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -65,6 +66,8 @@ class Benchmarking(Model):
     ) -> Array[("num_samples",), np.float64]:
         y = (y0 - y_inf) * p**x + y_inf
         return y
+
+    # pytype: enable=invalid-annotation
 
     def estimate_parameters(
         self,
