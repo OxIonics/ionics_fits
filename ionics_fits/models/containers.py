@@ -31,7 +31,9 @@ class AggregateModel(Model):
           with each element containing a model name string and a model instance. The
           model names are used as prefixes for names of model parameters and derived
           results. For example, if one of the aggregated models named `foo` has a
-          parameter `bar`, the aggregate model will have a parameter `foo_bar`.
+          parameter `bar`, the aggregate model will have a parameter `foo_bar`. The
+          passed-in models are considered "owned" by the AggregateModel and should not
+          be reused / modified externally.
 
         At present this class only supports models with a single y channel. This is just
         because no one got around to implementing it yet rather than any fundamental
@@ -42,8 +44,7 @@ class AggregateModel(Model):
         design question here is where the common parameters should get their properties
         (bounds, scale factors, etc) from and how we should deal with their heuristics.
         """
-        self.models = copy.deepcopy(models)
-
+        self.models = models
         parameters = {}
         for model_name, model in self.models:
             if model.get_num_y_channels() != 1:
@@ -153,7 +154,8 @@ class RepeatedModel(Model):
     ):
         """
         :param inner: The wrapped model, the implementation of `inner` will be used to
-          generate data for the y channels
+          generate data for the y channels. This model is considered owned by the
+          RepeatedModel and should not be used / modified elsewhere.
         :param common_params: optional list of names of model arguments, whose value is
           common to all y channels. All other model parameters are independent
         :param num_repetitions: the number of times the inner model is repeated
@@ -167,8 +169,6 @@ class RepeatedModel(Model):
             statistics for the results from the various models: `foo_mean` and
             `foo_peak_peak`.
         """
-        inner = copy.deepcopy(inner)
-
         inner_params = set(inner.parameters.keys())
         common_params = set(common_params or [])
 
@@ -238,7 +238,14 @@ class RepeatedModel(Model):
                 param: self.parameters[f"{param}_{idx}"]
                 for param in self.independent_params
             }
-            params.update(copy.deepcopy(common_params))
+
+            params.update(common_params)
+
+            # Since common params are reused multiple times, clear their heuristic
+            # values between each use
+            for param_data in common_params.values():
+                param_data.heuristic = None
+
             self.inner.parameters = params
             self.inner.estimate_parameters(x, y[idx * dim : (idx + 1) * dim])
 
@@ -344,15 +351,15 @@ class MappedModel(Model):
     ):
         """Init
 
-        :param wrapped_model: The wrapped model.
+        :param wrapped_model: The wrapped model. This model is considered "owned" by the
+            MappedModel and should not be modified / used elsewhere.
         :param param_mapping: dictionary mapping names of parameters in the new
             model to names of parameters used in the wrapped model.
         :param fixed_params: dictionary mapping names of parameters used in the
             wrapped model to values they are fixed to in the new model. These
             will not be parameters of the new model.
         """
-        self.wrapped_model = copy.deepcopy(wrapped_model)
-        wrapped_model = None  # prevent accidental use of the uncopied model
+        self.wrapped_model = wrapped_model
         wrapped_params = self.wrapped_model.parameters
 
         fixed_params = fixed_params or {}

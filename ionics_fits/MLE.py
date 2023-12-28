@@ -42,7 +42,8 @@ class MLEFitter(Fitter):
         :param y: y-axis data
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
-            fitting to change the fit behaviour from the model class' defaults.
+            fitting to change the fit behaviour from the model class' defaults. The
+            model is (deep) copied and stored as an attribute.
         :param step_size: step size used when calculating the log likelihood's Hessian
             as part of finding the fitted parameter standard errors. Where finite
             parameter bounds are provided, they are used to scale the step size

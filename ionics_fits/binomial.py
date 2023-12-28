@@ -47,7 +47,8 @@ class BinomialFitter(MLEFitter):
         :param y: y-axis data
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
-            fitting to change the fit behaviour from the model class' defaults.
+            fitting to change the fit behaviour from the model class' defaults. The
+            model is (deep) copied and stored as an attribute.
         :param num_trials: number of Bernoulli trails for each sample
         :param step_size: see :class MLEFitter:
         :param minimizer_args: optional dictionary of keyword arguments to be passed

@@ -1,4 +1,3 @@
-import copy
 from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
 
@@ -99,18 +98,17 @@ class Triangle(Model):
         k_p = (y_r[right_peak_ind] - y_min) / dx_r if dx_r != 0 else 0
         alpha = 0 if k_m == 0 else k_p / k_m
 
-        positive_parameters = copy.deepcopy(self.parameters)
-        positive_parameters["x0"].heuristic = x_min
-        positive_parameters["y0"].heuristic = y_min
-
-        positive_parameters["k"].heuristic = 0.5 * (k_p + k_m)
-        positive_parameters["sym"].heuristic = (alpha - 1) / (1 + alpha)
-
-        positive_parameters = {
-            param: param_data.get_initial_value()
-            for param, param_data in positive_parameters.items()
+        positive_defaults = {
+            "x0": x_min,
+            "y0": y_min,
+            "k": 0.5 * (k_p + k_m),
+            "sym": (alpha - 1) / (1 + alpha),
         }
-        positive_residuals = np.sum((y - self._func(x, **positive_parameters)) ** 2)
+        positive_parameters = {
+            param: param_data.get_initial_value(default=positive_defaults.get(param))
+            for param, param_data in self.parameters.items()
+        }
+        positive_cost = np.sum((y - self._func(x, **positive_parameters)) ** 2)
 
         # Case 2: negative slope with peaks left and right of x_max below y_max
         x_l = x[x <= x_max]
@@ -128,19 +126,19 @@ class Triangle(Model):
         k_p = (y_r[right_peak_ind] - y_max) / dx_r if dx_r != 0 else 0
         alpha = 0 if k_m == 0 else k_p / k_m
 
-        negative_parameters = copy.deepcopy(self.parameters)
-        negative_parameters["x0"].heuristic = x_max
-        negative_parameters["y0"].heuristic = y_max
-        negative_parameters["k"].heuristic = 0.5 * (k_p + k_m)
-        negative_parameters["sym"].heuristic = (alpha - 1) / (1 + alpha)
-
-        negative_parameters = {
-            param: param_data.get_initial_value()
-            for param, param_data in negative_parameters.items()
+        negative_defaults = {
+            "x0": x_max,
+            "y0": y_max,
+            "k": 0.5 * (k_p + k_m),
+            "sym": (alpha - 1) / (1 + alpha),
         }
-        negative_residuals = np.sum((y - self._func(x, **negative_parameters)) ** 2)
+        negative_parameters = {
+            param: param_data.get_initial_value(default=negative_defaults.get(param))
+            for param, param_data in self.parameters.items()
+        }
+        negative_cost = np.sum((y - self._func(x, **negative_parameters)) ** 2)
 
-        if positive_residuals < negative_residuals:
+        if positive_cost < negative_cost:
             best_params = positive_parameters
         else:
             best_params = negative_parameters

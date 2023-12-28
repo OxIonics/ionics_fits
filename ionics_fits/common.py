@@ -441,7 +441,8 @@ class Fitter:
         :param y: y-axis data
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
-            fitting to change the fit behaviour from the model class' defaults.
+            fitting to change the fit behaviour from the model class' defaults. The
+            model is (deep) copied and stored as an attribute.
         """
         self.model = copy.deepcopy(model)
 
@@ -510,9 +511,7 @@ class Fitter:
         self.model.estimate_parameters(x_scaled, y_scaled)
 
         for param, param_data in self.model.parameters.items():
-            try:
-                param_data.get_initial_value()
-            except ValueError:
+            if not param_data.has_initial_value():
                 raise RuntimeError(
                     "No fixed_to, user_estimate or heuristic specified"
                     f" for parameter `{param}`."
