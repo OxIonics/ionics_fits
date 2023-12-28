@@ -43,16 +43,15 @@ class Power(Model):
         rescale_x = False if self.parameters["n"].fixed_to is None else True
         return rescale_x, True
 
-    @staticmethod
-    def get_scaled_model(model, x_scale: float, y_scale: float):
+    def rescale(self, x_scale: float, y_scale: float):
         def scale_func(x_scale, y_scale) -> float:
             # NB the common scale functions do not support float powers
             if x_scale == 1.0:
                 return y_scale
-            return y_scale / np.float_power(x_scale, model.parameters["n"].fixed_to)
+            return y_scale / np.float_power(x_scale, self.parameters["n"].fixed_to)
 
-        model.parameters["a"].scale_func = scale_func
-        return super().get_scaled_model(model=model, x_scale=x_scale, y_scale=y_scale)
+        self.parameters["a"].scale_func = scale_func
+        super().rescale(x_scale=x_scale, y_scale=y_scale)
 
     # pytype: disable=invalid-annotation
     def _func(
