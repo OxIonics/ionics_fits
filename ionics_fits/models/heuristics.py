@@ -210,36 +210,3 @@ def find_x_offset_sym_peak(
         scanned_param_values=x0_candidates,
     )
     return best_x0
-
-
-def find_x_offset_sampling(
-    model: Model,
-    x: Array[("num_samples",), np.float64],
-    y: Array[("num_samples", "num_y_channels"), np.float64],
-    width: float,
-    x_offset_param_name: str = "x0",
-) -> float:
-    """Finds the x-axis offset of a dataset by stepping through a range of potential
-    offset values and picking the one that gives the lowest residuals.
-
-    This function takes a more brute-force approach by evaluating the model at a
-    range of offset values, picking the one that gives the lowest residuals. This
-    may be appropriate where one needs the estimate to be highly robust in the face
-    of noisy, irregularly sampled data.
-
-    :param x: x-axis data
-    :param y: y-axis data
-    :param width: width of the feature we're trying to find (e.g. FWHMH). Used to
-        pick the spacing between offset values to try.
-    :param x_offset_param_name: name of the x-axis offset parameter
-
-    :returns: an estimate of the x-axis offset
-    """
-    offsets = np.arange(min(x), max(x), width / 6)
-    return param_min_sqrs(
-        model=model,
-        x=x,
-        y=y,
-        scanned_param=x_offset_param_name,
-        scanned_param_values=offsets,
-    )[0]
