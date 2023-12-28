@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class AggregateModel(Model):
     """Model formed by aggregating one or more models.
-    
+
     Aggregate models are useful for situations where one wants to analyse multiple
     models simultaneously, for example in automated tooling (e.g. ndscan
     OnlineAnalyses). In the future their functionality will be expanded to allow making

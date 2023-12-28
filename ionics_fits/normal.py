@@ -33,6 +33,7 @@ class NormalFitter(Fitter):
         sigma: Optional[
             ArrayLike[("num_y_channels", "num_samples"), np.float64]
         ] = None,
+        curve_fit_args: Optional[Dict] = None,
     ):
         """Fits a model to a dataset and stores the results.
 
@@ -42,11 +43,17 @@ class NormalFitter(Fitter):
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
             fitting to change the fit behaviour from the model class' defaults.
+        :param curve_fit_args: optional dictionary of keyword arguments to be passed
+            into scipy.curve_fit.
         """
         if sigma is None:
             self.sigma = None
         else:
             self.sigma = np.array(sigma, dtype=np.float64, copy=True)
+
+        self.curve_fit_args = {"method": "trf"}
+        if curve_fit_args is not None:
+            self.curve_fit_args.update(curve_fit_args)
 
         super().__init__(x=x, y=y, model=model)
 
@@ -112,7 +119,7 @@ class NormalFitter(Fitter):
             sigma=sigma_flat,
             absolute_sigma=sigma is not None,
             bounds=(lower, upper),
-            method="trf",
+            **self.curve_fit_args,
         )
 
         p_err = np.sqrt(np.diag(p_cov))

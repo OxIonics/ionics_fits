@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import pprint
 from scipy import optimize
-from typing import Callable, Dict, Tuple, TYPE_CHECKING
+from typing import Callable, Dict, Optional, Tuple, TYPE_CHECKING
 
 from . import Fitter, Model, ModelParameter
 from .utils import Array, ArrayLike
@@ -34,6 +34,7 @@ class MLEFitter(Fitter):
         y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
         model: Model,
         step_size: float = 1e-4,
+        minimizer_args: Optional[Dict] = None,
     ):
         """Fits a model to a dataset and stores the results.
 
@@ -46,7 +47,13 @@ class MLEFitter(Fitter):
             as part of finding the fitted parameter standard errors. Where finite
             parameter bounds are provided, they are used to scale the step size
             appropriately for each parameter.
+        :param minimizer_args: optional dictionary of keyword arguments to be passed
+            into scipy.optimize.minimize.
         """
+        self.minimizer_args = {"options": {"maxls": 100}}
+        if minimizer_args is not None:
+            self.minimizer_args.update(minimizer_args)
+
         self.step_size = step_size
 
         if np.any(y < 0) or np.any(y > 1):
@@ -128,7 +135,7 @@ class MLEFitter(Fitter):
             args=(x, y, free_func),
             x0=p0,
             bounds=zip(lower, upper),
-            options={"maxls": 100},
+            **self.minimizer_args,
         )
 
         if not res.success:
