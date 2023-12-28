@@ -171,11 +171,11 @@ def make_laser_flop(base_class, distribution_fun):
             # to coupling between |g>|n-sideband_index> and |e>|n>.
             omega_vec = (
                 omega
-                * np.exp(-0.5 * np.power(eta, 2))
-                * np.power(eta, np.abs(self.sideband_index))
+                * np.exp(-0.5 * eta**2)
+                * eta ** np.abs(self.sideband_index)
                 * self.fact
                 * special.eval_genlaguerre(
-                    self._n_min, np.abs(self.sideband_index), np.power(eta, 2)
+                    self._n_min, np.abs(self.sideband_index), eta**2
                 )
             )
 
@@ -187,12 +187,10 @@ def make_laser_flop(base_class, distribution_fun):
 
             # Transition probability for individual Fock state, given by
             #     P_transition = 1/2 * omega^2 / W^2 * [1 - exp(-t / tau) * cos(W * t)]
-            W = np.sqrt(np.power(omega, 2) + np.power(detuning, 2))
+            W = np.sqrt(omega**2 + detuning**2)
             P_trans = (
                 0.5
-                * np.power(
-                    np.divide(omega, W, out=np.zeros_like(W), where=(W != 0.0)), 2
-                )
+                * (np.divide(omega, W, out=np.zeros_like(W), where=(W != 0.0)) ** 2)
                 * (1 - np.exp(-t / tau) * np.cos(W * t))
             )
 

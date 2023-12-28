@@ -110,9 +110,7 @@ class Triangle(Model):
             param: param_data.get_initial_value()
             for param, param_data in positive_parameters.items()
         }
-        positive_residuals = np.sum(
-            np.power(y - self._func(x, **positive_parameters), 2)
-        )
+        positive_residuals = np.sum((y - self._func(x, **positive_parameters)) ** 2)
 
         # Case 2: negative slope with peaks left and right of x_max below y_max
         x_l = x[x <= x_max]
@@ -140,9 +138,7 @@ class Triangle(Model):
             param: param_data.get_initial_value()
             for param, param_data in negative_parameters.items()
         }
-        negative_residuals = np.sum(
-            np.power(y - self._func(x, **negative_parameters), 2)
-        )
+        negative_residuals = np.sum((y - self._func(x, **negative_parameters)) ** 2)
 
         if positive_residuals < negative_residuals:
             best_params = positive_parameters

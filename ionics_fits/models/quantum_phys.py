@@ -18,7 +18,7 @@ def thermal_state_probs(
     mean occupancy :param n_bar:, truncated at a maximum Fock state of |n_max>
     """
     n = np.arange(n_max + 1, dtype=int)
-    return np.power(n_bar / (n_bar + 1), n) / (n_bar + 1)
+    return ((n_bar / (n_bar + 1)) ** n) / (n_bar + 1)
 
 
 # pytype: enable=invalid-annotation
@@ -38,7 +38,7 @@ def coherent_state_probs(
     :param alpha: Complex displacement parameter
     """
     n = np.arange(n_max + 1, dtype=int)
-    n_bar = np.power(np.abs(alpha), 2)
+    n_bar = np.abs(alpha) ** 2
 
     # The standard expression is: P_n = n_bar**n * exp(-n_bar) / n!
     # However, this is difficult to evaluate as n increases, so we use an alternate form
@@ -78,7 +78,7 @@ def squeezed_state_probs(
         P_n[0] = 1
     else:
         P_n = (
-            np.power(np.tanh(r), 2 * n)
+            (np.tanh(r) ** (2 * n))
             / np.cosh(r)
             * np.exp(
                 special.gammaln(2 * n + 1)

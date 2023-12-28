@@ -163,7 +163,7 @@ class NormalFitter(Fitter):
             )
 
         y_fit = self.model.func(x, self.values)
-        chi_2 = np.sum(np.power((y - y_fit) / sigma, 2))
+        chi_2 = np.sum(((y - y_fit) / sigma) ** 2)
         p = stats.chi2.sf(chi_2, n)
 
         return p

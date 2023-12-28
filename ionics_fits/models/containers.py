@@ -289,17 +289,22 @@ class RepeatedModel(Model):
         # calculate statistical results
         def add_statistics(values, uncertainties, param_names):
             for param_name in param_names:
-                param_values = [
-                    values[f"{param_name}_{idx}"] for idx in range(self.num_repetitions)
-                ]
-                param_uncerts = [
-                    uncertainties[f"{param_name}_{idx}"]
-                    for idx in range(self.num_repetitions)
-                ]
+                param_values = np.array(
+                    [
+                        values[f"{param_name}_{idx}"]
+                        for idx in range(self.num_repetitions)
+                    ]
+                )
+                param_uncerts = np.array(
+                    [
+                        uncertainties[f"{param_name}_{idx}"]
+                        for idx in range(self.num_repetitions)
+                    ]
+                )
 
                 derived_params[f"{param_name}_mean"] = np.mean(param_values)
                 derived_uncertainties[f"{param_name}_mean"] = (
-                    np.sqrt(np.sum(np.power(param_uncerts, 2))) / self.num_repetitions
+                    np.sqrt(np.sum(param_uncerts**2)) / self.num_repetitions
                 )
 
                 derived_params[f"{param_name}_peak_peak"] = np.ptp(param_values)

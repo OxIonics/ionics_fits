@@ -324,7 +324,7 @@ class RabiFlopTime(RabiFlop):
         else:
             # can't use param_min_sqrs because omega and delta are coupled
             deltas = np.linspace(0, W / 2, 10)
-            omegas = np.sqrt(W**2 - np.power(deltas, 2))
+            omegas = np.sqrt(W**2 - deltas**2)
             costs = np.zeros_like(deltas)
 
             initial_values = {
@@ -337,7 +337,7 @@ class RabiFlopTime(RabiFlop):
                 initial_values["delta"] = deltas[idx]
                 initial_values["omega"] = omegas[idx]
                 y_idx = self.func(x, initial_values)
-                costs[idx] = np.sqrt(np.sum(np.power(y - y_idx, 2)))
+                costs[idx] = np.sqrt(np.sum((y - y_idx) ** 2))
             opt_idx = np.argmin(costs)
 
             self.parameters["delta"].heuristic = deltas[opt_idx]

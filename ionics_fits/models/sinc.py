@@ -116,7 +116,7 @@ class Sinc2(Model):
         w: ModelParameter(lower_bound=0, scale_func=common.scale_x_inv),
     ) -> Array[("num_samples",), np.float64]:
         x = w * (x - x0) / np.pi  # np.sinc(x) = sin(pi*x) / (pi*x)
-        y = a * np.power(np.sinc(x), 2) + y0
+        y = a * (np.sinc(x) ** 2) + y0
         return y
 
     # pytype: enable=invalid-annotation
