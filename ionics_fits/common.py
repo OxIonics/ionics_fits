@@ -169,6 +169,10 @@ class ModelParameter:
         """
         if self.fixed_to is not None:
             value = self.fixed_to
+            if self.user_estimate is not None:
+                raise ValueError(
+                    "User estimates must not be provided for fixed parameters"
+                )
         elif self.user_estimate is not None:
             value = self.user_estimate
         elif self.heuristic is not None:
