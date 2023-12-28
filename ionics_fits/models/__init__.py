@@ -2,6 +2,7 @@ from .containers import AggregateModel, RepeatedModel
 from .benchmarking import Benchmarking
 from .exponential import Exponential
 from .gaussian import Gaussian
+from . import heuristics
 from .laser_rabi import (
     LaserFlopFreqCoherent,
     LaserFlopFreqSqueezed,

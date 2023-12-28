@@ -1,10 +1,11 @@
 from typing import Tuple, TYPE_CHECKING
 import numpy as np
 
+from . import heuristics
 from .rectangle import Rectangle
 from .triangle import Triangle
 from .utils import get_spectrum
-from .. import common, NormalFitter, Model, ModelParameter
+from .. import common, Model, ModelParameter, NormalFitter
 from ..utils import Array
 
 if TYPE_CHECKING:
@@ -73,10 +74,10 @@ class Sinc(Model):
         sgn = 1 if y[np.argmax(np.abs(y - y0))] > y0 else -1
         self.parameters["a"].heuristic = 2 * w * fit.values["a"] * sgn
 
-        x0 = self.find_x_offset_sym_peak(
+        x0 = heuristics.find_x_offset_sym_peak(
+            model=self,
             x=x,
             y=y,
-            parameters=self.parameters,
             omega=omega,
             spectrum=spectrum,
             omega_cut_off=w,
@@ -148,10 +149,10 @@ class Sinc2(Model):
         self.parameters["w"].heuristic = 0.5 * intercept
         self.parameters["a"].heuristic = fit.values["y0"] * sgn * intercept
 
-        x0 = self.find_x_offset_sym_peak(
+        x0 = heuristics.find_x_offset_sym_peak(
+            model=self,
             x=x,
             y=y,
-            parameters=self.parameters,
             omega=omega,
             spectrum=spectrum,
             omega_cut_off=intercept,

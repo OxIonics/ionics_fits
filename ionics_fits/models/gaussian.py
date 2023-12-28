@@ -1,6 +1,7 @@
 from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
 
+from . import heuristics
 from .utils import get_spectrum
 from .. import common, Model, ModelParameter
 from ..utils import Array
@@ -86,10 +87,10 @@ class Gaussian(Model):
 
         cut_off = 2 * omega[np.argmin(np.abs(abs_spectrum - W))]
 
-        x0 = self.find_x_offset_sym_peak(
+        x0 = heuristics.find_x_offset_sym_peak(
+            model=self,
             x=x,
             y=y,
-            parameters=self.parameters,
             omega=omega,
             spectrum=spectrum,
             omega_cut_off=cut_off,

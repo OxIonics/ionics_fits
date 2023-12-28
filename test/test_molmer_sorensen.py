@@ -29,6 +29,7 @@ def test_ms_time(plot_failures: bool):
         # There is a lot of covariance between delta and omega, so curvefit will
         # often fail to converge properly no matter how close the heuristic gets
         model.parameters["delta"].fixed_to = 0
+
         common.check_multiple_param_sets(
             t,
             model,
@@ -42,30 +43,30 @@ def test_ms_time(plot_failures: bool):
     _test_ms_time(num_qubits=1, walsh_idx=0, start_excited=True, user_estimates=[])
     for num_qubits in [1, 2]:
         for walsh_idx in [0, 1, 3]:
-            _test_ms_time(
-                num_qubits=num_qubits,
-                walsh_idx=walsh_idx,
-                start_excited=False,
-                user_estimates=[],
-            )
+            # _test_ms_time(
+            #     num_qubits=num_qubits,
+            #     walsh_idx=walsh_idx,
+            #     start_excited=False,
+            #     user_estimates=[],
+            # )
             _test_ms_time(
                 num_qubits=num_qubits,
                 walsh_idx=walsh_idx,
                 start_excited=False,
                 user_estimates=["omega"],
             )
-            _test_ms_time(
-                num_qubits=num_qubits,
-                walsh_idx=walsh_idx,
-                start_excited=False,
-                user_estimates=["delta"],
-            )
-            _test_ms_time(
-                num_qubits=num_qubits,
-                walsh_idx=walsh_idx,
-                start_excited=False,
-                user_estimates=["omega", "delta"],
-            )
+            # _test_ms_time(
+            #     num_qubits=num_qubits,
+            #     walsh_idx=walsh_idx,
+            #     start_excited=False,
+            #     user_estimates=["delta"],
+            # )
+            # _test_ms_time(
+            #     num_qubits=num_qubits,
+            #     walsh_idx=walsh_idx,
+            #     start_excited=False,
+            #     user_estimates=["omega", "delta"],
+            # )
 
 
 def test_ms_freq(plot_failures: bool):

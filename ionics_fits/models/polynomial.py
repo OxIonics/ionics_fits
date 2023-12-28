@@ -2,6 +2,7 @@ from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
+from . import heuristics
 from .containers import MappedModel
 from .. import common, Model, ModelParameter
 from ..utils import Array
@@ -101,7 +102,9 @@ class Power(Model):
             x = x - x0
             y = y - y0
             a = y / np.float_power(x, n)
-            a = self.param_min_sqrs(x, y, self.parameters, "a", a)[0]
+            a = heuristics.param_min_sqrs(
+                model=self, x=x, y=y, scanned_param="a", scanned_param_values=a
+            )[0]
             self.parameters["a"].heuristic = a
 
         elif unknowns == {"n"}:
@@ -110,7 +113,9 @@ class Power(Model):
 
         elif unknowns == {"y0"}:
             y0 = y - a * np.float_power(x - x0, n)
-            y0 = self.param_min_sqrs(x, y, self.parameters, "y0", y0)[0]
+            y0 = heuristics.param_min_sqrs(
+                model=self, x=x, y=y, scanned_param="y0", scanned_param_values=y0
+            )[0]
             self.parameters["y0"].heuristic = y0
 
         elif "a" in unknowns:
@@ -181,7 +186,7 @@ class Power(Model):
         if len(n) == 0:
             return 1, np.inf
 
-        return self.param_min_sqrs(x, y, self.parameters, "n", n)
+        return heuristics.param_min_sqrs(self, x, y, "n", n)
 
 
 def poly_fit_parameter(n):

@@ -2,6 +2,7 @@ from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
+from . import heuristics
 from .sinc import Sinc2
 from .sinusoid import Sinusoid
 from .. import common, Model, ModelParameter, NormalFitter
@@ -203,10 +204,10 @@ class RabiFlopFreq(RabiFlop):
 
         if unknowns == {"w_0"}:
             omega, spectrum = get_spectrum(x, y, trim_dc=True)
-            w_0 = self.find_x_offset_sym_peak(
+            w_0 = heuristics.find_x_offset_sym_peak(
+                model=self,
                 x=x,
                 y=y,
-                parameters=self.parameters,
                 omega=omega,
                 spectrum=spectrum,
                 omega_cut_off=self.parameters["t_pulse"].get_initial_value(),
@@ -245,8 +246,8 @@ class RabiFlopFreq(RabiFlop):
         # sufficiently high contrast for the y-axis rescaling to not do much!
         x_sample = x[np.argwhere(np.abs(y - y0) > 0.3)]
         x_trial = np.append(x_sample, [x_sinc])
-        w_0, _ = self.param_min_sqrs(
-            x, y, self.parameters, scanned_param="w_0", scanned_param_values=x_trial
+        w_0, _ = heuristics.param_min_sqrs(
+            model=self, x=x, y=y, scanned_param="w_0", scanned_param_values=x_trial
         )
         self.parameters["w_0"].heuristic = w_0
 
@@ -362,10 +363,10 @@ class RabiFlopTime(RabiFlop):
             omega_max = np.pi * n_pi_max / min(x)
             omegas = np.linspace(omega_min, omega_max, num_pts)
 
-            self.parameters["omega"].heuristic, _ = self.param_min_sqrs(
+            self.parameters["omega"].heuristic, _ = heuristics.param_min_sqrs(
+                model=self,
                 x=x,
                 y=y,
-                parameters=self.parameters,
                 scanned_param="omega",
                 scanned_param_values=omegas,
             )

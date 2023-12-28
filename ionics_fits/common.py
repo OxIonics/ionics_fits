@@ -132,7 +132,8 @@ class ModelParameter:
 
     def __setattr__(self, name, value):
         scale_factor = self.scale_factor
-        if scale_factor is not None and name in [
+
+        if None not in [scale_factor, value] and name in [
             "lower_bound",
             "upper_bound",
             "fixed_to",
@@ -158,7 +159,7 @@ class ModelParameter:
             )
         self.scale_factor = None
 
-    def get_initial_value(self) -> float:
+    def get_initial_value(self, default: Optional[float] = None) -> float:
         """
         Get initial value.
 
@@ -166,6 +167,8 @@ class ModelParameter:
         parameters, it is the value used to seed the fit. In the latter case, the
         initial value is retrieved from `user_estimate` if that attribute is not
         `None`, otherwise `heuristic` is used.
+
+        :param default: optional value to use if no other value is available
         """
         if self.fixed_to is not None:
             value = self.fixed_to
@@ -177,6 +180,8 @@ class ModelParameter:
             value = self.user_estimate
         elif self.heuristic is not None:
             value = self.clip(self.heuristic)
+        elif default is not None:
+            value = self.clip(default)
         else:
             raise ValueError("No initial value specified")
 
@@ -184,6 +189,13 @@ class ModelParameter:
             raise ValueError("Initial value outside bounds.")
 
         return value
+
+    def has_initial_value(self) -> bool:
+        """
+        Returns True if the parameter is fixed, has a user estimate or a heuristic.
+        """
+        values = [self.fixed_to, self.user_estimate, self.heuristic]
+        return any([None is not value for value in values])
 
     def has_user_initial_value(self) -> bool:
         """Returns True if the parameter is fixed or has a user estimate"""
@@ -370,197 +382,6 @@ class Model:
             values and uncertainties.
         """
         return {}, {}
-
-    def param_min_sqrs(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
-        parameters: Dict[str, ModelParameter],
-        scanned_param: str,
-        scanned_param_values: ArrayLike["num_values", np.float64],
-    ) -> Tuple[float, float]:
-        """Scans one model parameter while holding the others fixed to find the value
-        that gives the best fit to the data (minimum sum-squared residuals).
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param parameters: dictionary of model parameters. All parameters apart from the
-          scanned parameter must have an initial value set.
-        :param scanned_param: name of parameter to optimize
-        :param scanned_param_values: array of scanned parameter values to test
-
-        :returns: tuple with the value from :param scanned_param_values: which results
-        in lowest residuals and the root-sum-squared residuals for that value.
-        """
-        param_values = {
-            param: param_data.get_initial_value()
-            for param, param_data in parameters.items()
-            if param != scanned_param
-        }
-
-        scanned_param_values = np.asarray(scanned_param_values).squeeze()
-        costs = np.zeros_like(scanned_param_values)
-        for idx, value in np.ndenumerate(scanned_param_values):
-            param_values[scanned_param] = value
-            y_params = self.func(x, param_values)
-            costs[idx] = np.sqrt(np.sum(np.square(y - y_params)))
-
-        # handle a quirk of numpy indexing if only one value is passed in
-        if scanned_param_values.size == 1:
-            return float(scanned_param_values), float(costs)
-
-        opt = np.argmin(costs)
-        return float(scanned_param_values[opt]), float(costs[opt])
-
-    def find_x_offset_sym_peak(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-        parameters: Dict[str, ModelParameter],
-        omega: Array[("num_spectrum_pts",), np.float64],
-        spectrum: Array[("num_spectrum_pts",), np.float64],
-        omega_cut_off: float,
-        test_pts: Optional[Array[("num_test_pts",), np.float64]] = None,
-        x_offset_param_name: str = "x0",
-        y_offset_param_name: str = "y0",
-    ):
-        """Finds the x-axis offset for symmetric, peaked (maximum deviation from the
-        baseline occurs at the origin) functions.
-
-        This heuristic draws candidate x-offset points from three sources and picks the
-        best one (in the least-squares residuals sense). Sources:
-          - FFT shift theorem based on provided spectrum data
-          - Tests all points in the top quartile of deviation from the baseline
-          - Optionally, user-provided "test points", taken from another heuristic. This
-            allows the developer to combine the general-purpose heuristics here with
-            other heuristics which make use of more model-specific assumptions
-
-        :param x: x-axis data
-        :param y: y-axis data. For models with multiple y channels, this should contain
-            data from a single channel only.
-        :param parameters: dictionary of model parameters. All model parameters other
-          than the x-axis offset must have initial values set before calling this method
-        :param omega: FFT frequency axis
-        :param spectrum: complex FFT data. For models with multiple y channels, this
-          should contain data from a single channel only.
-        :param omega_cut_off: highest value of omega to use in offset estimation
-        :param test_pts: optional array of x-axis points to test
-        :param x_offset_param_name: name of the x-axis offset model parameter
-        :param y_offset_param_name: name of the y-axis offset model parameter
-
-        :returns: an estimate of the x-axis offset
-        """
-        if y.ndim != 1:
-            raise ValueError(
-                f"{y.shape[0]} y-channels were provided to a method which takes 1."
-            )
-
-        x0_candidates = np.array([])
-
-        if test_pts is not None:
-            x0_candidates = np.append(x0_candidates, test_pts)
-
-        try:
-            fft_candidate = self.find_x_offset_fft(
-                x=x, omega=omega, spectrum=spectrum, omega_cut_off=omega_cut_off
-            )
-            x0_candidates = np.append(x0_candidates, fft_candidate)
-        except ValueError:
-            pass
-
-        y0 = parameters[y_offset_param_name].get_initial_value()
-        deviations = np.argsort(np.abs(y - y0))
-        top_quartile_deviations = deviations[int(len(deviations) * 3 / 4) :]
-        deviations_candidates = x[top_quartile_deviations]
-        x0_candidates = np.append(x0_candidates, deviations_candidates)
-
-        best_x0, _ = self.param_min_sqrs(
-            x=x,
-            y=y,
-            parameters=parameters,
-            scanned_param=x_offset_param_name,
-            scanned_param_values=x0_candidates,
-        )
-        return best_x0
-
-    def find_x_offset_sampling(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
-        parameters: Dict[str, ModelParameter],
-        width: float,
-        x_offset_param_name: str = "x0",
-    ) -> float:
-        """Finds the x-axis offset of a dataset by stepping through a range of potential
-        offset values and picking the one that gives the lowest residuals.
-
-        This method is typically called during parameter estimation after all other
-        model parameters have been estimated from the periodogram (which is not itself
-        sensitive to offsets).
-
-        There are a few ways one can implemented this functionality: for strongly
-        peaked functions we could have used a simple peak search; we could have used an
-        FFT, fitted a line to the phase and used the Fourier Transform Shift Theorem.
-
-        This function takes a more brute-force approach by evaluating the model at a
-        range of offset values, picking the one that gives the lowest residuals. This
-        may be appropriate where one needs the estimate to be highly robust in the face
-        of noisy, irregularly sampled data.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param parameters: dictionary of model parameters.
-        :param width: width of the feature we're trying to find (e.g. FWHMH). Used to
-            pick the spacing between offset values to try.
-        :param x_offset_param_name: name of the x-axis offset parameter
-
-        :returns: an estimate of the x-axis offset
-        """
-        offsets = np.arange(min(x), max(x), width / 6)
-        return self.param_min_sqrs(x, y, parameters, x_offset_param_name, offsets)[0]
-
-    def find_x_offset_fft(
-        self,
-        x: Array[("num_samples",), np.float64],
-        omega: Array[("num_spectrum_pts",), np.float64],
-        spectrum: Array[("num_spectrum_pts",), np.float64],
-        omega_cut_off: float,
-    ) -> float:
-        """Finds the x-axis offset of a dataset from the phase of an FFT.
-
-        This method is typically called during parameter estimation after all other
-        model parameters have been estimated from the periodogram (which is not itself
-        sensitive to offsets).
-
-        This method uses the FFT shift theorem to extract the offset from the phase
-        slope of an FFT. At present it only supports models with a single y channel.
-
-        :param omega: FFT frequency axis
-        :param spectrum: complex FFT data. For models with multiple y channels, this
-          should contain data from a single channel only.
-        :param omega_cut_off: highest value of omega to use in offset estimation
-
-        :returns: an estimate of the x-axis offset
-        """
-        if spectrum.ndim != 1:
-            raise ValueError(
-                f"{spectrum.shape[1]} y channels were provided to a method which "
-                "takes 1"
-            )
-
-        keep = omega < omega_cut_off
-        if np.sum(keep) < 2:
-            raise ValueError("Insufficient data below cut-off")
-
-        omega = omega[keep]
-        phi = np.unwrap(np.angle(spectrum[keep]))
-        phi -= phi[0]
-
-        p = np.polyfit(omega, phi, deg=1)
-
-        x0 = min(x) - p[0]
-        x0 = x0 if x0 > min(x) else x0 + x.ptp()
-        return x0
 
 
 class Fitter:

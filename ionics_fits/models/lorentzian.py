@@ -1,9 +1,10 @@
 from typing import Tuple, TYPE_CHECKING
 import numpy as np
 
+from . import heuristics
 from .exponential import Exponential
 from .utils import get_spectrum
-from .. import common, NormalFitter, Model, ModelParameter
+from .. import common, Model, ModelParameter, NormalFitter
 from ..utils import Array
 
 
@@ -74,10 +75,10 @@ class Lorentzian(Model):
 
         cut_off = 2 * fit.values["tau"]
 
-        x0 = self.find_x_offset_sym_peak(
+        x0 = heuristics.find_x_offset_sym_peak(
+            model=self,
             x=x,
             y=y,
-            parameters=self.parameters,
             omega=omega,
             spectrum=spectrum,
             omega_cut_off=cut_off,

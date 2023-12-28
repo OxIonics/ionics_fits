@@ -1,7 +1,7 @@
-import copy
 import numpy as np
 from typing import Dict, Tuple, TYPE_CHECKING
 
+from . import heuristics
 from .. import common, Model, ModelParameter
 from ..utils import Array
 from . import utils
@@ -90,15 +90,15 @@ class Sinusoid(Model):
         self.parameters["a"].heuristic = spectrum[peak] * 2
         self.parameters["omega"].heuristic = omega[peak]
 
-        phi_params = copy.deepcopy(self.parameters)
-        phi_params["x0"].heuristic = 0.0
-        phi, _ = self.param_min_sqrs(
+        phi, _ = heuristics.param_min_sqrs(
+            model=self,
             x=x,
             y=y,
-            parameters=phi_params,
             scanned_param="phi",
             scanned_param_values=np.linspace(-np.pi, np.pi, num=20),
+            defaults={"x0": 0},
         )
+
         phi = self.parameters["phi"].clip(phi)
 
         if self.parameters["x0"].fixed_to is None:

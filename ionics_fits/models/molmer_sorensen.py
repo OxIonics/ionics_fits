@@ -2,9 +2,9 @@ from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
+from . import heuristics
 from .. import common, Model, ModelParameter
 from ..utils import Array
-from . import heuristics
 
 
 if TYPE_CHECKING:
@@ -257,10 +257,10 @@ class MolmerSorensenTime(MolmerSorensen):
 
         if not self.parameters["omega"].has_user_initial_value():
             omegas = np.array([np.linspace(0.1, 10, 25)]) * np.pi / max(x)
-            self.parameters["omega"].heuristic, _ = self.param_min_sqrs(
+            self.parameters["omega"].heuristic, _ = heuristics.param_min_sqrs(
+                model=self,
                 x=x,
                 y=y,
-                parameters=self.parameters,
                 scanned_param="omega",
                 scanned_param_values=omegas,
             )
@@ -268,10 +268,10 @@ class MolmerSorensenTime(MolmerSorensen):
         elif not self.parameters["delta"].has_user_initial_value():
             omega = self.parameters["omega"].get_initial_value()
             deltas = np.array([np.linspace(0, 10, 25)]) * omega
-            self.parameters["delta"].heuristic, _ = self.param_min_sqrs(
+            self.parameters["delta"].heuristic, _ = heuristics.param_min_sqrs(
+                model=self,
                 x=x,
                 y=y,
-                parameters=self.parameters,
                 scanned_param="delta",
                 scanned_param_values=deltas,
             )
@@ -338,10 +338,10 @@ class MolmerSorensenFreq(MolmerSorensen):
                 # the centre frequency is close to the edge of the scan range.
                 # Since w_0 is our only unknown here, we throw in a sampling
                 # heuristic for good measure.
-                w_0_grid, w_0_grid_cost = self.param_min_sqrs(
+                w_0_grid, w_0_grid_cost = heuristics.param_min_sqrs(
+                    model=self,
                     x=x,
                     y=y,
-                    parameters=self.parameters,
                     scanned_param="w_0",
                     scanned_param_values=np.linspace(min(x), max(x), 50),
                 )
@@ -357,10 +357,10 @@ class MolmerSorensenFreq(MolmerSorensen):
 
         if self.parameters["t_pulse"].has_user_initial_value():
             t_pulse = self.parameters["t_pulse"].get_initial_value()
-            self.parameters["omega"].heuristic, _ = self.param_min_sqrs(
+            self.parameters["omega"].heuristic, _ = heuristics.param_min_sqrs(
+                model=self,
                 x=x,
                 y=y,
-                parameters=self.parameters,
                 scanned_param="omega",
                 scanned_param_values=np.array([np.linspace(0.25, 5, 10)])
                 * np.pi
@@ -368,10 +368,10 @@ class MolmerSorensenFreq(MolmerSorensen):
             )
         elif self.parameters["omega"].has_user_initial_value():
             omega = self.parameters["omega"].get_initial_value()
-            self.parameters["t_pulse"].heuristic, _ = self.param_min_sqrs(
+            self.parameters["t_pulse"].heuristic, _ = heuristics.param_min_sqrs(
+                model=self,
                 x=x,
                 y=y,
-                parameters=self.parameters,
                 scanned_param="t_pulse",
                 scanned_param_values=np.array([np.linspace(0.25, 5, 10)])
                 * np.pi
@@ -386,10 +386,10 @@ class MolmerSorensenFreq(MolmerSorensen):
             t_pulses = np.zeros_like(omegas)
             for idx, omega in np.ndenumerate(omegas):
                 self.parameters["omega"].heuristic = omega
-                t_pulses[idx], costs[idx] = self.param_min_sqrs(
+                t_pulses[idx], costs[idx] = heuristics.param_min_sqrs(
+                    model=self,
                     x=x,
                     y=y,
-                    parameters=self.parameters,
                     scanned_param="t_pulse",
                     scanned_param_values=np.array([np.linspace(0.1, 5, 20)])
                     * np.pi
