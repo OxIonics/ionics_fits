@@ -558,20 +558,6 @@ class Model:
         x0 = x0 if x0 > min(x) else x0 + x.ptp()
         return x0
 
-    def get_initial_values(
-        self, model_parameters: Optional[Dict[str, ModelParameter]] = None
-    ) -> Dict[str, float]:
-        """Returns a dictionary mapping model parameter names to their initial values.
-
-        :param model_parameters: optional dictionary mapping model parameter names to
-           :class ModelParameter:s
-        """
-        model_paramers = model_parameters or self.parameters
-        return {
-            param: param_data.get_initial_value()
-            for param, param_data in model_paramers.items()
-        }
-
 
 class Fitter:
     """Base class for fitters.
