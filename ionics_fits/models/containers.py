@@ -138,6 +138,11 @@ class RepeatedModel(Model):
 
     The `RepeatedModel` has multiple y-channels, corresponding to the repetitions of
     the wrapped model.
+
+    Repeated models allow multiple datasets to be analysed simultaneously. This is
+    useful, for example, when doing joint fits to datasets (using common parameters)
+    or in automated tooling (for example ndscan OnlineAnalyses) which needs a single
+    model for an entire dataset.
     """
 
     def __init__(
