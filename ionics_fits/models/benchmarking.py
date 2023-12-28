@@ -2,34 +2,17 @@ from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
 from ..utils import Array
 
 if TYPE_CHECKING:
     num_samples = float
 
 
-def _scale_func(x_scale, y_scale, model):
-    # Prevent rescaling
-    return None
-
-
-def _generate_benchmarking_parameters(num_qubits):
-    params = {
-        "p": ModelParameter(lower_bound=0.0, upper_bound=1.0, scale_func=_scale_func),
-        "y0": ModelParameter(
-            lower_bound=0.0,
-            upper_bound=1.0,
-            scale_func=lambda x_scale, y_scale, _: y_scale,
-        ),
-        "y_inf": ModelParameter(
-            fixed_to=1 / 2**num_qubits,
-            lower_bound=0,
-            upper_bound=1,
-            scale_func=lambda x_scale, y_scale, _: y_scale,
-        ),
-    }
-    return params
+def _p_scale_func(x_scale: float, y_scale: float) -> float:
+    if x_scale != 1.0:
+        raise RuntimeError("Benchmarking model cannot be rescaled along x")
+    return 1
 
 
 class Benchmarking(Model):
@@ -53,52 +36,50 @@ class Benchmarking(Model):
 
         :param num_qubits: The number of qubits involved in the benchmarking sequence.
         """
+        super().__init__()
+        self.parameters["y_inf"].fixed_to = 1 / 2**num_qubits
         self.num_qubits = num_qubits
         self.alpha = 2**num_qubits / (2**num_qubits - 1)
-        super().__init__(parameters=_generate_benchmarking_parameters(num_qubits))
 
     def get_num_y_channels(self) -> int:
-        """Return the number of y-channels supported by the model."""
         return 1
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return False, True
+
+    # pytype: disable=invalid-annotation
+    def _func(
+        self,
+        x: Array[("num_samples",), np.float64],
+        p: ModelParameter(lower_bound=0.0, upper_bound=1.0, scale_func=_p_scale_func),
+        y0: ModelParameter(
+            lower_bound=0.0,
+            upper_bound=1.0,
+            scale_func=common.scale_y,
+        ),
+        y_inf: ModelParameter(
+            # fixed_to set to `1 / 2**num_qubits` in the constructor
+            lower_bound=0,
+            upper_bound=1,
+            scale_func=common.scale_y,
+        ),
     ) -> Array[("num_samples",), np.float64]:
-        """Evaluates the model at a given set of x-axis points and with a given
-        parameter set and returns the result."""
-        p = params["p"]
-        y0 = params["y0"]
-        y_inf = params["y_inf"]
         y = (y0 - y_inf) * p**x + y_inf
         return y
+
+    # pytype: enable=invalid-annotation
 
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        """Set heuristic values for model parameters.
-
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
-
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
-        """
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
-        model_parameters["p"].heuristic = 1.0
-        model_parameters["y0"].heuristic = max(y)
-        model_parameters["y_inf"].heuristic = 1 / 2**self.num_qubits
+        self.parameters["p"].heuristic = 1.0
+        self.parameters["y0"].heuristic = max(y)
+        self.parameters["y_inf"].heuristic = 1 / 2**self.num_qubits
 
     def calculate_derived_params(
         self,
@@ -107,21 +88,6 @@ class Benchmarking(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """
-        Returns dictionaries of values and uncertainties for the derived model
-        parameters (parameters which are calculated from the fit results rather than
-        being directly part of the fit) based on values of the fitted parameters and
-        their uncertainties.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param: fitted_params: dictionary mapping model parameter names to their
-            fitted values.
-        :param fit_uncertainties: dictionary mapping model parameter names to
-            their fit uncertainties.
-        :returns: tuple of dictionaries mapping derived parameter names to their
-            values and uncertainties.
-        """
         p = fitted_params["p"]
         y0 = fitted_params["y0"]
 

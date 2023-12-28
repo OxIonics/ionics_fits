@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 
-from .. import Model, ModelParameter
+from .. import Model
 from ..utils import Array
 
 
@@ -13,7 +13,13 @@ if TYPE_CHECKING:
 
 
 class AggregateModel(Model):
-    """Model formed by aggregating one or more models"""
+    """Model formed by aggregating one or more models.
+
+    Aggregate models are useful for situations where one wants to analyse multiple
+    models simultaneously, for example in automated tooling (e.g. ndscan
+    OnlineAnalyses). In the future their functionality will be expanded to allow making
+    parameters common to do joint fitting.
+    """
 
     def __init__(
         self,
@@ -25,7 +31,9 @@ class AggregateModel(Model):
           with each element containing a model name string and a model instance. The
           model names are used as prefixes for names of model parameters and derived
           results. For example, if one of the aggregated models named `foo` has a
-          parameter `bar`, the aggregate model will have a parameter `foo_bar`.
+          parameter `bar`, the aggregate model will have a parameter `foo_bar`. The
+          passed-in models are considered "owned" by the AggregateModel and should not
+          be reused / modified externally.
 
         At present this class only supports models with a single y channel. This is just
         because no one got around to implementing it yet rather than any fundamental
@@ -36,8 +44,7 @@ class AggregateModel(Model):
         design question here is where the common parameters should get their properties
         (bounds, scale factors, etc) from and how we should deal with their heuristics.
         """
-        self.models = copy.deepcopy(models)
-
+        self.models = models
         parameters = {}
         for model_name, model in self.models:
             if model.get_num_y_channels() != 1:
@@ -55,6 +62,10 @@ class AggregateModel(Model):
 
     def get_num_y_channels(self) -> int:
         return len(self.models)
+
+    def can_rescale(self) -> Tuple[bool, bool]:
+        rescale_x, rescale_y = zip(*[model.can_rescale() for _, model in self.models])
+        return all(rescale_x), all(rescale_y)
 
     def func(
         self,
@@ -75,14 +86,9 @@ class AggregateModel(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_y_channels", "num_samples"), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        for idx, (model_name, model) in enumerate(self.models):
-            params = {
-                param_name: model_parameters[f"{model_name}_{param_name}"]
-                for param_name in model.parameters.keys()
-            }
-            model.estimate_parameters(x, y[idx], params)
+        for idx, (_, model) in enumerate(self.models):
+            model.estimate_parameters(x, y[idx])
 
     def calculate_derived_params(
         self,
@@ -133,6 +139,11 @@ class RepeatedModel(Model):
 
     The `RepeatedModel` has multiple y-channels, corresponding to the repetitions of
     the wrapped model.
+
+    Repeated models allow multiple datasets to be analysed simultaneously. This is
+    useful, for example, when doing joint fits to datasets (using common parameters)
+    or in automated tooling (for example ndscan OnlineAnalyses) which needs a single
+    model for an entire dataset.
     """
 
     def __init__(
@@ -143,7 +154,8 @@ class RepeatedModel(Model):
     ):
         """
         :param inner: The wrapped model, the implementation of `inner` will be used to
-          generate data for the y channels
+          generate data for the y channels. This model is considered owned by the
+          RepeatedModel and should not be used / modified elsewhere.
         :param common_params: optional list of names of model arguments, whose value is
           common to all y channels. All other model parameters are independent
         :param num_repetitions: the number of times the inner model is repeated
@@ -157,8 +169,6 @@ class RepeatedModel(Model):
             statistics for the results from the various models: `foo_mean` and
             `foo_peak_peak`.
         """
-        inner = copy.deepcopy(inner)
-
         inner_params = set(inner.parameters.keys())
         common_params = set(common_params or [])
 
@@ -187,6 +197,9 @@ class RepeatedModel(Model):
     def get_num_y_channels(self) -> int:
         return self.num_repetitions * self.inner.get_num_y_channels()
 
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return self.inner.can_rescale()
+
     def func(
         self,
         x: Array[("num_samples",), np.float64],
@@ -211,25 +224,38 @@ class RepeatedModel(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_y_channels", "num_samples"), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
         dim = self.inner.get_num_y_channels()
 
-        common_params = {param: model_parameters[param] for param in self.common_params}
+        common_params = {param: self.parameters[param] for param in self.common_params}
         common_heuristics = {param: [] for param in self.common_params}
+
+        # FIXME - add "clear heuristics method instead"
+        inner_params = self.inner.parameters  # store for later
+
         for idx in range(self.num_repetitions):
             params = {
-                param: model_parameters[f"{param}_{idx}"]
+                param: self.parameters[f"{param}_{idx}"]
                 for param in self.independent_params
             }
-            params.update(copy.deepcopy(common_params))
-            self.inner.estimate_parameters(x, y[idx * dim : (idx + 1) * dim], params)
+
+            params.update(common_params)
+
+            # Since common params are reused multiple times, clear their heuristic
+            # values between each use
+            for param_data in common_params.values():
+                param_data.heuristic = None
+
+            self.inner.parameters = params
+            self.inner.estimate_parameters(x, y[idx * dim : (idx + 1) * dim])
 
             for param in self.common_params:
                 common_heuristics[param].append(params[param].get_initial_value())
 
         for param in self.common_params:
-            model_parameters[param].heuristic = np.mean(common_heuristics[param])
+            self.parameters[param].heuristic = np.mean(common_heuristics[param])
+
+        self.inner.parameters = inner_params
 
     def calculate_derived_params(
         self,
@@ -281,17 +307,22 @@ class RepeatedModel(Model):
         # calculate statistical results
         def add_statistics(values, uncertainties, param_names):
             for param_name in param_names:
-                param_values = [
-                    values[f"{param_name}_{idx}"] for idx in range(self.num_repetitions)
-                ]
-                param_uncerts = [
-                    uncertainties[f"{param_name}_{idx}"]
-                    for idx in range(self.num_repetitions)
-                ]
+                param_values = np.array(
+                    [
+                        values[f"{param_name}_{idx}"]
+                        for idx in range(self.num_repetitions)
+                    ]
+                )
+                param_uncerts = np.array(
+                    [
+                        uncertainties[f"{param_name}_{idx}"]
+                        for idx in range(self.num_repetitions)
+                    ]
+                )
 
                 derived_params[f"{param_name}_mean"] = np.mean(param_values)
                 derived_uncertainties[f"{param_name}_mean"] = (
-                    np.sqrt(np.sum(np.power(param_uncerts, 2))) / self.num_repetitions
+                    np.sqrt(np.sum(param_uncerts**2)) / self.num_repetitions
                 )
 
                 derived_params[f"{param_name}_peak_peak"] = np.ptp(param_values)
@@ -314,39 +345,39 @@ class MappedModel(Model):
 
     def __init__(
         self,
-        inner: Model,
-        mapped_params: Dict[str, str],
+        wrapped_model: Model,
+        param_mapping: Dict[str, str],
         fixed_params: Optional[Dict[str, float]] = None,
     ):
         """Init
 
-        :param inner: The wrapped model, the implementation of `inner` will be used
-            after the parameter mapping has been done.
-        :param mapped_params: dictionary mapping names of parameters in the new
+        :param wrapped_model: The wrapped model. This model is considered "owned" by the
+            MappedModel and should not be modified / used elsewhere.
+        :param param_mapping: dictionary mapping names of parameters in the new
             model to names of parameters used in the wrapped model.
         :param fixed_params: dictionary mapping names of parameters used in the
             wrapped model to values they are fixed to in the new model. These
             will not be parameters of the new model.
         """
-        inner_params = inner.parameters
+        self.wrapped_model = wrapped_model
+        wrapped_params = self.wrapped_model.parameters
 
-        if fixed_params is None:
-            fixed_params = {}
+        fixed_params = fixed_params or {}
 
-        if unknown_mapped_params := set(mapped_params.values()) - inner_params.keys():
+        if unknown_mapped_params := set(param_mapping.values()) - wrapped_params.keys():
             raise ValueError(
                 "The target of parameter mappings must be parameters of the inner "
-                f"model. The mapping targets are not: {unknown_mapped_params}"
+                f"model. The following mapping targets are not: {unknown_mapped_params}"
             )
 
-        if unknown_fixed_params := fixed_params.keys() - inner_params.keys():
+        if unknown_fixed_params := fixed_params.keys() - wrapped_params.keys():
             raise ValueError(
                 "Fixed parameters must be parameters of the inner model. The "
                 f"follow fixed parameters are not: {unknown_fixed_params}"
             )
 
-        if missing_params := inner_params.keys() - (
-            fixed_params.keys() | mapped_params.values()
+        if missing_params := wrapped_params.keys() - (
+            fixed_params.keys() | param_mapping.values()
         ):
             raise ValueError(
                 "All parameters of the inner model must be either mapped of "
@@ -354,118 +385,56 @@ class MappedModel(Model):
                 f"{missing_params}"
             )
 
-        if duplicated_params := fixed_params.keys() & mapped_params.values():
+        if duplicated_params := fixed_params.keys() & param_mapping.values():
             raise ValueError(
                 "Parameters cannot be both mapped and fixed. The following "
                 f"parameters are both: {duplicated_params}"
             )
 
-        params = {
-            new_name: inner_params[old_name]
-            for new_name, old_name in mapped_params.items()
+        self.fixed_params = {
+            param_name: self.wrapped_model.parameters[param_name]
+            for param_name in fixed_params.keys()
         }
-        super().__init__(parameters=params)
-        self.inner = inner
-        self.mapped_args = mapped_params
-        self.fixed_params = fixed_params or {}
+        for param_name, fixed_to in fixed_params.items():
+            self.fixed_params[param_name].fixed_to = fixed_to
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        """Returns True if the model can be rescaled"""
-        return self.inner.can_rescale(x_scale, y_scale)
-
-    @staticmethod
-    def get_scaled_model(model, x_scale: float, y_scale: float):
-        """Returns a scaled copy of a given model object
-
-        :param model: model to be copied and rescaled
-        :param x_scale: x-axis scale factor
-        :param y_scale: y-axis scale factor
-        :returns: a scaled copy of model
-        """
-        scaled_model = copy.deepcopy(model)
-        for param_name, param in scaled_model.inner.parameters.items():
-            param.rescale(x_scale, y_scale, scaled_model.inner)
-
-        for fixed_param in scaled_model.fixed_params.keys():
-            scale_factor = scaled_model.inner.parameters[fixed_param].scale_factor
-            scaled_model.fixed_params[fixed_param] /= scale_factor
-
-        # Expose the scale factors to the fitter so it knows how to rescale the results
-        for new_name, old_name in scaled_model.mapped_args.items():
-            scale_factor = scaled_model.inner.parameters[old_name].scale_factor
-            scaled_model.parameters[new_name].scale_factor = scale_factor
-
-        return scaled_model
+        self.param_mapping = param_mapping
+        exposed_params = {
+            new_name: self.wrapped_model.parameters[old_name]
+            for new_name, old_name in param_mapping.items()
+        }
+        internal_parameters = (
+            list(self.fixed_params.values()) + self.wrapped_model.internal_parameters
+        )
+        super().__init__(
+            parameters=exposed_params,
+            internal_parameters=internal_parameters,
+        )
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
-        return self.inner.get_num_y_channels()
+        return self.wrapped_model.get_num_y_channels()
+
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return self.wrapped_model.can_rescale()
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples", "num_y_channels"), np.float64]:
-        """Evaluates the model at a given set of x-axis points and with a given set of
-        parameter values and returns the result.
-
-        Overload this to provide a model function with a dynamic set of parameters,
-        otherwise prefer to override `_func`.
-
-        :param x: x-axis data
-        :param param_values: dictionary of parameter values
-        :returns: array of model values
-        """
         new_params = {
             old_name: param_values[new_name]
-            for new_name, old_name in self.mapped_args.items()
+            for new_name, old_name in self.param_mapping.items()
         }
-        new_params.update(self.fixed_params)
-        return self.inner.func(x, new_params)
-
-    def _inner_estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
-        inner_parameters: Dict[str, ModelParameter],
-    ) -> Dict[str, float]:
-        return self.inner.estimate_parameters(x, y, inner_parameters)
+        new_params.update(
+            {
+                param_name: param_data.fixed_to
+                for param_name, param_data in self.fixed_params.items()
+            }
+        )
+        return self.wrapped_model.func(x, new_params)
 
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples", "num_y_channels"), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        """Set heuristic values for model parameters.
-
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
-
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
-        """
-        inner_parameters = {
-            original_param: copy.deepcopy(model_parameters[new_param])
-            for new_param, original_param in self.mapped_args.items()
-        }
-
-        inner_parameters.update(
-            {
-                param: ModelParameter(
-                    lower_bound=value, upper_bound=value, fixed_to=value
-                )
-                for param, value in self.fixed_params.items()
-            }
-        )
-
-        self._inner_estimate_parameters(x, y, inner_parameters)
-
-        for new_param, original_param in self.mapped_args.items():
-            initial_value = inner_parameters[original_param].get_initial_value()
-            model_parameters[new_param].heuristic = initial_value
+        self.wrapped_model.estimate_parameters(x, y)

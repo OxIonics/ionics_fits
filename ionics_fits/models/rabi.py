@@ -2,9 +2,10 @@ from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
+from . import heuristics
 from .sinc import Sinc2
 from .sinusoid import Sinusoid
-from .. import Model, ModelParameter, NormalFitter
+from .. import common, Model, ModelParameter, NormalFitter
 from .utils import get_spectrum
 from ..utils import Array
 
@@ -64,8 +65,10 @@ class RabiFlop(Model):
         self.start_excited = start_excited
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return True, True
 
     # pytype: disable=invalid-annotation
     def _func(
@@ -80,17 +83,21 @@ class RabiFlop(Model):
         P_readout_e: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            scale_func=lambda x_scale, y_scale, _: y_scale,
+            scale_func=common.scale_y,
         ),
         P_readout_g: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            scale_func=lambda x_scale, y_scale, _: y_scale,
+            scale_func=common.scale_y,
         ),
-        omega: ModelParameter(lower_bound=0.0),
-        tau: ModelParameter(lower_bound=0.0, fixed_to=np.inf),
-        t_dead: ModelParameter(lower_bound=0.0, fixed_to=0.0),
-        w_0: ModelParameter(),
+        omega: ModelParameter(lower_bound=0.0, scale_func=common.scale_undefined),
+        tau: ModelParameter(
+            lower_bound=0.0, fixed_to=np.inf, scale_func=common.scale_undefined
+        ),
+        t_dead: ModelParameter(
+            lower_bound=0.0, fixed_to=0.0, scale_func=common.scale_undefined
+        ),
+        w_0: ModelParameter(scale_func=common.scale_undefined),
     ) -> Array[("num_samples",), np.float64]:
         """:param x: tuple of (t_pulse, w)"""
         t = np.clip(x[0] - t_dead, a_min=0.0, a_max=None)
@@ -147,22 +154,19 @@ class RabiFlopFreq(RabiFlop):
     def __init__(self, start_excited: bool):
         super().__init__(start_excited)
 
-        self.parameters["t_pulse"] = ModelParameter(lower_bound=0.0)
+        self.parameters["t_pulse"] = ModelParameter(
+            lower_bound=0.0, scale_func=common.scale_x_inv
+        )
 
-        self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: x_scale
-        self.parameters["w_0"].scale_func = lambda x_scale, y_scale, _: x_scale
+        self.parameters["omega"].scale_func = common.scale_x
+        self.parameters["w_0"].scale_func = common.scale_x
 
-        self.parameters["t_pulse"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
-        self.parameters["tau"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
-        self.parameters["t_dead"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
+        self.parameters["tau"].scale_func = common.scale_x_inv
+        self.parameters["t_dead"].scale_func = common.scale_x_inv
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
-        """Returns measurement outcome as function of pulse frequency.
-
-        :param x: Angular frequency
-        """
         param_values = param_values.copy()
         t_pulse = param_values.pop("t_pulse")
         return self._func(
@@ -173,19 +177,18 @@ class RabiFlopFreq(RabiFlop):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
-        model_parameters["t_dead"].heuristic = 0.0
+        self.parameters["t_dead"].heuristic = 0.0
 
         if self.start_excited:
-            model_parameters["P_readout_e"].heuristic = y[0]
-            model_parameters["P_readout_g"].heuristic = abs(1 - y[0])
+            self.parameters["P_readout_e"].heuristic = y[0]
+            self.parameters["P_readout_g"].heuristic = abs(1 - y[0])
         else:
-            model_parameters["P_readout_g"].heuristic = y[0]
-            model_parameters["P_readout_e"].heuristic = abs(1 - y[0])
+            self.parameters["P_readout_g"].heuristic = y[0]
+            self.parameters["P_readout_e"].heuristic = abs(1 - y[0])
 
         y0_param = "P_readout_e" if self.start_excited else "P_readout_g"
 
@@ -193,7 +196,7 @@ class RabiFlopFreq(RabiFlop):
         # duration are known. In this case we don't need to rely on the Sinc2
         # approximation
         unknowns = set()
-        for param, param_data in model_parameters.items():
+        for param, param_data in self.parameters.items():
             try:
                 param_data.get_initial_value()
             except ValueError:
@@ -201,17 +204,17 @@ class RabiFlopFreq(RabiFlop):
 
         if unknowns == {"w_0"}:
             omega, spectrum = get_spectrum(x, y, trim_dc=True)
-            w_0 = self.find_x_offset_sym_peak(
+            w_0 = heuristics.find_x_offset_sym_peak(
+                model=self,
                 x=x,
                 y=y,
-                parameters=model_parameters,
                 omega=omega,
                 spectrum=spectrum,
-                omega_cut_off=model_parameters["t_pulse"].get_initial_value(),
+                omega_cut_off=self.parameters["t_pulse"].get_initial_value(),
                 x_offset_param_name="w_0",
                 y_offset_param_name=y0_param,
             )
-            model_parameters["w_0"].heuristic = w_0
+            self.parameters["w_0"].heuristic = w_0
             return
 
         # There isn't a simple analytic form for the Fourier transform of a Rabi
@@ -221,17 +224,17 @@ class RabiFlopFreq(RabiFlop):
         # NB np.sinc(x) = np.sin(pi * x) / (pi * x)
         # This heuristic breaks down when: omega * t_pulse ~ pi
         model = Sinc2()
-        y0 = model_parameters[y0_param].get_initial_value()
+        y0 = self.parameters[y0_param].get_initial_value()
         model.parameters["y0"].fixed_to = y0
         fit = NormalFitter(x, y, model)
 
-        model_parameters["t_pulse"].heuristic = 2 * fit.values["w"]
-        t_pulse = model_parameters["t_pulse"].get_initial_value()
-        model_parameters["omega"].heuristic = (
+        self.parameters["t_pulse"].heuristic = 2 * fit.values["w"]
+        t_pulse = self.parameters["t_pulse"].get_initial_value()
+        self.parameters["omega"].heuristic = (
             2 * np.sqrt(np.abs(fit.values["a"])) / t_pulse
         )
 
-        if model_parameters["w_0"].has_user_initial_value():
+        if self.parameters["w_0"].has_user_initial_value():
             return
 
         # The user hasn't told us what w_0 is so we need to find a heuristic value
@@ -243,12 +246,12 @@ class RabiFlopFreq(RabiFlop):
         # sufficiently high contrast for the y-axis rescaling to not do much!
         x_sample = x[np.argwhere(np.abs(y - y0) > 0.3)]
         x_trial = np.append(x_sample, [x_sinc])
-        w_0, _ = self.param_min_sqrs(
-            x, y, model_parameters, scanned_param="w_0", scanned_param_values=x_trial
+        w_0, _ = heuristics.param_min_sqrs(
+            model=self, x=x, y=y, scanned_param="w_0", scanned_param_values=x_trial
         )
-        model_parameters["w_0"].heuristic = w_0
+        self.parameters["w_0"].heuristic = w_0
 
-        model_parameters["tau"].heuristic = 10 * t_pulse
+        self.parameters["tau"].heuristic = 10 * t_pulse
 
 
 class RabiFlopTime(RabiFlop):
@@ -264,22 +267,17 @@ class RabiFlopTime(RabiFlop):
     def __init__(self, start_excited: bool):
         super().__init__(start_excited)
 
-        self.parameters["delta"] = ModelParameter()
+        self.parameters["delta"] = ModelParameter(scale_func=common.scale_x_inv)
         del self.parameters["w_0"]
 
-        self.parameters["delta"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
-        self.parameters["omega"].scale_func = lambda x_scale, y_scale, _: 1 / x_scale
+        self.parameters["omega"].scale_func = common.scale_x_inv
 
-        self.parameters["tau"].scale_func = lambda x_scale, y_scale, _: x_scale
-        self.parameters["t_dead"].scale_func = lambda x_scale, y_scale, _: x_scale
+        self.parameters["tau"].scale_func = common.scale_x
+        self.parameters["t_dead"].scale_func = common.scale_x
 
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
-        """Returns measurement outcome as function of pulse duration.
-
-        :param x: Pulse duration
-        """
         param_values = param_values.copy()
         delta = param_values.pop("delta")
         param_values["w_0"] = 0.0
@@ -289,23 +287,22 @@ class RabiFlopTime(RabiFlop):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
-        model_parameters["t_dead"].heuristic = 0.0
-        model_parameters["tau"].heuristic = 10 * x.ptp()
+        self.parameters["t_dead"].heuristic = 0.0
+        self.parameters["tau"].heuristic = 10 * x.ptp()
 
         if self.start_excited:
-            model_parameters["P_readout_e"].heuristic = y[0]
-            model_parameters["P_readout_g"].heuristic = abs(1 - y[0])
+            self.parameters["P_readout_e"].heuristic = y[0]
+            self.parameters["P_readout_g"].heuristic = abs(1 - y[0])
         else:
-            model_parameters["P_readout_g"].heuristic = y[0]
-            model_parameters["P_readout_e"].heuristic = abs(1 - y[0])
+            self.parameters["P_readout_g"].heuristic = y[0]
+            self.parameters["P_readout_e"].heuristic = abs(1 - y[0])
 
-        P_readout_e = model_parameters["P_readout_e"].get_initial_value()
-        P_readout_g = model_parameters["P_readout_g"].get_initial_value()
+        P_readout_e = self.parameters["P_readout_e"].get_initial_value()
+        P_readout_g = self.parameters["P_readout_g"].get_initial_value()
 
         model = Sinusoid()
         if P_readout_e >= P_readout_g:
@@ -319,20 +316,20 @@ class RabiFlopTime(RabiFlop):
 
         fit = NormalFitter(x, y, model)
         W = fit.values["omega"]
-        model_parameters["omega"].heuristic = np.sqrt(2 * fit.values["a"]) * W
-        omega = model_parameters["omega"].get_initial_value()
+        self.parameters["omega"].heuristic = np.sqrt(2 * fit.values["a"]) * W
+        omega = self.parameters["omega"].get_initial_value()
 
         if W >= omega:
-            model_parameters["delta"].heuristic = np.sqrt(W**2 - omega**2)
+            self.parameters["delta"].heuristic = np.sqrt(W**2 - omega**2)
         else:
             # can't use param_min_sqrs because omega and delta are coupled
             deltas = np.linspace(0, W / 2, 10)
-            omegas = np.sqrt(W**2 - np.power(deltas, 2))
+            omegas = np.sqrt(W**2 - deltas**2)
             costs = np.zeros_like(deltas)
 
             initial_values = {
                 param: param_data.get_initial_value()
-                for param, param_data in model_parameters.items()
+                for param, param_data in self.parameters.items()
                 if param != "delta"
             }
 
@@ -340,11 +337,11 @@ class RabiFlopTime(RabiFlop):
                 initial_values["delta"] = deltas[idx]
                 initial_values["omega"] = omegas[idx]
                 y_idx = self.func(x, initial_values)
-                costs[idx] = np.sqrt(np.sum(np.power(y - y_idx, 2)))
+                costs[idx] = np.sqrt(np.sum((y - y_idx) ** 2))
             opt_idx = np.argmin(costs)
 
-            model_parameters["delta"].heuristic = deltas[opt_idx]
-            model_parameters["omega"].heuristic = omegas[opt_idx]
+            self.parameters["delta"].heuristic = deltas[opt_idx]
+            self.parameters["omega"].heuristic = omegas[opt_idx]
 
         # Corner-case: if the time axis starts from t_0 >> t_pi the above heuristic
         # can fail. This is because the accuracy of the sinusoid fit is limited by the
@@ -352,7 +349,7 @@ class RabiFlopTime(RabiFlop):
         # estimate becomes such that we don't know if we've done n or (n + 1) flops
         # before t_0 the fits will start failing.
         d_omega = 2 * np.pi / x.ptp()  # approx uncertainty in Rabi freq from FFT
-        t_pi = np.pi / model_parameters["omega"].get_initial_value()
+        t_pi = np.pi / self.parameters["omega"].get_initial_value()
         d_t_pi = np.pi / d_omega
         n_pi = min(x) / t_pi
         err = d_t_pi * n_pi  # number of t_pi worth of uncertainty in the fit
@@ -366,10 +363,10 @@ class RabiFlopTime(RabiFlop):
             omega_max = np.pi * n_pi_max / min(x)
             omegas = np.linspace(omega_min, omega_max, num_pts)
 
-            model_parameters["omega"].heuristic, _ = self.param_min_sqrs(
+            self.parameters["omega"].heuristic, _ = heuristics.param_min_sqrs(
+                model=self,
                 x=x,
                 y=y,
-                parameters=model_parameters,
                 scanned_param="omega",
                 scanned_param_values=omegas,
             )

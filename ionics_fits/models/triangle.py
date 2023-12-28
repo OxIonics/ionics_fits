@@ -1,8 +1,7 @@
-import copy
 from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
 
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
 from ..utils import Array
 
 if TYPE_CHECKING:
@@ -32,23 +31,23 @@ class Triangle(Model):
     """
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return True, True
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        k: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale / x_scale),
-        sym: ModelParameter(lower_bound=-1, upper_bound=1, fixed_to=0),
-        y_min: ModelParameter(
-            fixed_to=-np.inf, scale_func=lambda x_scale, y_scale, _: y_scale
+        x0: ModelParameter(scale_func=common.scale_x),
+        y0: ModelParameter(scale_func=common.scale_y),
+        k: ModelParameter(scale_func=common.scale_power(x_power=-1, y_power=1)),
+        sym: ModelParameter(
+            lower_bound=-1, upper_bound=1, fixed_to=0, scale_func=common.scale_invariant
         ),
-        y_max: ModelParameter(
-            fixed_to=+np.inf, scale_func=lambda x_scale, y_scale, _: y_scale
-        ),
+        y_min: ModelParameter(fixed_to=-np.inf, scale_func=common.scale_y),
+        y_max: ModelParameter(fixed_to=+np.inf, scale_func=common.scale_y),
     ) -> Array[("num_samples",), np.float64]:
         k_p = k * (1 + sym)
         k_m = k * (1 - sym)
@@ -66,30 +65,14 @@ class Triangle(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        """Set heuristic values for model parameters.
-
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
-
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
-        """
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
         # Written to handle the case of data which is only well-modelled by a
         # triangle function near `x0` but saturates further away
-        model_parameters["y_max"].heuristic = max(y)
-        model_parameters["y_min"].heuristic = min(y)
+        self.parameters["y_max"].heuristic = max(y)
+        self.parameters["y_min"].heuristic = min(y)
 
         min_ind = np.argmin(y)
         max_ind = np.argmax(y)
@@ -115,20 +98,17 @@ class Triangle(Model):
         k_p = (y_r[right_peak_ind] - y_min) / dx_r if dx_r != 0 else 0
         alpha = 0 if k_m == 0 else k_p / k_m
 
-        positive_parameters = copy.deepcopy(model_parameters)
-        positive_parameters["x0"].heuristic = x_min
-        positive_parameters["y0"].heuristic = y_min
-
-        positive_parameters["k"].heuristic = 0.5 * (k_p + k_m)
-        positive_parameters["sym"].heuristic = (alpha - 1) / (1 + alpha)
-
-        positive_parameters = {
-            param: param_data.get_initial_value()
-            for param, param_data in positive_parameters.items()
+        positive_defaults = {
+            "x0": x_min,
+            "y0": y_min,
+            "k": 0.5 * (k_p + k_m),
+            "sym": (alpha - 1) / (1 + alpha),
         }
-        positive_residuals = np.sum(
-            np.power(y - self._func(x, **positive_parameters), 2)
-        )
+        positive_parameters = {
+            param: param_data.get_initial_value(default=positive_defaults.get(param))
+            for param, param_data in self.parameters.items()
+        }
+        positive_cost = np.sum((y - self._func(x, **positive_parameters)) ** 2)
 
         # Case 2: negative slope with peaks left and right of x_max below y_max
         x_l = x[x <= x_max]
@@ -146,27 +126,25 @@ class Triangle(Model):
         k_p = (y_r[right_peak_ind] - y_max) / dx_r if dx_r != 0 else 0
         alpha = 0 if k_m == 0 else k_p / k_m
 
-        negative_parameters = copy.deepcopy(model_parameters)
-        negative_parameters["x0"].heuristic = x_max
-        negative_parameters["y0"].heuristic = y_max
-        negative_parameters["k"].heuristic = 0.5 * (k_p + k_m)
-        negative_parameters["sym"].heuristic = (alpha - 1) / (1 + alpha)
-
-        negative_parameters = {
-            param: param_data.get_initial_value()
-            for param, param_data in negative_parameters.items()
+        negative_defaults = {
+            "x0": x_max,
+            "y0": y_max,
+            "k": 0.5 * (k_p + k_m),
+            "sym": (alpha - 1) / (1 + alpha),
         }
-        negative_residuals = np.sum(
-            np.power(y - self._func(x, **negative_parameters), 2)
-        )
+        negative_parameters = {
+            param: param_data.get_initial_value(default=negative_defaults.get(param))
+            for param, param_data in self.parameters.items()
+        }
+        negative_cost = np.sum((y - self._func(x, **negative_parameters)) ** 2)
 
-        if positive_residuals < negative_residuals:
+        if positive_cost < negative_cost:
             best_params = positive_parameters
         else:
             best_params = negative_parameters
 
         for param, value in best_params.items():
-            model_parameters[param].heuristic = value
+            self.parameters[param].heuristic = value
 
     def calculate_derived_params(
         self,
@@ -175,21 +153,6 @@ class Triangle(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """
-        Returns dictionaries of values and uncertainties for the derived model
-        parameters (parameters which are calculated from the fit results rather than
-        being directly part of the fit) based on values of the fitted parameters and
-        their uncertainties.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param: fitted_params: dictionary mapping model parameter names to their
-            fitted values.
-        :param fit_uncertainties: dictionary mapping model parameter names to
-            their fit uncertainties.
-        :returns: tuple of dictionaries mapping derived parameter names to their
-            values and uncertainties.
-        """
         derived_params = {}
         k = fitted_params["k"]
         sym = fitted_params["sym"]

@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import pprint
 from scipy import optimize
-from typing import Callable, Dict, Tuple, TYPE_CHECKING
+from typing import Callable, Dict, Optional, Tuple, TYPE_CHECKING
 
 from . import Fitter, Model, ModelParameter
 from .utils import Array, ArrayLike
@@ -34,6 +34,7 @@ class MLEFitter(Fitter):
         y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
         model: Model,
         step_size: float = 1e-4,
+        minimizer_args: Optional[Dict] = None,
     ):
         """Fits a model to a dataset and stores the results.
 
@@ -41,21 +42,33 @@ class MLEFitter(Fitter):
         :param y: y-axis data
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
-            fitting to change the fit behaviour from the model class' defaults.
+            fitting to change the fit behaviour from the model class' defaults. The
+            model is (deep) copied and stored as an attribute.
         :param step_size: step size used when calculating the log likelihood's Hessian
             as part of finding the fitted parameter standard errors. Where finite
             parameter bounds are provided, they are used to scale the step size
             appropriately for each parameter.
+        :param minimizer_args: optional dictionary of keyword arguments to be passed
+            into scipy.optimize.minimize.
         """
-        self.step_size = step_size
+        self.minimizer_args = {"options": {"maxls": 100}}
+        if minimizer_args is not None:
+            self.minimizer_args.update(minimizer_args)
 
-        # https://github.com/OxIonics/ionics_fits/issues/105
-        model = copy.deepcopy(model)
-        for parameter in model.parameters.values():
-            parameter.scale_func = lambda x_scale, y_scale, _: None
+        self.step_size = step_size
 
         if np.any(y < 0) or np.any(y > 1):
             raise RuntimeError("y values must lie between 0 and 1")
+
+        # Since we interpret the y-axis as a probability distribution, it should not be
+        # rescaled
+        def can_rescale() -> Tuple[bool, bool]:
+            rescale_x = self._can_rescale()[0]
+            return rescale_x, False
+
+        model = copy.deepcopy(model)
+        self._can_rescale = model.can_rescale
+        model.can_rescale = can_rescale
 
         super().__init__(x=x, y=y, model=model)
 
@@ -123,7 +136,7 @@ class MLEFitter(Fitter):
             args=(x, y, free_func),
             x0=p0,
             bounds=zip(lower, upper),
-            options={"maxls": 100},
+            **self.minimizer_args,
         )
 
         if not res.success:

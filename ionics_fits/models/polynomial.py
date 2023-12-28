@@ -1,19 +1,14 @@
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
+from . import heuristics
 from .containers import MappedModel
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
 from ..utils import Array
 
 if TYPE_CHECKING:
     num_samples = float
-
-
-def _power_x_scale(x_scale: float, y_scale: float, model: Model) -> Optional[float]:
-    if model.parameters["n"].fixed_to is None:
-        return None
-    return y_scale / np.float_power(x_scale, model.parameters["n"].fixed_to)
 
 
 class Power(Model):
@@ -43,20 +38,31 @@ class Power(Model):
     """
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self) -> Tuple[bool, bool]:
+        rescale_x = False if self.parameters["n"].fixed_to is None else True
+        return rescale_x, True
+
+    def rescale(self, x_scale: float, y_scale: float):
+        def scale_func(x_scale, y_scale) -> float:
+            # NB the common scale functions do not support float powers
+            if x_scale == 1.0:
+                return y_scale
+            return y_scale / np.float_power(x_scale, self.parameters["n"].fixed_to)
+
+        self.parameters["a"].scale_func = scale_func
+        super().rescale(x_scale=x_scale, y_scale=y_scale)
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        a: ModelParameter(fixed_to=1, scale_func=_power_x_scale),
-        x0: ModelParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        n: ModelParameter(),
+        a: ModelParameter(fixed_to=1, scale_func=common.scale_undefined),
+        x0: ModelParameter(fixed_to=0, scale_func=common.scale_x),
+        y0: ModelParameter(scale_func=common.scale_y),
+        n: ModelParameter(scale_func=common.scale_invariant),
     ) -> Array[("num_samples",), np.float64]:
-        """Evaluates the model at a given set of x-axis points and with a given set of
-        parameter values and returns the result."""
         assert all(x - x0 >= 0), "`x - x0` must be > 0"
         return a * np.float_power(x - x0, n) + y0
 
@@ -66,41 +72,25 @@ class Power(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        """Set heuristic values for model parameters.
-
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
-
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
-        """
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
         unknowns = {
             param
-            for param, param_data in model_parameters.items()
+            for param, param_data in self.parameters.items()
             if param_data.fixed_to is None
         }
 
-        model_parameters["x0"].heuristic = 0.0
-        model_parameters["y0"].heuristic = 0.0
-        model_parameters["a"].heuristic = 1.0
-        model_parameters["n"].heuristic = 1.0
+        self.parameters["x0"].heuristic = 0.0
+        self.parameters["y0"].heuristic = 0.0
+        self.parameters["a"].heuristic = 1.0
+        self.parameters["n"].heuristic = 1.0
 
-        x0 = model_parameters["x0"].get_initial_value()
-        y0 = model_parameters["y0"].get_initial_value()
-        a = model_parameters["a"].get_initial_value()
-        n = model_parameters["n"].get_initial_value()
+        x0 = self.parameters["x0"].get_initial_value()
+        y0 = self.parameters["y0"].get_initial_value()
+        a = self.parameters["a"].get_initial_value()
+        n = self.parameters["n"].get_initial_value()
 
         if len(unknowns) == 0 or "x0" in unknowns or len(unknowns) > 2:
             # No heuristic needed / we don't have a good heuristic for this case
@@ -112,17 +102,21 @@ class Power(Model):
             x = x - x0
             y = y - y0
             a = y / np.float_power(x, n)
-            a = self.param_min_sqrs(x, y, model_parameters, "a", a)[0]
-            model_parameters["a"].heuristic = a
+            a = heuristics.param_min_sqrs(
+                model=self, x=x, y=y, scanned_param="a", scanned_param_values=a
+            )[0]
+            self.parameters["a"].heuristic = a
 
         elif unknowns == {"n"}:
-            n = self.optimal_n(x, y, model_parameters)[0]
-            model_parameters["n"].heuristic = n
+            n = self.optimal_n(x, y)[0]
+            self.parameters["n"].heuristic = n
 
         elif unknowns == {"y0"}:
             y0 = y - a * np.float_power(x - x0, n)
-            y0 = self.param_min_sqrs(x, y, model_parameters, "y0", y0)[0]
-            model_parameters["y0"].heuristic = y0
+            y0 = heuristics.param_min_sqrs(
+                model=self, x=x, y=y, scanned_param="y0", scanned_param_values=y0
+            )[0]
+            self.parameters["y0"].heuristic = y0
 
         elif "a" in unknowns:
             pass  # don't have a great heuristic for these cases
@@ -140,8 +134,8 @@ class Power(Model):
                 ]
             )
             y0_bounds = [
-                model_parameters["y0"].lower_bound,
-                model_parameters["y0"].upper_bound,
+                self.parameters["y0"].lower_bound,
+                self.parameters["y0"].upper_bound,
             ]
             y0_bounds = [bound for bound in y0_bounds if np.isfinite(bound)]
             y0_guesses = np.append(y0_guesses, y0_bounds)
@@ -149,13 +143,13 @@ class Power(Model):
             ns = np.zeros_like(y0_guesses)
             costs = np.zeros_like(y0_guesses)
             for idx, y0 in np.ndenumerate(y0_guesses):
-                model_parameters["y0"].heuristic = y0
-                ns[idx], costs[idx] = self.optimal_n(x, y, model_parameters)
+                self.parameters["y0"].heuristic = y0
+                ns[idx], costs[idx] = self.optimal_n(x, y)
 
-            model_parameters["n"].heuristic = float(ns[np.argmin(costs)])
-            model_parameters["y0"].heuristic = float(y0_guesses[np.argmin(costs)])
+            self.parameters["n"].heuristic = float(ns[np.argmin(costs)])
+            self.parameters["y0"].heuristic = float(y0_guesses[np.argmin(costs)])
 
-    def optimal_n(self, x, y, model_parameters):
+    def optimal_n(self, x, y):
         """Find the optimal (in the least-squared residuals sense) value of `n`
         based on our current best guesses for the other parameters.
 
@@ -163,12 +157,12 @@ class Power(Model):
         us an estimate for `n` at each value of x. We choose the one which results
         in lowest sum of squares residuals.
         """
-        if model_parameters["n"].has_user_initial_value():
-            return model_parameters["n"].get_initial_value(), 0
+        if self.parameters["n"].has_user_initial_value():
+            return self.parameters["n"].get_initial_value(), 0
 
-        x0 = model_parameters["x0"].get_initial_value()
-        y0 = model_parameters["y0"].get_initial_value()
-        a = model_parameters["a"].get_initial_value()
+        x0 = self.parameters["x0"].get_initial_value()
+        y0 = self.parameters["y0"].get_initial_value()
+        a = self.parameters["a"].get_initial_value()
 
         x_pr = x - x0
         y_pr = y - y0
@@ -184,37 +178,27 @@ class Power(Model):
         n = n.squeeze()
 
         # Don't look for silly values of n
-        n_min = max(-10, model_parameters["n"].lower_bound)
-        n_max = min(10, model_parameters["n"].upper_bound)
+        n_min = max(-10, self.parameters["n"].lower_bound)
+        n_max = min(10, self.parameters["n"].upper_bound)
 
         n = n[np.argwhere(np.logical_and(n >= n_min, n <= n_max))]
 
         if len(n) == 0:
             return 1, np.inf
 
-        return self.param_min_sqrs(x, y, model_parameters, "n", n)
+        return heuristics.param_min_sqrs(self, x, y, "n", n)
 
 
 def poly_fit_parameter(n):
-    def scale_func(x_scale, y_scale, _):
-        return y_scale / np.power(x_scale, n)
-
     return ModelParameter(
         fixed_to=None,
-        scale_func=scale_func,
+        scale_func=common.scale_power(x_power=-n, y_power=1),
     )
-
-
-def _poly_x_scale(x_scale: float, y_scale: float, model: Model) -> Optional[float]:
-    # If a non-zero value has been set for `x0` we can't rescale the dataset
-    if model.parameters["x0"].fixed_to == 0.0:
-        return 1
-    return None
 
 
 def _generate_poly_parameters(poly_degree):
     params = {f"a_{n}": poly_fit_parameter(n) for n in range(poly_degree + 1)}
-    params.update({"x0": ModelParameter(fixed_to=0, scale_func=_poly_x_scale)})
+    params.update({"x0": ModelParameter(fixed_to=0, scale_func=common.scale_x)})
     return params
 
 
@@ -243,14 +227,15 @@ class Polynomial(Model):
         super().__init__(parameters=_generate_poly_parameters(poly_degree))
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self) -> Tuple[bool, bool]:
+        rescale_x = True if self.parameters["x0"].fixed_to == 0.0 else False
+        return rescale_x, True
 
     def func(
         self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
     ) -> Array[("num_samples",), np.float64]:
-        """Evaluates the model at a given set of x-axis points and with a given
-        parameter set and returns the result."""
         x0 = params["x0"]
         p = np.array(
             [params[f"a_{n}"] for n in range(self.poly_degree, -1, -1)],
@@ -264,33 +249,17 @@ class Polynomial(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        """Set heuristic values for model parameters.
-
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
-
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
-        """
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
-        model_parameters["x0"].heuristic = 0.0
-        x0 = model_parameters["x0"].get_initial_value()
+        self.parameters["x0"].heuristic = 0.0
+        x0 = self.parameters["x0"].get_initial_value()
 
         free = [
             n
             for n in range(self.poly_degree + 1)
-            if model_parameters[f"a_{n}"].fixed_to != 0.0
+            if self.parameters[f"a_{n}"].fixed_to != 0.0
         ]
         if len(free) == 0:
             return
@@ -299,7 +268,7 @@ class Polynomial(Model):
 
         p = np.polyfit(x - x0, y, deg)
         for idx in range(deg + 1):
-            model_parameters[f"a_{idx}"].heuristic = p[deg - idx]
+            self.parameters[f"a_{idx}"].heuristic = p[deg - idx]
 
 
 class Line(MappedModel):
@@ -345,11 +314,10 @@ class Parabola(MappedModel):
             {"a_1": 0},
         )
 
-    def _inner_estimate_parameters(
+    def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        inner_parameters: Dict[str, ModelParameter],
     ):
         """
         If `x0` is floated, we map the Polynomial `a_1` coefficient onto a value for
@@ -365,12 +333,12 @@ class Parabola(MappedModel):
         a_2 -> a_2
         ```
         """
-        super()._inner_estimate_parameters(x, y, inner_parameters)
+        self.wrapped_model.estimate_parameters(x, y)
 
-        a_0 = inner_parameters["a_0"].get_initial_value()
-        a_1 = inner_parameters["a_1"].heuristic
-        a_2 = inner_parameters["a_2"].get_initial_value()
+        a_0 = self.wrapped_model.parameters["a_0"].get_initial_value()
+        a_1 = self.wrapped_model.parameters["a_1"].heuristic
+        a_2 = self.wrapped_model.parameters["a_2"].get_initial_value()
 
         x0 = -a_1 / (2 * a_2)
-        inner_parameters["x0"].heuristic = x0
-        inner_parameters["a_0"].heuristic = a_0 - a_2 * x0**2
+        self.wrapped_model.parameters["x0"].heuristic = x0
+        self.wrapped_model.parameters["a_0"].heuristic = a_0 - a_2 * x0**2

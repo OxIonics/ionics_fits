@@ -1,6 +1,6 @@
 import copy
 import inspect
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Tuple, TYPE_CHECKING
 
 import numpy as np
 from scipy import special
@@ -11,7 +11,7 @@ from .quantum_phys import (
     thermal_state_probs,
 )
 from . import rabi
-from .. import ModelParameter
+from .. import common, ModelParameter
 from ..utils import Array
 
 
@@ -140,18 +140,22 @@ def make_laser_flop(base_class, distribution_fun):
             P_readout_e: ModelParameter(
                 lower_bound=0.0,
                 upper_bound=1.0,
-                scale_func=lambda x_scale, y_scale, _: y_scale,
+                scale_func=common.scale_y,
             ),
             P_readout_g: ModelParameter(
                 lower_bound=0.0,
                 upper_bound=1.0,
-                scale_func=lambda x_scale, y_scale, _: y_scale,
+                scale_func=common.scale_y,
             ),
-            eta: ModelParameter(lower_bound=0.0),
-            omega: ModelParameter(lower_bound=0.0),
-            tau: ModelParameter(lower_bound=0.0, fixed_to=np.inf),
-            t_dead: ModelParameter(lower_bound=0.0, fixed_to=0.0),
-            w_0: ModelParameter(),
+            eta: ModelParameter(lower_bound=0.0, scale_func=common.scale_invariant),
+            omega: ModelParameter(lower_bound=0.0, scale_func=common.scale_undefined),
+            tau: ModelParameter(
+                lower_bound=0.0, fixed_to=np.inf, scale_func=common.scale_undefined
+            ),
+            t_dead: ModelParameter(
+                lower_bound=0.0, fixed_to=0.0, scale_func=common.scale_undefined
+            ),
+            w_0: ModelParameter(scale_func=common.scale_undefined),
             **kwargs,  # Fock state distribution function parameters
         ) -> Array[("num_samples",), np.float64]:
             """
@@ -167,11 +171,11 @@ def make_laser_flop(base_class, distribution_fun):
             # to coupling between |g>|n-sideband_index> and |e>|n>.
             omega_vec = (
                 omega
-                * np.exp(-0.5 * np.power(eta, 2))
-                * np.power(eta, np.abs(self.sideband_index))
+                * np.exp(-0.5 * eta**2)
+                * eta ** np.abs(self.sideband_index)
                 * self.fact
                 * special.eval_genlaguerre(
-                    self._n_min, np.abs(self.sideband_index), np.power(eta, 2)
+                    self._n_min, np.abs(self.sideband_index), eta**2
                 )
             )
 
@@ -183,12 +187,10 @@ def make_laser_flop(base_class, distribution_fun):
 
             # Transition probability for individual Fock state, given by
             #     P_transition = 1/2 * omega^2 / W^2 * [1 - exp(-t / tau) * cos(W * t)]
-            W = np.sqrt(np.power(omega, 2) + np.power(detuning, 2))
+            W = np.sqrt(omega**2 + detuning**2)
             P_trans = (
                 0.5
-                * np.power(
-                    np.divide(omega, W, out=np.zeros_like(W), where=(W != 0.0)), 2
-                )
+                * (np.divide(omega, W, out=np.zeros_like(W), where=(W != 0.0)) ** 2)
                 * (1 - np.exp(-t / tau) * np.cos(W * t))
             )
 
@@ -207,19 +209,18 @@ def make_laser_flop(base_class, distribution_fun):
             self,
             x: Array[("num_samples",), np.float64],
             y: Array[("num_samples",), np.float64],
-            model_parameters: Dict[str, ModelParameter],
         ):
             # Pick sensible starting values which are usually good enough for the fit to
             # converge from.
-            model_parameters["eta"].heuristic = 0.1
-            if "n_bar" in model_parameters.keys():
-                model_parameters["n_bar"].heuristic = 1
-            if "alpha" in model_parameters.keys():
-                model_parameters["alpha"].heuristic = 1
-            if "zeta" in model_parameters.keys():
-                model_parameters["zeta"].heuristic = 1
+            self.parameters["eta"].heuristic = 0.1
+            if "n_bar" in self.parameters.keys():
+                self.parameters["n_bar"].heuristic = 1
+            if "alpha" in self.parameters.keys():
+                self.parameters["alpha"].heuristic = 1
+            if "zeta" in self.parameters.keys():
+                self.parameters["zeta"].heuristic = 1
 
-            super().estimate_parameters(x=x, y=y, model_parameters=model_parameters)
+            super().estimate_parameters(x=x, y=y)
 
     return LaserFlop
 

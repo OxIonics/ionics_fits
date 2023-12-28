@@ -1,8 +1,9 @@
 from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
 
+from . import heuristics
 from .utils import get_spectrum
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
 from ..utils import Array
 
 
@@ -29,19 +30,19 @@ class Gaussian(Model):
     """
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return True, True
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        a: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale * x_scale),
-        sigma: ModelParameter(
-            lower_bound=0, scale_func=lambda x_scale, y_scale, _: x_scale
-        ),
+        x0: ModelParameter(scale_func=common.scale_x),
+        y0: ModelParameter(scale_func=common.scale_y),
+        a: ModelParameter(scale_func=common.scale_power(x_power=1, y_power=1)),
+        sigma: ModelParameter(lower_bound=0, scale_func=common.scale_x),
     ) -> Array[("num_samples",), np.float64]:
         y = (
             a / (sigma * np.sqrt(2 * np.pi)) * np.exp(-0.5 * ((x - x0) / sigma) ** 2)
@@ -55,23 +56,7 @@ class Gaussian(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        """Set heuristic values for model parameters.
-
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
-
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
-        """
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
@@ -91,28 +76,28 @@ class Gaussian(Model):
         sigma = width / 2
         a = peak * np.pi * np.sqrt(2)
 
-        model_parameters["y0"].heuristic = np.mean([y[0], y[-1]])
-        y0 = model_parameters["y0"].get_initial_value()
+        self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
+        y0 = self.parameters["y0"].get_initial_value()
         peak_idx = np.argmax(np.abs(y - y0))
         y_peak = y[peak_idx]
         sgn = 1 if y_peak > y0 else -1
 
-        model_parameters["a"].heuristic = a * sgn
-        model_parameters["sigma"].heuristic = sigma
+        self.parameters["a"].heuristic = a * sgn
+        self.parameters["sigma"].heuristic = sigma
 
         cut_off = 2 * omega[np.argmin(np.abs(abs_spectrum - W))]
 
-        x0 = self.find_x_offset_sym_peak(
+        x0 = heuristics.find_x_offset_sym_peak(
+            model=self,
             x=x,
             y=y,
-            parameters=model_parameters,
             omega=omega,
             spectrum=spectrum,
             omega_cut_off=cut_off,
             test_pts=x[peak_idx],
         )
 
-        model_parameters["x0"].heuristic = x0
+        self.parameters["x0"].heuristic = x0
 
     def calculate_derived_params(
         self,
@@ -121,21 +106,6 @@ class Gaussian(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """
-        Returns dictionaries of values and uncertainties for the derived model
-        parameters (parameters which are calculated from the fit results rather than
-        being directly part of the fit) based on values of the fitted parameters and
-        their uncertainties.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param: fitted_params: dictionary mapping model parameter names to their
-            fitted values.
-        :param fit_uncertainties: dictionary mapping model parameter names to
-            their fit uncertainties.
-        :returns: tuple of dictionaries mapping derived parameter names to their
-            values and uncertainties.
-        """
         sigma = fitted_params["sigma"]
         a = fitted_params["a"]
 

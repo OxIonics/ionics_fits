@@ -108,6 +108,8 @@ example dataset in the issue).
 Currently this project is a MVP and many of the heuristics need some work. Expect there
 to be cases where we could easily do better. Please report them where you find them!
 
+Helper tools for writing heuristics are located in [`models.heuristics`](../master/ionics_fits/models/heuristics.py).
+
 ## Validation
 
 It's not enough to just fit the data, we want to know if we can trust the fit results

@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import Callable, Dict, Optional, TYPE_CHECKING
 
 import numpy as np
 from scipy import stats
@@ -39,6 +39,7 @@ class BinomialFitter(MLEFitter):
         num_trials: int,
         model: Model,
         step_size: float = 1e-4,
+        minimizer_args: Optional[Dict] = None,
     ):
         """Fits a model to a dataset and stores the results.
 
@@ -46,12 +47,17 @@ class BinomialFitter(MLEFitter):
         :param y: y-axis data
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
-            fitting to change the fit behaviour from the model class' defaults.
+            fitting to change the fit behaviour from the model class' defaults. The
+            model is (deep) copied and stored as an attribute.
         :param num_trials: number of Bernoulli trails for each sample
         :param step_size: see :class MLEFitter:
+        :param minimizer_args: optional dictionary of keyword arguments to be passed
+            into scipy.optimize.minimize.
         """
         self.num_trials = num_trials
-        super().__init__(x=x, y=y, model=model, step_size=step_size)
+        super().__init__(
+            x=x, y=y, model=model, step_size=step_size, minimizer_args=minimizer_args
+        )
 
     def log_liklihood(
         self,

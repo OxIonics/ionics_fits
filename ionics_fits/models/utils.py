@@ -60,11 +60,10 @@ def rescale_model_x(model_class: TModel, x_scale: float) -> TModel:
             self,
             x: Array[("num_samples",), np.float64],
             y: Array[("num_samples", "num_y_channels"), np.float64],
-            model_parameters: Dict[str, ModelParameter],
         ):
             # avoid double rescaling if estimate_parameters calls self.func internally
             self.__rescale = False
-            super().estimate_parameters(x * self.__x_scale, y, model_parameters)
+            super().estimate_parameters(x * self.__x_scale, y)
             self.__rescale = True
 
     ScaledModel.__name__ = model_class.__name__
