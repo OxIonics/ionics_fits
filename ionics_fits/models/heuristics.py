@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple, TYPE_CHECKING
+from typing import cast, Dict, Optional, Tuple, TYPE_CHECKING
 import numpy as np
 
 from .. import Model
@@ -33,7 +33,7 @@ def param_min_sqrs(
     :returns: tuple with the value from :param scanned_param_values: which results
     in lowest residuals and the root-sum-squared residuals for that value.
     """
-    defaults = defaults or {}
+    defaults = cast(dict, defaults or {})
     if not set(defaults.keys()).issubset(model.parameters.keys()):
         raise ValueError("Defaults must be a subset of the model parameters")
     if scanned_param in defaults.keys():
