@@ -21,3 +21,5 @@ from .sinc import Sinc, Sinc2
 from .sinusoid import Sinusoid
 from .triangle import Triangle
 from . import utils
+
+from .cone import ConeSegment  # Relies on the triangle fit for parameter estimation
