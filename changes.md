@@ -2,10 +2,11 @@
 
 This document lists changes to `ionics_fits`.
 
-Changes are divided into three categories:
+Changes are divided into four categories:
 * Bugfixes
 * API changes - changes to the user-facing API. These will often be **breaking** (not backwards-compatible), requiring changes to code using `ionics_fits`.
 * Other - small changes, such as tweaks to internals, which most users will not need to be aware of
+* New models
 
 ## 1.2.02
 
@@ -25,7 +26,8 @@ Changes are divided into three categories:
 * **Breaking**: removed a sampling heuristic which wasn't particularly useful
 * **New feature**: solver arguments are now exposed via fitters
 
-
+### New models
+* `ConeSegment` model has been added
 
 ### Other changes
 * Models now have `internal_parameters` as well as `parameters`. Internal parameters represent parameters which are not exposed directly to the user, but which still need to be stored and rescaled. They are used, for example, in the container models.
