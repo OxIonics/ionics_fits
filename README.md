@@ -211,6 +211,23 @@ class LineAndTriange(fits.models.AggregateModel):
       return derived_params, derived_uncertainties
 ```
 
+`AggregateModel`s also support joint fitting of datasets via "common" parameters, whose value is the same for all. For example
+
+```python
+# Make a model that fits time scans of red and blue sidebands simultaneously
+# All parameters are fit jointly
+rsb = fits.models.LaserFlopTimeThermal(start_excited=False, sideband_index=-1)
+bsb = fits.models.LaserFlopTimeThermal(start_excited=False, sideband_index=+1)
+
+model = fits.models.AggregateModel(
+    models={"rsb": rsb, "bsb": bsb},
+    common_params={
+        param: (rsb.parameters[param], [("rsb", param), ("bsb", param)])
+        for param in rsb.parameters.keys()
+    },
+)
+```
+
 ...use the single-qubit Rabi flop model to fit simultaneous Rabi flopping on multiple
 qubits at once with some parameters shared and some independent.
 
