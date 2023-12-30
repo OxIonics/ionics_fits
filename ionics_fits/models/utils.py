@@ -1,7 +1,8 @@
+import copy
 import dataclasses
 import numpy as np
 from scipy import signal
-from typing import Dict, Tuple, Type, TYPE_CHECKING, TypeVar
+from typing import Any, Dict, Optional, Tuple, Type, TYPE_CHECKING, TypeVar
 from ..common import Model, ModelParameter
 from ..utils import Array
 
@@ -12,6 +13,25 @@ if TYPE_CHECKING:
     num_y_channels = float
 
 TModel = TypeVar("TModel", bound=Type[Model])
+
+
+def param_like(
+    template_param: ModelParameter, overrides: Optional[Dict[str, Any]] = None
+) -> ModelParameter:
+    """Returns a new parameter based on a template.
+
+    :param template_param: the returned parameter is a (deep) copy of the template
+      parameter.
+    :param overrides: optional dictionary of attributes of the template parameter to
+      replace.
+    """
+    new_param = copy.deepcopy(template_param)
+
+    overrides = overrides or {}
+    for attr, value in overrides.items():
+        setattr(new_param, attr, value)
+
+    return new_param
 
 
 @dataclasses.dataclass
