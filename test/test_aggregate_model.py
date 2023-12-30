@@ -6,29 +6,73 @@ import ionics_fits as fits
 from . import common
 
 
+def test_aggregate_model_common_params(plot_failures):
+    """Test for aggregate_model.AggregateModel with common parameters"""
+
+    rsb = fits.models.LaserFlopTimeThermal(start_excited=False, sideband_index=-1)
+    bsb = fits.models.LaserFlopTimeThermal(start_excited=False, sideband_index=+1)
+
+    model = fits.models.AggregateModel(
+        models={"rsb": rsb, "bsb": bsb},
+        common_params={
+            param: (rsb.parameters[param], [("rsb", param), ("bsb", param)])
+            for param in rsb.parameters.keys()
+        },
+    )
+
+    t_pi = 10e-6
+    t = np.linspace(0, 3, 20) * t_pi
+    eta = 0.1
+    params = {
+        "P_readout_e": 1,
+        "P_readout_g": 0,
+        "eta": eta,
+        "omega": np.pi / (eta * t_pi),
+        "delta": 0,
+    }
+    for param in params:
+        model.parameters[param].fixed_to = params[param]
+
+    params.update(
+        {
+            param_name: model.parameters[param_name].fixed_to
+            for param_name in model.parameters.keys()
+            if model.parameters[param_name].fixed_to is not None
+        }
+    )
+
+    params["n_bar"] = [0, 0.25, 1]
+    common.check_multiple_param_sets(
+        x=t,
+        model=model,
+        test_params=params,
+        config=common.TestConfig(plot_failures=plot_failures),
+    )
+
+
 def test_aggregate_model_func(plot_failures):
     """Test that aggregate_model.AggregateModel.func returns the correct value"""
     x = np.linspace(-10, 10, 100)
     line = fits.models.Line()
     triangle = fits.models.Triangle()
-    model = fits.models.AggregateModel(models=[("line", line), ("triangle", triangle)])
+    model = fits.models.AggregateModel(models={"line": line, "triangle": triangle})
 
     params = {
-        "line_y0": 3,
-        "line_a": 0.5,
-        "triangle_x0": 1,
-        "triangle_y0": 1,
-        "triangle_k": 2.5,
-        "triangle_sym": 0,
-        "triangle_y_min": -np.inf,
-        "triangle_y_max": +np.inf,
+        "y0_line": 3,
+        "a_line": 0.5,
+        "x0_triangle": 1,
+        "y0_triangle": 1,
+        "k_triangle": 2.5,
+        "sym_triangle": 0,
+        "y_min_triangle": -np.inf,
+        "y_max_triangle": +np.inf,
     }
 
-    y_line = line.func(x, {"a": params["line_a"], "y0": params["line_y0"]})
+    y_line = line.func(x, {"a": params["a_line"], "y0": params["y0_line"]})
     y_triangle = triangle.func(
         x,
         {
-            param_name: params[f"triangle_{param_name}"]
+            param_name: params[f"{param_name}_triangle"]
             for param_name in triangle.parameters.keys()
         },
     )
@@ -59,17 +103,17 @@ def test_aggregate_model(plot_failures):
     x = np.linspace(0, 2, 100)
     line = fits.models.Line()
     triangle = fits.models.Triangle()
-    model = fits.models.AggregateModel(models=[("line", line), ("triangle", triangle)])
+    model = fits.models.AggregateModel(models={"line": line, "triangle": triangle})
 
     params = {
-        "line_y0": [3],
-        "line_a": [0.5],
-        "triangle_x0": [1],
-        "triangle_y0": [1],
-        "triangle_k": [2.5],
-        "triangle_sym": [0],
-        "triangle_y_min": [-np.inf],
-        "triangle_y_max": [+np.inf],
+        "y0_line": [3],
+        "a_line": [0.5],
+        "x0_triangle": [1],
+        "y0_triangle": [1],
+        "k_triangle": [2.5],
+        "sym_triangle": [0],
+        "y_min_triangle": [-np.inf],
+        "y_max_triangle": [+np.inf],
     }
 
     common.check_multiple_param_sets(
