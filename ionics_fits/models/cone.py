@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Tuple, TYPE_CHECKING
 import numpy as np
 
 from . import heuristics, Triangle
@@ -15,20 +15,19 @@ class ConeSegment(Model):
     """Slice through a cone.
 
     We parametrise cones as:
-        z = sqrt( (k_x * (x - x0))**2 + (k_y * (y - y0)) ** 2)) + z0
+        z = sign * sqrt( (k_x * (x - x0))**2 + (k_y * (y - y0)) ** 2)) + z0
 
     This model represents a slice through the cone with fixed `y`, given by:
-        z = k * sqrt( ((x - x0))**2 + alpha ** 2 ) + z0
-    where: alpha = k_y / k_x * (y - y0))
+        z = sign(k_x) * sqrt( (k_x * (x - x0))**2 + alpha ** 2 ) + z0
+    where:
+      - alpha = k_y * (y - y0)
+      - we use the sign of k_x to set the sign for the cone
 
     Fit parameters (all floated by default unless stated otherwise):
       - x0: x-axis offset
       - z0: vertical offset to the cone. Fixed to 0 by default
       - alpha: offset due to being off-centre in the y-axis
       - k: slope along x
-
-    Derived parameters:
-      - gamma: gamma = y_y * (y - y0) = alpha * k_x
 
     Floating z0 and alpha without a user-estimate for either may result in an unreliable
     fit.
@@ -51,7 +50,7 @@ class ConeSegment(Model):
             lower_bound=0, scale_func=common.scale_power(x_power=1, y_power=1)
         ),
     ) -> Array[("num_samples",), np.float64]:
-        return k * np.sqrt((x - x0) ** 2 + alpha**2) + z0
+        return np.sign(k) * np.sqrt((k * (x - x0)) ** 2 + alpha**2) + z0
 
     def estimate_parameters(
         self,
@@ -95,21 +94,3 @@ class ConeSegment(Model):
             else:
                 self.parameters["z0"].heuristic = 0
                 self.parameters["alpha"].heuristic = peak_value
-
-    def calculate_derived_params(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-        fitted_params: Dict[str, float],
-        fit_uncertainties: Dict[str, float],
-    ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        k = fitted_params["k"]
-        k_uncert = fit_uncertainties["k"]
-
-        alpha = fitted_params["alpha"]
-        alpha_uncert = fit_uncertainties["alpha"]
-
-        derived_params = {"gamma": alpha * k}
-        derived_uncertainties = {"gamma": np.sqrt(alpha_uncert**2 + k_uncert**2)}
-
-        return derived_params, derived_uncertainties
