@@ -17,6 +17,7 @@ Changes are divided into four categories:
 
 * **Breaking**: `estimate_parameters` no longer takes a dictionary of model parameters as an input. Instead, it acts directly on the model's parameter dictionary.
 * **Breaking**: all model parameters must now specify a scale function. This changes the previous behaviour where parameters with no scale function specified were treated as invariant.
+* **Breaking**: scale functions are no longer passed the model as an input argument
 * **New feature**: helper functions were introduced to `ionics_fits.common` to make specifying scale functions easier and more readable.
 * **Breaking**: whether or not a model can be rescaled is now determined by the model's `can_rescale` method. All models must provide this method. Scale functions must now always return a float value. This replaces the previous behaviour where scale functions returning `None` was used to indicate a model that cannot be rescaled.
 * **New feature**: enabling rescaling can now be set independently for the x and y axes
