@@ -1,6 +1,6 @@
 import copy
 import inspect
-from typing import Tuple, TYPE_CHECKING
+from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 from scipy import special
@@ -11,6 +11,7 @@ from .quantum_phys import (
     thermal_state_probs,
 )
 from . import rabi
+from .utils import param_like
 from .. import common, ModelParameter
 from ..utils import Array
 
@@ -212,7 +213,30 @@ def make_laser_flop(base_class, distribution_fun):
         ):
             # Pick sensible starting values which are usually good enough for the fit to
             # converge from.
-            self.parameters["eta"].heuristic = 0.1
+            if (
+                self.parameters["omega"].has_user_initial_value()
+                and not self.parameters["eta"].has_user_initial_value()
+            ):
+                # use the rabi heuristic to find eta * omega
+                eta_heuristic = True
+                omega_param = self.parameters["omega"]
+
+                self.parameters["omega"] = param_like(omega_param)
+                self.parameters["eta"].heuristic = 0  # avoid exception due to no value
+
+                omega_lower = self.parameters["omega"].lower_bound or 0
+                omega_upper = self.parameters["omega"].upper_bound or np.inf
+
+                eta_lower = self.parameters["eta"].lower_bound or 0
+                eta_upper = self.parameters["eta"].upper_bound or np.inf
+
+                self.parameters["omega"].fixed_to = None
+                self.parameters["omega"].user_estimate = None
+                self.parameters["omega"].lower_bound = omega_lower * eta_lower
+                self.parameters["omega"].upper_bound = omega_upper * eta_upper
+            else:
+                eta_heuristic = False
+
             if "n_bar" in self.parameters.keys():
                 self.parameters["n_bar"].heuristic = 1
             if "alpha" in self.parameters.keys():
@@ -221,6 +245,40 @@ def make_laser_flop(base_class, distribution_fun):
                 self.parameters["zeta"].heuristic = 1
 
             super().estimate_parameters(x=x, y=y)
+
+            if eta_heuristic:
+                eta_omega = self.parameters["omega"].get_initial_value()
+                self.parameters["eta"].heuristic = (
+                    eta_omega / omega_param.get_initial_value()
+                )
+                self.parameters["omega"] = omega_param
+
+        def calculate_derived_params(
+            self,
+            x: Array[("num_samples",), np.float64],
+            y: Array[("num_samples",), np.float64],
+            fitted_params: Dict[str, float],
+            fit_uncertainties: Dict[str, float],
+        ) -> Tuple[Dict[str, float], Dict[str, float]]:
+            # use eta * omega for calculating pi times etc
+            fitted_params = dict(fitted_params)
+            fit_uncertainties = dict(fit_uncertainties)
+
+            omega = fitted_params.pop("omega")
+            eta = fitted_params.pop("eta")
+
+            omega_uncert = fit_uncertainties.pop("omega")
+            eta_uncert = fit_uncertainties.pop("eta")
+
+            fitted_params["omega"] = eta * omega
+            fit_uncertainties["omega"] = np.sqrt(omega_uncert**2 + eta_uncert**2)
+
+            return super().calculate_derived_params(
+                x=x,
+                y=y,
+                fitted_params=fitted_params,
+                fit_uncertainties=fit_uncertainties,
+            )
 
     return LaserFlop
 
