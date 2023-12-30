@@ -93,6 +93,8 @@ Before committing:
 
 # Design Philosophy
 
+Ionics fits is designed to be extremely robust and flexible, while being "fast enough" (in particular, data fitting should be much much faster than data acquisition). However, optimising for speed is explicitly not a design goal - for example, we generally prefer heuristics which are robust over faster ones which have less good coverage.
+
 ## Good Heuristics
 
 Life is too short for failed fits. We can't guarantee to fit every dataset without any
@@ -195,7 +197,7 @@ class LineAndTriange(fits.models.AggregateModel):
   def __init__(self):
     line = fits.models.Line()
     triangle = fits.models.Triangle()
-    super().__init__(models=[("line", line), "triangle", triangle])
+    super().__init__(models={"line": line, "triangle": triangle})
 
   def calculate_derived_params(
       self,
