@@ -253,6 +253,7 @@ def get_spectrum(
 
     return omega, y_f
 
+
 def get_pgram(
     x: Array[("num_samples",), np.float64],
     y: Array[("num_samples",), np.float64],
