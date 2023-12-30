@@ -9,8 +9,8 @@ from ..utils import Array
 
 if TYPE_CHECKING:
     num_samples = float
-    num_spectrum_samples = float
     num_y_channels = float
+    num_spectrum_samples = float
 
 TModel = TypeVar("TModel", bound=Type[Model])
 
@@ -90,47 +90,6 @@ def rescale_model_x(model_class: TModel, x_scale: float) -> TModel:
     ScaledModel.__doc__ = model_class.__doc__
 
     return ScaledModel
-
-
-def get_spectrum(
-    x: Array[("num_samples",), np.float64],
-    y: Array[("num_samples",), np.float64],
-    density_units: bool = True,
-    trim_dc: bool = False,
-) -> Tuple[
-    Array[("num_spectrum_samples",), np.float64],
-    Array[("num_spectrum_samples",), np.float64],
-]:
-    """Returns the frequency spectrum (Fourier transform) of a dataset.
-
-    :param x: 1D ndarray of shape (num_samples,) containing x-axis data
-    :param y: 1D ndarray of shape (num_samples,) containing y-axis data
-    :param density_units: if `False` we apply normalization for narrow-band signals. If
-        `True` we normalize for continuous distributions.
-    :param trim_dc: if `True` we do not return the DC component.
-    """
-    if x.ndim != 1:
-        raise ValueError("x-axis data must be a 1D array.")
-    if y.ndim != 1:
-        raise ValueError("y-axis data must be a 1D array.")
-
-    dx = x.ptp() / x.size
-    n = x.size
-    omega = np.fft.fftfreq(n, dx) * (2 * np.pi)
-    y_f = np.fft.fft(y, norm="ortho") / np.sqrt(n)
-
-    y_f = y_f[: int(n / 2)]
-    omega = omega[: int(n / 2)]
-
-    if density_units:
-        d_omega = 2 * np.pi / (n * dx)
-        y_f /= d_omega
-
-    if trim_dc:
-        omega = omega[1:]
-        y_f = y_f[1:]
-
-    return omega, y_f
 
 
 def get_pgram(
