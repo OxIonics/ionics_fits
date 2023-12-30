@@ -8,7 +8,13 @@ Changes are divided into four categories:
 * Other - small changes, such as tweaks to internals, which most users will not need to be aware of
 * New models
 
-## 1.2.02
+## 1.3.00
+
+This release includes some invasive refactoring of `ionics_fits` internals to simplify
+dataflow. This requires small changes to how models are defined (see breaking changes)
+but will otherwise be transparent to users.
+
+A major feature addition in this release is `ionics_fits` first foray into the world of multi-dimensional fitting.
 
 ### Bugfixes
 * Incorrect calculation of pi times in the Rabi model
@@ -26,19 +32,25 @@ Changes are divided into four categories:
 * **Breaking**: heuristics have now been moved into `ionics_fits.models.heuristics`. This includes functions, such as `param_min_srs`, which were previously methods of `Model`
 * **Breaking**: removed a sampling heuristic which wasn't particularly useful
 * **New feature**: solver arguments are now exposed via fitters
+* **Breaking**: `AggregateModel` now takes a dictionary of models rather than a list of
+  tuples.
+* **Breaking**: `AggregateModel` now names parameters `{param_name}_{model_name}`
+  instead of `{model_name}_{param_name}`
 
 ### New models
 * `ConeSegment` model has been added
 
 ### Other changes
+* Added a change log!
 * Models now have `internal_parameters` as well as `parameters`. Internal parameters represent parameters which are not exposed directly to the user, but which still need to be stored and rescaled. They are used, for example, in the container models.
 * Improved documentation
 * The way rescaling is handled has been overhauled to improve dataflow. The `get_scaled_model` mechanism has been removed in favour of using `internal_parameters`. `ModelParameter`s and `Model`s now provide `rescale` and `unscale` methods to control rescaling. When a `ModelParameter` is rescaled, querying its attributes returns scaled values.
 * `qt` is now a development dependency
 * replaced `np.power` with the more pythonic (and faster) `**` operator where suitable
 * ownership / copying has been tidied up and documented better
+* `LaserRabi`: improved heuristic for estimating `eta` when `omega` is known
 
 
 ## Previous versions
 
-Changes were not tracked prior to `v1.2.02`.
+Changes were not tracked prior to `v1.3`.
