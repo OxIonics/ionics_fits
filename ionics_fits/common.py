@@ -503,6 +503,11 @@ class Fitter:
         self.x_scale = np.max(np.abs(self.x)) if rescale_x else 1.0
         self.y_scale = np.max(np.abs(self.y)) if rescale_y else 1.0
 
+        # Corner-case if a y-channel has values that are all 0
+        if self.y_scale == 0 or not np.isfinite(self.y_scale):
+            self.y_scale = 1
+            rescale_y = False
+
         self.model.rescale(self.x_scale, self.y_scale)
 
         x_scaled = self.x / self.x_scale
