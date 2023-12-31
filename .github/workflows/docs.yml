@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: rendered-docs
+          name: docs
           path: ./docs/_build/html/*
           if-no-files-found: error
 
@@ -40,11 +40,11 @@ jobs:
     environment:
       name: github-pages
       url: ${{steps.deployment.outputs.page_url}}
-      
+  
     steps:
     - uses: actions/download-artifact@master
       with:
-        name: rendered-docs
+        name: docs
         path: .
     - uses: actions/configure-pages@v1
     - uses: actions/upload-pages-artifact@v1
