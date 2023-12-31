@@ -235,7 +235,7 @@ qubits at once with some parameters shared and some independent.
 class MultiRabiFreq(fits.models.RepeatedModel):
     def __init__(self, n_qubits):
         super().__init__(
-            inner=fits.models.RabiFlopFreq(start_excited=True),
+            model=fits.models.RabiFlopFreq(start_excited=True),
             common_params=[
                 "P_readout_e",
                 "P_readout_g",

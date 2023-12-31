@@ -50,6 +50,8 @@ A major feature addition in this release is `ionics_fits` first foray into the w
 * ownership / copying has been tidied up and documented better
 * `LaserRabi`: improved heuristic for estimating `eta` when `omega` is known
 * Improved parameter estimator for `RepeatedModel`
+* `RepeatedModel` now has the ability to aggregate derived parameter values, reporting
+  only the values that are the same for all repetitions.
 
 
 ## Previous versions
