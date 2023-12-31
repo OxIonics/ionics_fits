@@ -1,8 +1,7 @@
 import copy
 import dataclasses
 import numpy as np
-from scipy import signal
-from typing import Any, Dict, Optional, Tuple, Type, TYPE_CHECKING, TypeVar
+from typing import Any, Dict, Optional, Type, TYPE_CHECKING, TypeVar
 from ..common import Model, ModelParameter
 from ..utils import Array
 
@@ -90,4 +89,3 @@ def rescale_model_x(model_class: TModel, x_scale: float) -> TModel:
     ScaledModel.__doc__ = model_class.__doc__
 
     return ScaledModel
-
