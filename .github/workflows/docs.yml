@@ -41,10 +41,12 @@ jobs:
       url: ${{steps.deployment.outputs.page_url}}
   
     steps:
-    - uses: actions/download-artifact@master
+    - uses: actions/download-artifact@v4
       with:
-        # name: github-pages
+        name: github-pages
         path: .
+    - name: Display structure of downloaded files
+      run: ls -R your/destination/dir
     - uses: actions/configure-pages@v1
     - uses: actions/upload-pages-artifact@v1
       with:
