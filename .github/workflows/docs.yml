@@ -28,7 +28,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: github-pages
-          path: .
+          path: ./docs/_build/html/*
           if-no-files-found: error
 
   deploy_docs:
@@ -45,8 +45,6 @@ jobs:
       with:
         name: github-pages
         path: .
-    - name: Display structure of downloaded files
-      run: ls -R your/destination/dir
     - uses: actions/configure-pages@v1
     - uses: actions/upload-pages-artifact@v1
       with:
