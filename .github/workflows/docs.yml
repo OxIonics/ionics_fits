@@ -25,9 +25,9 @@ jobs:
           cd docs
           poetry run make html
 
-      - name: Upload Artifact
-        uses: actions/upload-pages-artifact@v1
-        with:
+      # - name: Upload Artifact
+      #   uses: actions/upload-pages-artifact@v1
+      #   with:
   deploy:
     needs: build
 
