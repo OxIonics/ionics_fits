@@ -374,7 +374,7 @@ class Model:
 
         :param x: x-axis data
         :param y: y-axis data
-        :param: fitted_params: dictionary mapping model parameter names to their
+        :param fitted_params: dictionary mapping model parameter names to their
             fitted values.
         :param fit_uncertainties: dictionary mapping model parameter names to
             their fit uncertainties.
