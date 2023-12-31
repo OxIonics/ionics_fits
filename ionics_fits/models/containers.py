@@ -381,8 +381,31 @@ class RepeatedModel(Model):
             for param in self.common_params:
                 common_heuristics[param].append(params[param].get_initial_value())
 
+        # Combine the heuristics for the repetitions to find the best set of parameter
+        # values
         for param in self.common_params:
-            self.parameters[param].heuristic = np.mean(common_heuristics[param])
+            common_heuristics[param].append(np.mean(common_heuristics[param]))
+
+        param_estimates = {
+            param_name: self.parameters[param_name].get_initial_value()
+            for param_name in self.parameters.keys()
+            if param_name not in self.common_params
+        }
+        costs = np.zeros(self.num_repetitions + 1)
+        for idx in range(self.num_repetitions + 1):
+            y_idx = self.__call__(
+                x=x,
+                **param_estimates,
+                **{
+                    param_name: common_heuristics[param_name][idx]
+                    for param_name in self.common_params
+                },
+            )
+            costs[idx] = np.sqrt(np.sum((y - y_idx) ** 2))
+        best_heuristic = np.argmin(costs)
+
+        for param in self.common_params:
+            self.parameters[param].heuristic = common_heuristics[param][best_heuristic]
 
         self.inner.parameters = inner_params
 
