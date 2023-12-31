@@ -45,10 +45,10 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         name: github-pages
-        path: .
+        path: docs
     - uses: actions/configure-pages@v1
     - uses: actions/upload-pages-artifact@v1
       with:
-        path: .
+        path: docs
     - id: deployment
       uses: actions/deploy-pages@v1
