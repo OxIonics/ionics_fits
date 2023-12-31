@@ -51,4 +51,4 @@ jobs:
       with:
         path: .
     - id: deployment
-      uses: actions/deploy-pages@main
+      uses: actions/deploy-pages@v1
