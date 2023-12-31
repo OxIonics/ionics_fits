@@ -7,6 +7,18 @@ on:
   workflow_dispatch:
   pull_request:
 
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,58 +32,78 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v4
+
       - name: Build docs
         run: |
           cd docs
           poetry run make html
 
-      # - name: Upload Artifact
-      #   uses: actions/upload-pages-artifact@v1
-      #   with:
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs/_build/html/*
+
   deploy:
-    needs: build
-
-    permissions:
-      pages: write      # to deploy to Pages
-      id-token: write   # to verify the deployment originates from an appropriate source
-
-    # Deploy to the github-pages environment
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
-    # Specify runner + deployment step
     runs-on: ubuntu-latest
+    needs: build
     steps:
-#       - name: Setup Pages
-#         uses: actions/configure-pages@v3
-      
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2 # or the latest "vX.X.X" version tag for this action
+        uses: actions/deploy-pages@v4
 
-      # - uses: actions/upload-artifact@v3
-      #   with:
-      #     name: github-pages
-      #     path: ./docs/_build/html/*
-      #     if-no-files-found: error
+#       # - name: Upload Artifact
+#       #   uses: actions/upload-pages-artifact@v1
+#       #   with:
+#   deploy:
+#     needs: build
 
-  # deploy_docs:
-  #   runs-on: ubuntu-latest
-  #   needs: docs
-  #   environment:
-  #     name: github-pages
-  #     url: ${{steps.deployment.outputs.page_url}}
+#     permissions:
+#       pages: write      # to deploy to Pages
+#       id-token: write   # to verify the deployment originates from an appropriate source
+
+#     # Deploy to the github-pages environment
+#     environment:
+#       name: github-pages
+#       url: ${{ steps.deployment.outputs.page_url }}
+
+#     # Specify runner + deployment step
+#     runs-on: ubuntu-latest
+#     steps:
+# #       - name: Setup Pages
+# #         uses: actions/configure-pages@v3
+      
+#       - name: Deploy to GitHub Pages
+#         id: deployment
+#         uses: actions/deploy-pages@v2 # or the latest "vX.X.X" version tag for this action
+
+#       # - uses: actions/upload-artifact@v3
+#       #   with:
+#       #     name: github-pages
+#       #     path: ./docs/_build/html/*
+#       #     if-no-files-found: error
+
+#   # deploy_docs:
+#   #   runs-on: ubuntu-latest
+#   #   needs: docs
+#   #   environment:
+#   #     name: github-pages
+#   #     url: ${{steps.deployment.outputs.page_url}}
   
-  #   steps:
-  #   - uses: actions/download-artifact@v3
-  #     with:
-  #       name: github-pages
-  #       path: docs
-      # - uses: actions/configure-pages@main
-      # - uses: actions/upload-pages-artifact@main
-      #   with:
-      #     path: ./docs/_build/html/*
-      # - id: deployment
-      #   uses: actions/deploy-pages@main
+#   #   steps:
+#   #   - uses: actions/download-artifact@v3
+#   #     with:
+#   #       name: github-pages
+#   #       path: docs
+#       # - uses: actions/configure-pages@main
+#       # - uses: actions/upload-pages-artifact@main
+#       #   with:
+#       #     path: ./docs/_build/html/*
+#       # - id: deployment
+#       #   uses: actions/deploy-pages@main
 
