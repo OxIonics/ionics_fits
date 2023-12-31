@@ -42,7 +42,7 @@ jobs:
           poetry run make html
 
       - name: print files
-        run: ls -r
+        run: ls -R
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
