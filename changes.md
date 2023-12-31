@@ -49,6 +49,7 @@ A major feature addition in this release is `ionics_fits` first foray into the w
 * replaced `np.power` with the more pythonic (and faster) `**` operator where suitable
 * ownership / copying has been tidied up and documented better
 * `LaserRabi`: improved heuristic for estimating `eta` when `omega` is known
+* Improved parameter estimator for `RepeatedModel`
 
 
 ## Previous versions
