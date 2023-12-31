@@ -8,11 +8,8 @@ on:
   pull_request:
 
 jobs:
-  docs:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: 'write'
-      pages: 'write'
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -27,6 +24,31 @@ jobs:
         run: |
           cd docs
           poetry run make html
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+  deploy:
+    needs: build
+
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    # Specify runner + deployment step
+    runs-on: ubuntu-latest
+    steps:
+#       - name: Setup Pages
+#         uses: actions/configure-pages@v3
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2 # or the latest "vX.X.X" version tag for this action
 
       # - uses: actions/upload-artifact@v3
       #   with:
@@ -46,9 +68,10 @@ jobs:
   #     with:
   #       name: github-pages
   #       path: docs
-      - uses: actions/configure-pages@main
-      - uses: actions/upload-pages-artifact@main
-        with:
-          path: ./docs/_build/html/*
-      - id: deployment
-        uses: actions/deploy-pages@main
+      # - uses: actions/configure-pages@main
+      # - uses: actions/upload-pages-artifact@main
+      #   with:
+      #     path: ./docs/_build/html/*
+      # - id: deployment
+      #   uses: actions/deploy-pages@main
+
