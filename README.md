@@ -83,6 +83,105 @@ sinusoid = fits.models.Sinusoid()
 y = sinusoid(x=x, a=1, omega=2, phi=0, y0=0)
 ```
 
+## Multi-dimensional datasets
+
+`ionics-fits` is optimised for working with datasets with a single x-axis dimension,
+however it does fully support datasets with multi-dimensional y-axis data. Each y-axis
+is referred to as a "y channel".
+
+[Container](##Containers) models can be used to extend the y-axis dimensionality of
+existing models in various ways.
+
+Working with models with higher x-axis dimensionality presents a number of interesting
+challenges - particularly around how one writes general-purpose, robust heuristics -
+which are out of scope for this package.
+
+It does, however, have some limited support for data sets with multiple x-axis
+dimensions through [`ionics_fits.multi_x`](../master/ionics_fits/multi_x/common.py).
+This allows one to fit datasets with multiple x axes hierarchically, by sequentially
+fitting one model to each x-axis with the results from one fit being the input to the
+next fit - see :class ionics_fits.multi_x.Model2D: for more details.
+
+Examples of fitting datasets with multiple x-axes (see the tests in
+[`test.multi_x`](../master/test/multi_x.py)) for more examples):
+
+```python
+# Fit a 2D Gaussian
+params = {
+    "a": 5,
+    "x0_x": -2,
+    "x0_y": +0.5,
+    "sigma_x": 2,
+    "sigma_y": 5,
+    "y0": 1.5,
+}
+
+def gaussian(x, y, a, x0_x, x0_y, sigma_x, sigma_y, y0):
+
+    A = a / (sigma_x * np.sqrt(2 * np.pi)) / (sigma_y * np.sqrt(2 * np.pi))
+
+    return (
+        A
+        * np.exp(
+            -(((x - x0_x) / (np.sqrt(2) * sigma_x)) ** 2)
+            - (((y - x0_y) / (np.sqrt(2) * sigma_y)) ** 2)
+        )
+        + y0
+    )
+
+
+x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+
+y = gaussian(x_mesh_0, x_mesh_1, **params)
+model = fits.multi_x.Gaussian2D()
+fit = fits.multi_x.common.Fitter2D(
+    x=[x_ax_0, x_ax_1], y=y.T, model=fits.multi_x.Gaussian2D()
+)
+```
+
+```python
+# Simulate Rabi flopping on a blue sideband as a function of the alignment between the
+# laser and the motional mode
+
+t_pi = 5e-6
+omega = np.pi / t_pi
+eta = 0.1
+theta_0 = 0.25
+
+angle_axis = np.linspace(-np.pi / 2, +np.pi / 3, 50)
+time_axis = np.linspace(0, 5 * (t_pi / eta), 75)
+time_mesh, angle_mesh = np.meshgrid(time_axis, angle_axis)
+
+flop_model = fits.models.LaserFlopTimeThermal(
+    start_excited=False, sideband_index=+1, n_max=1
+)
+flop_model.parameters["n_bar"].fixed_to = 0
+flop_model.parameters["delta"].fixed_to = 0
+flop_model.parameters["omega"].fixed_to = omega
+flop_model.parameters["P_readout_e"].fixed_to = 1
+flop_model.parameters["P_readout_g"].fixed_to = 0
+
+sinusoid_model = fits.models.Sinusoid()
+sinusoid_model.parameters["omega"].fixed_to = 1
+sinusoid_model.parameters["x0"].fixed_to = -np.pi / 2
+sinusoid_model.parameters["y0"].fixed_to = 0
+sinusoid_model.parameters["phi"].offset = 0
+
+# Generate data to fit
+y = np.zeros_like(time_mesh)
+for idx, angle in np.ndenumerate(angle_axis):
+    eta_angle = sinusoid_model(x=angle, a=eta, phi=theta_0)
+    y[idx, :] = flop_model(x=time_axis, eta=eta_angle, omega=omega)
+
+model = fits.multi_x.Model2D(
+    models=[flop_model, sinusoid_model],
+    result_params=["eta"],
+)
+
+params = {"omega_x0": omega, "x0_x1": -np.pi / 2}
+fit = fits.multi_x.common.Fitter2D(x=[time_axis, angle_axis], y=y.T, model=model)
+```
+
 # Developing
 
 Before committing:
