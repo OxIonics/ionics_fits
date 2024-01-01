@@ -42,7 +42,7 @@ class Gaussian2D(Model2D):
         super().__init__(
             models=(models.Gaussian(), outer_model),
             model_names=("x", "y"),
-            result_params=("a", ),
+            result_params=("a",),
             param_renames={"a_y": "a", "y0_x": "y0", "y0_x": "y0", "y0_y": None},
         )
 
@@ -68,7 +68,7 @@ class Cone(Model2D):
         super().__init__(
             models=(models.ConeSlice(), triangle),
             model_names=("x", "y"),
-            result_params=("alpha", ),
+            result_params=("alpha",),
             param_renames={
                 "y0_y": None,
                 "z0_x": "y0",
