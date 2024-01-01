@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     num_y_channels = float
 
 
-class ConeSegment(Model):
+class ConeSlice(Model):
     """Slice through a cone.
 
     We parametrise cones as:
