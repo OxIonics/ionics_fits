@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class DoubleRabiFreq(fits.models.RepeatedModel):
     def __init__(self):
         super().__init__(
-            inner=fits.models.RabiFlopFreq(start_excited=True),
+            model=fits.models.RabiFlopFreq(start_excited=True),
             common_params=[
                 "P_readout_e",
                 "P_readout_g",

@@ -3,7 +3,7 @@ import numpy as np
 
 from . import heuristics
 from .exponential import Exponential
-from .utils import get_spectrum
+from .heuristics import get_spectrum
 from .. import common, Model, ModelParameter, NormalFitter
 from ..utils import Array
 

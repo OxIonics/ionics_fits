@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class DoubleRabiFreq(fits.models.RepeatedModel):
     def __init__(self):
         super().__init__(
-            inner=fits.models.RabiFlopFreq(start_excited=True),
+            model=fits.models.RabiFlopFreq(start_excited=True),
             common_params=[
                 "P_readout_e",
                 "P_readout_g",
@@ -30,7 +30,7 @@ class DoubleRabiFreq(fits.models.RepeatedModel):
 class QuadrupleRabiFreq(fits.models.RepeatedModel):
     def __init__(self):
         super().__init__(
-            inner=DoubleRabiFreq(),
+            model=DoubleRabiFreq(),
             common_params=[
                 "P_readout_e",
                 "P_readout_g",
@@ -77,3 +77,50 @@ def test_repeated_model(plot_failures):
             plot_failures=plot_failures, param_tol=None, residual_tol=1e-8
         ),
     )
+
+
+def test_repeated_model_derived_params(plot_failures):
+    """Test that RepeatedModel handles derived parameters correctly"""
+    base_model = fits.models.Gaussian()
+    num_repetitions = 5
+
+    x = np.linspace(-5, 5)
+    params = {"x0": 0, "y0": 0, "a": 1, "sigma": 1}
+    y = np.tile(base_model(x, **params).squeeze(), (num_repetitions, 1))
+
+    # Case 1: don't aggregate results
+    repeated_model = fits.models.RepeatedModel(
+        model=base_model,
+        common_params=["x0", "y0", "a", "sigma"],
+        num_repetitions=num_repetitions,
+    )
+
+    model_derived_results = ["FWHMH", "w0", "peak"]
+    expected_derived_results = []
+    for result in model_derived_results:
+        expected_derived_results += [
+            f"{result}_{idx}" for idx in range(num_repetitions)
+        ]
+        expected_derived_results += [f"{result}_mean", f"{result}_peak_peak"]
+
+    fit = fits.NormalFitter(x=x, y=y, model=repeated_model)
+
+    assert len(fit.derived_values.keys()) == len(set(fit.derived_values.keys()))
+    assert len(expected_derived_results) == len(expected_derived_results)
+    assert set(fit.derived_values.keys()) == set(expected_derived_results)
+
+    # Case 2: aggregate results
+    repeated_model = fits.models.RepeatedModel(
+        model=base_model,
+        common_params=["x0", "y0", "a", "sigma"],
+        num_repetitions=num_repetitions,
+        aggregate_results=True,
+    )
+
+    model_derived_results = ["FWHMH", "w0", "peak"]
+
+    fit = fits.NormalFitter(x=x, y=y, model=repeated_model)
+
+    assert len(fit.derived_values.keys()) == len(set(fit.derived_values.keys()))
+    assert len(model_derived_results) == len(model_derived_results)
+    assert set(fit.derived_values.keys()) == set(model_derived_results)
