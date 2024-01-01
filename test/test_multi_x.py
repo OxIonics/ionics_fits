@@ -101,7 +101,7 @@ def test_gaussian_2d(plot_failures):
     y = gaussian(x_mesh_0, x_mesh_1, **params)
 
     fit = fits.multi_x.common.Fitter2D(
-        x=[x_ax_0, x_ax_1], y=y.T, model=fits.multi_x.Gaussian2D()
+        x=(x_ax_0, x_ax_1), y=y.T, model=fits.multi_x.Gaussian2D()
     )
 
     assert fit.values.keys() == params.keys()
@@ -141,7 +141,7 @@ def test_cone_2d(plot_failures):
     y = cone(x_mesh_0, x_mesh_1, **params)
 
     fit = fits.multi_x.common.Fitter2D(
-        x=[x_ax_0, x_ax_1],
+        x=(x_ax_0, x_ax_1),
         y=y.T,
         model=fits.multi_x.models.Cone(),
     )
@@ -186,10 +186,10 @@ def test_laser_flop_2d(plot_failures):
         y[idx, :] = flop_model(x=time_axis, eta=eta_angle, omega=omega)
 
     model = fits.multi_x.Model2D(
-        models=[flop_model, sinusoid_model],
-        result_params=["eta"],
+        models=(flop_model, sinusoid_model),
+        result_params=("eta",),
     )
 
     params = {"omega_x0": omega, "x0_x1": -np.pi / 2}
-    fit = fits.multi_x.common.Fitter2D(x=[time_axis, angle_axis], y=y.T, model=model)
+    fit = fits.multi_x.common.Fitter2D(x=(time_axis, angle_axis), y=y.T, model=model)
     check_param_values(time_mesh, angle_mesh, params, fit, model.func, plot_failures)

@@ -192,7 +192,7 @@ Before committing:
 
 # Design Philosophy
 
-Ionics fits is designed to be extremely robust and flexible, while being "fast enough" (in particular, data fitting should be much much faster than data acquisition). However, optimising for speed is explicitly not a design goal - for example, we generally prefer heuristics which are robust over faster ones which have less good coverage.
+
 
 ## Good Heuristics
 
