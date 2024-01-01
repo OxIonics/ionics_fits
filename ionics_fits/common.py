@@ -21,6 +21,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+TX = [ArrayLike[("num_samples",), np.float64]]
+TY = Array[("num_y_channels", "num_samples"), np.float64]
+
+
 def scale_invariant(x_scale: float, y_scale: float) -> float:
     """Scale function for model parameters whose value is invariant under rescaling of
     the x- and y-axes"""
@@ -245,9 +249,7 @@ class Model:
             self.parameters = parameters
         self.internal_parameters = internal_parameters or []
 
-    def __call__(
-        self, x: Array[("num_samples",), np.float64], **kwargs: float
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def __call__(self, x: TX, **kwargs: float) -> TY:
         """Evaluates the model.
 
         - keyword arguments specify values for model parameters (see model definition)
@@ -297,9 +299,7 @@ class Model:
         """Returns the number of y channels supported by the model."""
         raise NotImplementedError
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
@@ -317,8 +317,8 @@ class Model:
 
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+        x: TX,
+    ) -> TY:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
@@ -341,8 +341,8 @@ class Model:
 
     def estimate_parameters(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
     ):
         """Set heuristic values for model parameters.
 
@@ -361,8 +361,8 @@ class Model:
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
@@ -416,9 +416,9 @@ class Fitter:
         y_scale: the applied y-axis scale factor
     """
 
-    x: Array[("num_samples",), np.float64]
-    y: Array[("num_y_channels", "num_samples"), np.float64]
-    sigma: Array[("num_y_channels", "num_samples"), np.float64]
+    x: TX
+    y: TY
+    sigma: TY
     values: Dict[str, float]
     uncertainties: Dict[str, float]
     derived_values: Dict[str, float]
@@ -431,8 +431,8 @@ class Fitter:
 
     def __init__(
         self,
-        x: ArrayLike[("num_samples",), np.float64],
-        y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         model: Model,
     ):
         """Fits a model to a dataset and stores the results.
@@ -579,10 +579,10 @@ class Fitter:
 
     def _fit(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         parameters: Dict[str, ModelParameter],
-        free_func: Callable[..., Array[("num_y_channels", "num_samples"), np.float64]],
+        free_func: Callable[..., TY],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Implementation of the parameter estimation.
 
@@ -603,11 +603,8 @@ class Fitter:
     def evaluate(
         self,
         transpose_and_squeeze=False,
-        x_fit: Optional[Array[("num_samples",), np.float64]] = None,
-    ) -> Tuple[
-        Array[("num_samples",), np.float64],
-        Array[("num_y_channels", "num_samples"), np.float64],
-    ]:
+        x_fit: Optional[TX] = None,
+    ) -> Tuple[TX, TY,]:
         """Evaluates the model function using the fitted parameter set.
 
         :param transpose_and_squeeze: if True, array `y_fit` is transposed
@@ -627,12 +624,12 @@ class Fitter:
             return x_fit, y_fit.T.squeeze()
         return x_fit, y_fit
 
-    def residuals(self) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def residuals(self) -> TY:
         """Returns an array of fit residuals."""
         return self.y - self.evaluate()[1]
 
     def calc_sigma(
         self,
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    ) -> TY:
         """Return an array of standard error values for each y-axis data point."""
         raise NotImplementedError
