@@ -1,6 +1,6 @@
 import copy
 import logging
-from typing import Dict, List, Optional, Tuple, Union, Type, TypeVar, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, Union, TypeVar, TYPE_CHECKING
 
 import numpy as np
 
