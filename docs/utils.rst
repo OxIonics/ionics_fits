@@ -1,4 +1,5 @@
 .. _containers:
+
 Helper utilities
 ================
 
@@ -9,6 +10,7 @@ works in angular units, but your tooling needs linear units? No problem! Simply 
 :func:`ionics_fits.models.utils.rescale_model_x``` helper function.
 
 .. code-block:: python
+
    detuning_model = fits.models.utils.rescale_model_x(fits.models.RabiFlopFreq, 2 * np.pi)
 
 Or, suppose you actually want to scan the magnetic field and find the field offset which
