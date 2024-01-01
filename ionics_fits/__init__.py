@@ -6,3 +6,5 @@ from .normal import NormalFitter
 from . import models
 from . import utils
 from . import validators
+
+from . import multi_x

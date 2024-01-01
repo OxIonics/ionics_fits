@@ -374,8 +374,8 @@ class Model:
 
         :param x: x-axis data
         :param y: y-axis data
-        :param: fitted_params: dictionary mapping model parameter names to their
-            fitted values.
+        :param fitted_params: dictionary mapping model parameter names to their
+            fitted values
         :param fit_uncertainties: dictionary mapping model parameter names to
             their fit uncertainties.
         :returns: tuple of dictionaries mapping derived parameter names to their
@@ -418,7 +418,7 @@ class Fitter:
 
     x: Array[("num_samples",), np.float64]
     y: Array[("num_y_channels", "num_samples"), np.float64]
-    sigma: Optional[Array[("num_y_channels", "num_samples"), np.float64]] = None
+    sigma: Array[("num_y_channels", "num_samples"), np.float64]
     values: Dict[str, float]
     uncertainties: Dict[str, float]
     derived_values: Dict[str, float]
