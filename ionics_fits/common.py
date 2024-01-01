@@ -5,7 +5,7 @@ import dataclasses
 import inspect
 import logging
 import numpy as np
-from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 from .utils import Array, ArrayLike
 
@@ -22,7 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 TX = [ArrayLike[("num_samples",), np.float64]]
-TY = Array[("num_y_channels", "num_samples"), np.float64]
+TY = Union[
+    Array[("num_y_channels", "num_samples"), np.float64],
+    Array[("num_samples"), np.float64],
+]
 
 
 def scale_invariant(x_scale: float, y_scale: float) -> float:
@@ -604,7 +607,7 @@ class Fitter:
         self,
         transpose_and_squeeze=False,
         x_fit: Optional[TX] = None,
-    ) -> Tuple[TX, TY,]:
+    ) -> Tuple[TX, TY]:
         """Evaluates the model function using the fitted parameter set.
 
         :param transpose_and_squeeze: if True, array `y_fit` is transposed
