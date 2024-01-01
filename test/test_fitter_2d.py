@@ -1,0 +1,214 @@
+from matplotlib import pyplot as plt
+import numpy as np
+import pprint
+
+import ionics_fits as fits
+from . import common
+
+
+def gaussian(x, y, a, x0_x, x0_y, sigma_x, sigma_y, y0):
+
+    A = a / (sigma_x * np.sqrt(2 * np.pi)) / (sigma_y * np.sqrt(2 * np.pi))
+
+    return (
+        A
+        * np.exp(
+            -(((x - x0_x) / (np.sqrt(2) * sigma_x)) ** 2)
+            - (((y - x0_y) / (np.sqrt(2) * sigma_y)) ** 2)
+        )
+        + y0
+    )
+
+
+def cone(x, y, x0_x, x0_y, k_x, k_y, y0_y, **kwargs):
+    return np.sqrt((k_x * (x - x0_x)) ** 2 + (k_y * (y - x0_y)) ** 2) + y0_y
+
+
+def check_param_values(x_mesh_0, x_mesh_1, test_params, fit, func, plot_failures):
+    if not common.params_close(test_params, fit.values, 1e-3):
+        if plot_failures:
+
+            fig, axs = plt.subplots(2, 1)
+
+            plt.axes(axs[0])
+
+            plt.pcolormesh(x_mesh_0, x_mesh_1, func(x_mesh_0, x_mesh_1, **test_params))
+            axs[0].set_title("model")
+            plt.grid()
+            plt.xlabel("x")
+            plt.ylabel("y")
+
+            plt.axes(axs[1])
+
+            plt.pcolormesh(x_mesh_0, x_mesh_1, func(x_mesh_0, x_mesh_1, **fit.values))
+            axs[1].set_title("fit")
+            plt.grid()
+            plt.xlabel("x")
+            plt.ylabel("y")
+
+            plt.show()
+
+        params_str = pprint.pformat(test_params, indent=4)
+        fitted_params_str = pprint.pformat(fit.values, indent=4)
+        initial_params_str = pprint.pformat(fit.initial_values, indent=4)
+
+        raise ValueError(
+            "Error in parameter values is too large:\n"
+            f"test parameter set was: {params_str}\n"
+            f"fitted parameters were: {fitted_params_str}\n"
+            f"estimated parameters were: {initial_params_str}\n"
+            f"free parameters were: {fit.free_parameters}"
+        )
+
+
+def test_call_2d(plot_failures):
+    """Check that the 2D model call / func methods produce the correct output"""
+    params = {
+        "a": 5,
+        "x0_x": -2,
+        "x0_y": +0.5,
+        "sigma_x": 2,
+        "sigma_y": 5,
+        "y0": 1.5,
+    }
+
+    x_ax_0 = np.linspace(-20, 20, 30)
+    x_ax_1 = np.linspace(-50, 50, 70)
+    x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+
+    y = gaussian(x_mesh_0, x_mesh_1, **params)
+    model = fits.multi_x.Gaussian2D()
+    y_model = model((x_ax_0, x_ax_1), **params)
+
+
+def test_gaussian_2d(plot_failures):
+    """Test 2D Gaussian fitting"""
+    params = {
+        "a": 5,
+        "x0_x": -2,
+        "x0_y": +0.5,
+        "sigma_x": 2,
+        "sigma_y": 5,
+        "y0": 1.5,
+    }
+
+    x_ax_0 = np.linspace(-20, 20, 30)
+    x_ax_1 = np.linspace(-50, 50, 70)
+    x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+
+    y = gaussian(x_mesh_0, x_mesh_1, **params)
+
+    fit = fits.NormalFitter(x=[x_ax_0, x_ax_1], y=y, model=fits.multi_x.Gaussian2D())
+
+    check_param_values(x_mesh_0, x_mesh_1, params, fit, gaussian, plot_failures)
+
+
+# def test_cone(plot_failures):
+#     """Test cone fitting"""
+#     params = {
+#         "x0_x": -5,
+#         "x0_y": +10,
+#         "k_x": 2,
+#         "k_y": 5,
+#         "y0": 0,
+#     }
+
+#     x_ax_0 = np.linspace(-20, 20, 30)
+#     x_ax_1 = np.linspace(-50, 50, 70)
+#     x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+
+#     y = cone(x_mesh_0, x_mesh_1, **params)
+
+#     fit = fits.multi_dimension.Fitter2D(
+#         x=[x_ax_0, x_ax_1],
+#         y=y,
+#         model=fits.multi_dimension.Cone(),
+#     )
+
+#     check_param_values(x_mesh_0, x_mesh_1, params, fit, cone, plot_failures)
+
+# to do: test LaserFlopFreq mode angle
+def test_laser_flop_2d(plot_failures):
+    """Test / example of constructing a 2D fit using the laser flopping model.
+
+    We simulate Rabi flopping on a blue sideband as a function of the alignment between
+    the laser and the motional mode.
+    """
+    t_pi = 5e-6
+    omega = np.pi / t_pi
+    eta = 0.1
+    theta_0 = 0.25
+
+    angle_axis = np.linspace(-np.pi / 2, +np.pi / 3, 50)
+    time_axis = np.linspace(0, 5 * (t_pi / eta), 75)
+    time_mesh, angle_mesh = np.meshgrid(time_axis, angle_axis)
+
+    flop_model = fits.models.LaserFlopTimeThermal(
+        start_excited=False, sideband_index=+1, n_max=1
+    )
+    flop_model.parameters["n_bar"].fixed_to = 0
+    flop_model.parameters["delta"].fixed_to = 0
+    flop_model.parameters["omega"].fixed_to = omega
+    flop_model.parameters["P_readout_e"].fixed_to = 1
+    flop_model.parameters["P_readout_g"].fixed_to = 0
+
+    sinusoid_model = fits.models.Sinusoid()
+    sinusoid_model.parameters["omega"].fixed_to = 1
+    sinusoid_model.parameters["x0"].fixed_to = -np.pi / 2  # cosine
+    sinusoid_model.parameters["y0"].fixed_to = 0
+    sinusoid_model.parameters["phi"].offset = 0
+
+    # Generate data to fit
+    y = np.zeros_like(time_mesh)
+    for idx, angle in np.ndenumerate(angle_axis):
+        eta_angle = sinusoid_model(x=angle, a=eta, phi=theta_0)
+        y[idx, :] = flop_model(x=time_axis, eta=eta_angle, omega=omega)
+
+    model = fits.multi_dimension.Model2D(
+        models=[flop_model, sinusoid_model],
+        result_params=["eta"],
+        common_params=[],
+    )
+    fit = fits.multi_dimension.Fitter2D(x=[time_axis, angle_axis], y=y, model=model)
+
+    y_fit = np.zeros_like(time_mesh)
+    for idx, angle in np.ndenumerate(angle_axis):
+        eta_angle = sinusoid_model(x=angle, a=eta, phi=theta_0)
+        y_fit[idx, :] = np.atleast_2d(
+            flop_model(x=time_axis, eta=eta_angle, omega=omega)
+        )
+
+    # fig, axs = plt.subplots(3, 1)
+
+    # plt.axes(axs[0])
+
+    # plt.pcolormesh(time_axis * 1e6, angle_axis, y)
+    # axs[0].set_title("model")
+    # plt.grid()
+    # plt.xlabel("time (us)")
+    # plt.ylabel("mode angle (rad)")
+
+    # plt.axes(axs[1])
+
+    # plt.pcolormesh(time_axis * 1e6, angle_axis, y_fit)
+    # axs[1].set_title("fit")
+    # plt.grid()
+    # plt.xlabel("time (us)")
+    # plt.ylabel("mode angle (rad)")
+
+    # plt.axes(axs[2])
+
+    # plt.plot(
+    #     angle_axis, sinusoid_model(x=angle_axis, a=eta, phi=theta_0), label="model"
+    # )
+    # plt.plot(*fit.fit_1.evaluate(), label="fit")
+    # plt.xlabel("angle (rad)")
+    # plt.ylabel("eta")
+    # plt.grid()
+    # plt.legend()
+    # plt.show()
+
+    # import pprint
+
+    # pprint.pprint(fit.values)
+    # assert 0

@@ -1,13 +1,12 @@
 import copy
 import logging
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, Optional, Tuple, Union, Type, TypeVar, TYPE_CHECKING
 
 import numpy as np
 
 
-from .. import Fitter, Model, NormalFitter
+from .. import BinomialFitter, Fitter, Model, NormalFitter
 from ..utils import Array, ArrayLike
-from ..models import RepeatedModel
 
 
 if TYPE_CHECKING:
@@ -24,17 +23,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-TX2D = Tuple[
-    ArrayLike[("num_samples_ax_0",), np.float64],
-    ArrayLike[("num_samples_ax_1",), np.float64],
-]
-TY2D = ArrayLike[("num_samples_ax_1", "num_samples_ax_0", "num_y_channels"), np.float64]
-
-TXFLAT = ArrayLike[("num_samples_x_flat",), np.float64]
-TYFLAT = ArrayLike[("num_y_channels", "num_samples_x_flat"), np.float64]
-
-class Model2D:
-    """ Base class providing a :class Model:-like interface for models with
+class Model2D(Model):
+    """Base class providing a :class Model:-like interface for models with
     2-dimensional x-axes.
 
     2D x-axis data is represented by the tuple `x=(x_axis_0, x_axis_1)`.
@@ -49,7 +39,15 @@ class Model2D:
     first model. In other words:
       `y(x_0, x_1) = model_0(x_0 | result_params = model_1(x_1))`
 
-    See also :class Fitter2D:.
+    Notes:
+    - All parameters from the two models apart from the first model's *result
+      parameters* are parameters of the 2D model.
+    - All derived results from the two models are included in the :class Model2D:'s
+      derived results.
+    - By default, a parameter/derived result named `param` from a model named `model` is
+      exposed as a parameter / result in the :class Model2D: named `param_model`. Custom
+      naming schemes are possible by passing a `param_renames` dictionary into
+      :meth __init__:.
     """
 
     def __init__(
@@ -57,7 +55,6 @@ class Model2D:
         models: Tuple[Model, Model],
         result_params: Tuple[str],
         model_names: Optional[Tuple[str, str]] = None,
-        common_params: Optional[Tuple[str]] = None,
         param_renames: Optional[Dict[str, str]] = None,
     ):
         """
@@ -70,47 +67,50 @@ class Model2D:
         :param model_names: optional tuple of names for the two models. These are used
             when generating names for fit results and derived parameters. Empty strings
             are allowed so long as the two models do not share any parameter names. If
-            this argument is `None` the model names default to `x` and `y` respectively.
-        :param common_params: optional tuple of "common parameters" for the first model.
-            These parameters are fit jointly (their value is the same for all points on
-            `x_axis_1`). Any parameters of the first model not included here are treated
-            as "independent" and may vary as a function of `x_axis_1`. See :class
-            RepeatedModel: for further details.
-        :param param_renames: optional dictionary mapping names of parameters in the 2D
-            model to new names to rename them to. This allows more intuitive parameter
-            names than the default `{param_name}_{model_name}` scheme.
-        Notes:
-        - All parameters from the two models apart from the first model's *result
-          parameters* are parameters of the 2D model
-        - A parameter named `param` from a model named `model` is exposed as a parameter
-          of the 2D model named `param_model`
-        - All derived results from the second model are exposed in the 2D model's
-          derive parameter dictionary in the usual format (`{param_name}_{model_name}`)
-        - Derived results from the first model are aggregated (see :class
-          RepeatedModel`). Results whose value is the same for all points on `x_axis_1`
-          are exposed in the usual format. Results whose value changes as a function of
-          `x_axis_1` are omitted from the exposed dictionary.
+            this argument is `None` the model names default to `x0` and `x1`
+            respectively.
+        :param param_renames: optional dictionary mapping names of parameters/derived
+            results in the :class Model2D: to new parameter names to rename them with.
+            This provides a means for more flexible parameter name schemes than the
+            default `{param_name}_{model_name}` format.
         """
-        self.models = models
-        self.result_params = result_params
-        self.model_names = model_names if model_names is not None else ("x", "y")
-        self.common_params = common_params or ()
-        self.param_renames = param_renames or {}
+        self.__models = models
+        self.__result_params = result_params
+        self.__model_names = model_names if model_names is not None else ("x", "y")
+        self.__param_renames = param_renames or {}
+
+        self.__x_shape = None
+
+        missing = set(self.__result_params) - set(self.__models[0].parameters.keys())
+        if missing:
+            raise ValueError(
+                "Result parameters must be parameters of the first model. Unrecognised "
+                f"result parameter names are: {missing}"
+            )
+
+        if len(self.__result_params) != self.__models[1].get_num_y_channels():
+            raise ValueError(
+                f"{len(self.__result_params)} parameters passed when second model "
+                f"requires {self.__models[1].get_num_y_channels()}"
+            )
 
         model_parameters = ({}, {})  # new_param_name: param_data
-        for model_idx, model in enumerate(self.models):
-            model_name = self.model_names[model_idx]
+        for model_idx, model in enumerate(self.__models):
+            model_name = self.__model_names[model_idx]
             model_parameters[model_idx].update(
                 {
                     f"{param_name}_{model_name}": param_data
-                    for param_name, param_data in self.models[
+                    for param_name, param_data in self.__models[
                         model_idx
                     ].parameters.items()
                 }
             )
 
-        for param_name in result_params:
-            del model_parameters[0][f"{param_name}_{self.model_names[0]}"]
+        parameters = {}
+        internal_parameters = [
+            model_parameters[0].pop(f"{param_name}_{self.__model_names[0]}")
+            for param_name in self.__result_params
+        ]
 
         duplicates = set(model_parameters[0].keys()).intersection(
             set(model_parameters[1].keys())
@@ -121,54 +121,59 @@ class Model2D:
                 " Do the models have different suffixes?"
             )
 
-        parameters = model_parameters[0]
+        parameters.update(model_parameters[0])
         parameters.update(model_parameters[1])
 
-        missing = set(self.param_renames.keys()) - set(parameters.keys())
+        # Apply parameter renames
+        missing = set(self.__param_renames.keys()) - set(parameters.keys())
         if missing:
             raise ValueError(
                 "Parameter renames do not correspond to any parameter of the 2D model: "
                 f"{missing}"
             )
 
-        self.parameters = {
-            param_name: param_data
+        renamed_parameters = {
+            self.__param_renames[param_name]: param_data
             for param_name, param_data in parameters.items()
-            if param_name not in self.param_renames.keys()
+            if param_name in self.__param_renames.keys()
         }
 
-        duplicates = set(self.param_renames.keys()).intersection(self.parameters.keys())
+        parameters = {
+            param_name: param_data
+            for param_name, param_data in parameters.items()
+            if param_name not in self.__param_renames.keys()
+        }
+
+        duplicates = set(renamed_parameters.keys()).intersection(parameters.keys())
         if duplicates:
             raise ValueError(
                 "Parameter renames duplicate existing model parameter names: "
                 f"{duplicates}"
             )
 
-        self.parameters.update(
-            {
-                new_param_name: parameters[old_param_name]
-                for old_param_name, new_param_name in self.param_renames.items()
-            }
-        )
+        parameters.update(renamed_parameters)
 
         # cache these so we don't need to calculate them each time we evaluate func
         # model_param_name: new_param_name
         self.__model_0_param_map = {}
-        for model_param_name in self.models[0].parameters.keys():
-            if model_param_name in self.result_params:
+        for model_param_name in self.__models[0].parameters.keys():
+            if model_param_name in self.__result_params:
                 continue
 
-            new_param_name = f"{model_param_name}_{self.model_names[0]}"
-            new_param_name = self.param_renames.get(new_param_name, new_param_name)
+            new_param_name = f"{model_param_name}_{self.__model_names[0]}"
+            new_param_name = self.__param_renames.get(new_param_name, new_param_name)
 
             self.__model_0_param_map[model_param_name] = new_param_name
 
         self.__model_1_param_map = {}
-        for model_param_name in self.models[1].parameters.keys():
-            new_param_name = f"{model_param_name}_{self.model_names[1]}"
-            new_param_name = self.param_renames.get(new_param_name, new_param_name)
-
+        for model_param_name in self.__models[1].parameters.keys():
+            new_param_name = f"{model_param_name}_{self.__model_names[1]}"
+            new_param_name = self.__param_renames.get(new_param_name, new_param_name)
             self.__model_1_param_map[model_param_name] = new_param_name
+
+        self.__model_param_maps = (self.__model_0_param_map, self.__model_1_param_map)
+
+        super().__init__(parameters=parameters, internal_parameters=internal_parameters)
 
     def __call__(self, x: TX2D, **kwargs: float) -> TY2D:
         """Evaluates the model.
@@ -188,10 +193,6 @@ class Model2D:
         args.update(kwargs)
         return self.func(x, args)
 
-    def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model."""
-        return self.models[0].get_num_y_channels()
-
     def func(self, x: TX2D, param_values: Dict[str, float]) -> TY2D:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
@@ -203,6 +204,9 @@ class Model2D:
         :param param_values: dictionary of parameter values
         :returns: array of model values
         """
+        x_ax_0, x_ax_1 = x
+        x_shape = [len(x_ax) for x_ax in x]
+
         model_0_values = {
             model_param_name: param_values[new_param_name]
             for model_param_name, new_param_name in self.__model_0_param_map.items()
@@ -212,207 +216,193 @@ class Model2D:
             for model_param_name, new_param_name in self.__model_1_param_map.items()
         }
 
-        x_ax_0, x_ax_1 = x
-        y = np.zeros((len(x[1]), len(x[0]), self.get_num_y_channels()))
+        y = np.zeros((x_shape[1], x_shape[0], self.get_num_y_channels()))
 
-        y_1 = np.atleast_2d(self.models[1].func(x_ax_1, model_1_values))
+        y_1 = np.atleast_2d(self.__models[1].func(x_ax_1, model_1_values))
 
         for x_idx in range(len(x_ax_1)):
             model_0_values.update(
                 {
                     param_name: y_1[param_idx, x_idx]
-                    for param_idx, param_name in enumerate(self.result_params)
+                    for param_idx, param_name in enumerate(self.__result_params)
                 }
             )
-            y_idx = np.atleast_2d(self.models[0].func(x_ax_0, model_0_values))
+            y_idx = np.atleast_2d(self.__models[0].func(x_ax_0, model_0_values))
             y[x_idx, :, :] = y_idx.T
 
         return y
 
+    def get_num_y_channels(self) -> int:
+        """Returns the number of y channels supported by the model."""
+        return self.__models[0].get_num_y_channels()
 
-class Fitter2D(Fitter):
-    """Hierarchical fits to :class Model2D:s.
+    def get_num_x_axes(self) -> int:
+        """Returns the number of x-axes supported by the model."""
+        return 2
 
-    Fitting proceeds as follows:
-      - We fit the complete y-axis dataset to a :class RepeatedModel: based on the first
-        of the :class Model2D:'s models. This performs a joint fit to all points on the
-        second x-axis dimension.
-      - The "result parameters" from the first model are used to create a second y-axis
-        dataset, which the :class Model2D:'s second model is fit to.
+    def can_rescale(self) -> Tuple[bool, bool]:
+        rescale_x, rescale_y = zip(*[model.can_rescale() for model in self.__models])
+        return all(rescale_x), all(rescale_y)
 
-    See :class Model2D: for more details. For example usage, see
-    `test\test_multi_fitter`.
-    """
+    def estimate_parameters(self, x: TX2D, y: TY2D):
+        x_ax_0 = x[0]
+        x_ax_1 = x[1]
+        x_shape = [len(x_ax) for x_ax in x]
 
-    x: TX2D
-    y: TY2D
-    fits: Tuple[Fitter, NormalFitter]
-    sigma: Array[("num_y_channels", "num_samples"), np.float64]
-    values: Dict[str, float]
-    uncertainties: Dict[str, float]
-    derived_values: Dict[str, float]
-    derived_uncertainties: Dict[str, float]
-    initial_values: Dict[str, float]
-    model: Model
-    free_parameters: List[str]
+        model_0 = self.__models[0]
+        parameters = model_0.parameters
 
-    def __init__(
+        heuristics = {
+            param_name: np.zeros(len(x_ax_1 + 1)) for param_name in parameters.keys()
+        }
+
+        for x_1_idx in len(x_ax_0):
+            model_0.parameters = copy.deepcopy(model_0.parameters)  # reset heuristics
+            model_0.estimate_parameters(x=x_ax_0, y=y[x_1_idx, :, :])
+
+            for param_name, param_data in model_0.parameters.items():
+                heuristics[param_name][x_1_idx] = param_data.get_initial_value()
+
+        for param_name in parameters.keys():
+            heuristics[param_name][-1] = np.mean(heuristics[param_name][:-1])
+
+        costs = np.zeros(len(x_ax_1) + 1)
+        for idx in range(len(costs)):
+            y_idx = self.__call__(
+                x=x_ax_0,
+                **{
+                    param_name: heuristics[param_name][idx]
+                    for param_name in self.heuristics.keys()
+                },
+            )
+            costs[idx] = np.sqrt(np.sum((y - y_idx) ** 2))
+        best_heuristic = np.argmin(costs)
+
+        model_0.parameters = parameters
+        for param_name, param_data in model_0.parameters.items():
+            param_data.heuristic = heuristics[param_name][best_heuristic]
+
+        model_1 = self.__models[1]
+        y_1 = np.zeros(len(x_ax_1), model_1.get_num_y_channels())
+        for idx, param_name in enumerate(self.__result_params):
+            y_1[idx, :] = heuristics[param_name][:-1]
+
+        model_1.estimate_parameters(x_ax_1, y_1)
+
+    def calculate_derived_params(
         self,
         x: TX2D,
         y: TY2D,
-        model: Model2D,
-        fitter_cls: Optional[Fitter] = None,
-        fitter_args: Optional[Dict] = None,
-    ):
-        """
-        :param x: tuple of `(x_axis_0, x_axis_1)`
-        :param y: y-axis input data
-        :param fitter_cls: optional fitter class to use for the first fit (the second
-          fit is always a normal fit). Defaults to :class NormalFitter:.
-        :param fitter_args: optional dictionary of keyword arguments to pass into the
-          fitter class
-        """
-        self.fitter_cls = fitter_cls or NormalFitter
-        self.fitter_args = dict(fitter_args or {})
-        self.model = copy.deepcopy(model)
-        self.x = x
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        derived_values = {}
+        derived_uncertainties = {}
 
-        y = np.atleast_3d(y)
+        for idx, model in enumerate(self.__models.values()):
 
-        if len(x) != 2:
-            raise ValueError("Fitter2D requires 2 x-axes")
+            # model_param_name: new_param_name
+            param_map = self.__model_param_maps[idx]
 
-        if len(x[0]) != y.shape[1] or len(x[1]) != y.shape[0]:
-            raise ValueError("x-axis and y axis shapes must match")
-
-        x_ax_0 = x[0]
-        x_ax_1 = x[1]
-
-        # fit along first axis
-        model_0 = RepeatedModel(
-            model=self.model.models[0],
-            common_params=self.model.common_params,
-            num_repetitions=len(x_ax_1),
-            aggregate_results=True,
-        )
-
-        y_0 = np.moveaxis(y, -1, 0)
-        y_0 = np.reshape(y_0, (np.prod(y_0.shape[0:2]), y_0.shape[2]))
-        fit_0 = self.fitter_cls(x=x_ax_0, y=y_0, model=model_0, **self.fitter_args)
-
-        # aggregate results
-        y_1 = np.zeros((len(self.model.result_params), len(x_ax_1)), dtype=np.float64)
-        sigma_1 = np.zeros_like(y_1)
-        for param_idx, param_name in enumerate(self.model.result_params):
-            y_param = np.array(
-                [fit_0.values[f"{param_name}_{idx}"] for idx in range(len(x_ax_1))]
-            )
-            sigma_param = np.array(
-                [fit_0.values[f"{param_name}_{idx}"] for idx in range(len(x_ax_1))]
-            )
-
-            y_1[param_idx, :] = y_param
-            sigma_1[param_idx, :] = sigma_param
-
-        y_1 = y_1
-        sigma_1 = sigma_1
-
-        fit_1 = NormalFitter(
-            x=x_ax_1,
-            y=y_1,
-            model=self.model.models[1],
-            sigma=sigma_1,
-            **self.fitter_args,
-        )
-
-        def aggregate_results(
-            attr: str, fit_0_param_filter: List[str], renames: Dict[str, str], aggregated_renames
-        ):
-            fit_0_results = {
-                    f"{param_name}_{self.model.model_names[0]}": value
-                    for param_name, value in getattr(fit_0, attr).items()
-                }
-            fit_1_results = {
-                    f"{param_name}_{self.model.model_names[1]}": value
-                    for param_name, value in getattr(fit_1, attr).items()
-                }
-
-
-            if fit_0_param_filter is not None:
-                fit_0_param_filter = [aggregated_renames.get(param_name, param_name) for param_name in fit_0_param_filter]
-                fit_0_results = {param_name: value for param_name, value in fit_0_results.items() if param_name in fit_0_param_filter}
-            
-            aggregated_results = fit_0_results
-            aggregated_results.update(fit_1_results)
-            if renames is not None:
-                aggregated_results = {renames.get(param_name, param_name): value for param_name, value in aggregated_results.items()}
-
-            setattr(self, attr, aggregated_results)
-
-        # Aggregate fixed parameters of the first model
-
-        # Model2D_param_name: model_0_param_name
-        aggregated_renames = {
-                param_name: f"{param_name}_0_{self.model.model_names[0]}"
-                for param_name, param_data in self.model.models[0].parameters.items()
-                if param_data.fixed_to is not None
+            model_values = {
+                model_param_name: fitted_params[new_param_name]
+                for model_param_name, new_param_name in param_map.items()
+            }
+            model_uncertainties = {
+                model_param_name: fit_uncertainties[new_param_name]
+                for model_param_name, new_param_name in param_map.items()
             }
 
-        for attr in ["values", "uncertainties", "initial_values"]:
-            aggregate_results(
-                attr,
-                fit_0_param_filter=self.model.models[0].parameters.keys(),
-                aggregated_renames=aggregated_renames,
-                renames=self.model.param_renames,
+            derived = model.calculate_derived_params(
+                x=x[0],
+                y=None,  # No good y-axis value to use for this
+                fitted_params=model_values,
+                fit_uncertainties=model_uncertainties,
             )
-        for attr in [
-            "derived_values",
-            "derived_uncertainties",
-        ]:
-            aggregate_results(attr, fit_0_param_filter=None, renames=None, aggregated_renames=None)
+            model_derived_values, derived_uncertainties = derived
 
-        # self.models = [model_0, models[1]]
+            derived_values.update(
+                {
+                    new_param_name: model_derived_values[model_param_name]
+                    for model_param_name, new_param_name in param_map.items()
+                }
+            )
+            derived_uncertainties.update(
+                {
+                    new_param_name: model_derived_values[model_param_name]
+                    for model_param_name, new_param_name in param_map.items()
+                }
+            )
 
-        # subtract independent variable?
-        self.free_parameters = [
-            param_name
-            for param_name, param_data in self.model.models[0].parameters.items()
-            if param_data.fixed_to is None
-        ]
-        # self.free_parameters += fit_1.free_parameters
-        # self.initial_values =
-        self.fits = (fit_0, fit_1)
-        self.sigma = self.calc_sigma()
-        # assert self.sigma.shape == self.y.shape
+        derived_values = {
+            self.__param_renames.get(param_name, param_name): value
+            for param_name, value in derived_values.items()
+        }
+        derived_uncertainties = {
+            self.__param_renames.get(param_name, param_name): value
+            for param_name, value in derived_uncertainties.items()
+        }
 
-    def evaluate(
-        self,
-        transpose_and_squeeze=False,
-        x_fit: Optional[TX2D] = None,
-    ) -> Tuple[TX2D, TY2D]:
-        """Evaluates the model function using the fitted parameter set.
+        return derived_values, derived_uncertainties
 
-        :param transpose_and_squeeze: if True, array `y_fit` is transposed
-            and squeezed before being returned. This is intended to be used
-            for plotting, since matplotlib requires different y-series to be
-            stored as columns.
-        :param x_fit: optional x-axis points to evaluate the model at. If
-            `None`, we use the values stored as attribute `x` of the fitter.
 
-        :returns: tuple of x-axis values used and corresponding y-axis values
-            of the fitted model
-        """
-        x_fit = x_fit if x_fit is not None else self.x
-        y_fit = self.model.func(x_fit, self.values)
+# TFitter = TypeVar("TFitter", bound=Type[Fitter])
 
-        if transpose_and_squeeze:
-            return x_fit, y_fit.T.squeeze()
-        return x_fit, y_fit
 
-    def residuals(self) -> TY2D:
-        """Returns an array of fit residuals."""
-        return self.y - self.evaluate()[1]
+# def make_2d_fitter(base_class: TFitter) -> TFitter:
+#     """
+#     Converts a :class Fitter: into one that is compatible with :class Model2D:s.
+#     """
+#     class Fitter2D(base_class):
+#         def __init__(self, x: TX2D, y: TY2D, model: Model2D, **kwargs):
+#             """
+#             :param x: x-axis data in the for of a tuple `(x_axis_0, x_axis_1)`
+#             :param y: y-axis input data in the form of an array:
+#               shaped as `[x_axis_1, x_axis_0, y_channels]`
+#             :param kwargs: passed to the fitter base class
+#             """
+#             y = np.atleast_3d(y)
 
-    def calc_sigma(self) -> TY2D:
-        """Return an array of standard error values for each y-axis data point."""
-        return self.fits[0].calc_sigma()
+#             if len(x) != 2:
+#                 raise ValueError("Fitter2D requires 2 x-axes")
+
+#             if len(x[0]) != y.shape[1] or len(x[1]) != y.shape[0]:
+#                 raise ValueError("x-axis and y axis shapes must match")
+
+#             x_shape = tuple([len(x_ax) for x_ax in x])
+#             y_flat = np.reshape(y, (np.prod(x_shape), model.get_num_y_channels())).T
+
+#             # Work around the fact that `Fitter` does not (currently) support working
+#             # with multi-dimensional x-axis data.
+#             # TODO: consider making the standard fitter work directly with
+#             # multi-dimensional x-axis data
+
+#             model = copy.deepcopy(model)
+
+#             x_2d = x
+#             model_func = model.func
+#             model_estimate_parameters = model.estimate_parameters
+#             calculate_derived_params = model.calculate_derived_params
+
+#             def func_wrapped(self, x: TXFLAT, param_values: Dict[str, float]) -> TYFLAT:
+#                 y = model_func(x=x2d, param_values=param_values)
+#                 y = np.reshape(y, sum(x_shape), self.get_num_y_channels()).Tuple
+#                 return y
+
+#             def estimate_parameters(self, x: TX2D, y: TY2D):
+#                 return model_estimate_parameters(x2d, )
+
+#             super().__init__(
+#                 x=np.arange((y.shape[1] * y.shape[0])),  # this does not scale properly!
+#                 y=y_flat,
+#                 model=model,
+#                 **kwargs)
+
+#             self.x = x
+#             self.y = y
+
+#     return Fitter2D
+
+
+# NormalFitter2D = make_2d_fitter(NormalFitter)
+# BinomialFitter2D = make_2d_fitter(BinomialFitter)

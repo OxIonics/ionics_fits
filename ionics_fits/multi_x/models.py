@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from .fitter_2d import Model2D
+from .common import Model2D
 from .. import models
 
 
@@ -26,7 +26,6 @@ class Gaussian2D(Model2D):
         super().__init__(
             models=[models.Gaussian(), outer_model],
             result_params=["a"],
-            common_params=["x0", "y0", "sigma"],
             param_renames={"a_y": "a", "y0_x": "y0", "y0_x": "y0"},
         )
 
@@ -38,6 +37,5 @@ class Cone(Model2D):
         super().__init__(
             models=[models.ConeSegment(), models.Triangle()],
             result_params=["gamma"],
-            common_params=["x0", "z0", "k"],
             param_renames=None,
         )
