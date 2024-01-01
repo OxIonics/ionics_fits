@@ -31,7 +31,7 @@ TY2D = Union[
     ArrayLike[("num_samples_ax_0", "num_samples_ax_1"), np.float64],
 ]
 
-TModels = [Tuple[TypeVar("TModel0", bound="Model"), TypeVar("TModel1", bound="Model")]]
+TModels = Tuple[TypeVar("TModel0", bound="Model"), TypeVar("TModel1", bound="Model")]
 logger = logging.getLogger(__name__)
 
 
