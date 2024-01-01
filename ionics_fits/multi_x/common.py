@@ -1,6 +1,6 @@
 import copy
 import logging
-from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, Union, Type, TypeVar, TYPE_CHECKING
 
 import numpy as np
 
@@ -31,7 +31,9 @@ TY2D = Union[
     ArrayLike[("num_samples_ax_0", "num_samples_ax_1"), np.float64],
 ]
 
-
+TModels = [
+    Tuple[TypeVar("TModel0", bound=Type[Model]), TypeVar("TModel1", bound=Type[Model])]
+]
 logger = logging.getLogger(__name__)
 
 
@@ -65,7 +67,7 @@ class Model2D:
 
     def __init__(
         self,
-        models: Tuple[Model, Model],
+        models: TModels,
         result_params: Tuple[str],
         model_names: Optional[Tuple[str, str]] = None,
         param_renames: Optional[Dict[str, Optional[str]]] = None,
