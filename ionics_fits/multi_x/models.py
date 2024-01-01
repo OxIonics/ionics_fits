@@ -66,7 +66,7 @@ class Cone(Model2D):
         # triangle.parameters["y0"].fixed_to = 0
 
         super().__init__(
-            models=[models.ConeSlice(), triangle],
+            models=(models.ConeSlice(), triangle),
             model_names=("x", "y"),
             result_params=["alpha"],
             param_renames={
