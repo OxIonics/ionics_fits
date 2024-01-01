@@ -242,6 +242,7 @@ Fuzzing
 Contents
 ========
 
+
 .. toctree::
    :maxdepth: 2
 
@@ -250,6 +251,7 @@ Contents
    multi_x.rst
    validators.rst
    api.rst
+   changes.md
 
 Indices and tables
 ==================
