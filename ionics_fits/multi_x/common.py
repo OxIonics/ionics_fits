@@ -32,7 +32,7 @@ TY2D = Union[
 ]
 
 TModels = [
-    Tuple[TypeVar("TModel0", bound=Type[Model]), TypeVar("TModel1", bound=Type[Model])]
+    Tuple[TypeVar("TModel0", bound="Model"), TypeVar("TModel1", bound="Model")]
 ]
 logger = logging.getLogger(__name__)
 
