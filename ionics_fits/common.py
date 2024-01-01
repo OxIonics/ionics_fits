@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-TX = [ArrayLike[("num_samples",), np.float64]]
+TX = ArrayLike[("num_samples",), np.float64]
 TY = Union[
     Array[("num_y_channels", "num_samples"), np.float64],
     Array[("num_samples"), np.float64],
