@@ -54,5 +54,5 @@ Examples of fitting datasets with multiple x-axes (see the tests in
    y = gaussian(x_mesh_0, x_mesh_1, **params)
    model = fits.multi_x.Gaussian2D()
    fit = fits.multi_x.common.Fitter2D(
-       x=[x_ax_0, x_ax_1], y=y.T, model=fits.multi_x.Gaussian2D()
+       x=(x_ax_0, x_ax_1), y=y.T, model=fits.multi_x.Gaussian2D()
    )
