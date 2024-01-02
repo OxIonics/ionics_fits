@@ -223,7 +223,7 @@ class Model2D:
         :param param_values: dictionary of parameter values
         :returns: array of model values
         """
-        x_ax_0, x_ax_1 = x
+        x_ax_0, x_ax_1 = [np.array(x_ax) for x_ax in x]
         x_shape = [len(x_ax) for x_ax in x]
 
         model_0_values = {
@@ -334,7 +334,7 @@ class Fitter2D:
 
         # aggregate results
         y_1 = np.zeros((len(self.model.result_params), len(x_ax_1)), dtype=np.float64)
-        sigma_1 = np.zeros_like(y_1)
+        sigma_1 = np.zeros_like(y_1) if fit_0.sigma is not None else None
 
         for param_idx, param_name in enumerate(self.model.result_params):
             y_param = np.array(
@@ -348,7 +348,9 @@ class Fitter2D:
             )
 
             y_1[param_idx, :] = y_param
-            sigma_1[param_idx, :] = sigma_param
+
+            if sigma_1 is not None:
+                sigma_1[param_idx, :] = sigma_param
 
         fit_1 = NormalFitter(
             x=x_ax_1,
