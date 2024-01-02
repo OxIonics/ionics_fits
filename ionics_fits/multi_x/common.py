@@ -299,8 +299,10 @@ class Fitter2D:
         :param fitter_args: optional dictionary of keyword arguments to pass into the
           fitter class
         """
-        self.x = x
-        self.y = np.array(y, ndmin=3)
+        x = list(x)
+        self.x = x = [np.array(x_ax) for x_ax in x]
+        self.y = y = np.array(y, ndmin=3)
+
         self.model = copy.deepcopy(model)
         self.fitter_cls = fitter_cls or NormalFitter
         self.fitter_args = dict(fitter_args or {})
@@ -329,6 +331,13 @@ class Fitter2D:
 
         y_0 = np.moveaxis(self.y, -1, 0)
         y_0 = np.reshape(y_0, (np.prod(y_0.shape[0:2]), y_0.shape[2]))
+
+        if self.fitter_args.get("sigma") is not None:
+            sigma_0 = self.fitter_args["sigma"]
+            sigma_0 = np.array(sigma_0, ndmin=3)
+            sigma_0 = np.moveaxis(sigma_0, -1, 0)
+            sigma_0 = np.reshape(sigma_0, (np.prod(sigma_0.shape[0:2]), sigma_0.shape[2]))
+            self.fitter_args["sigma"] = sigma_0
 
         fit_0 = self.fitter_cls(x=x_ax_0, y=y_0, model=model_0, **self.fitter_args)
 
@@ -430,6 +439,11 @@ class Fitter2D:
         self.free_parameters = free_parameters
 
         self.sigma = fit_0.calc_sigma()
+        if self.sigma is not None:
+            y_shape = self.y.shape
+            self.sigma = np.reshape(self.sigma, (y_shape[2], y_shape[0], y_shape[1]))
+            self.sigma = np.moveaxis(self.sigma, 0, -1)
+
         self.fits = (fit_0, fit_1)  # TODO: annotate and check against fit!
 
     def evaluate(
