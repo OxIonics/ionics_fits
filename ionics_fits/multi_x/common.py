@@ -31,7 +31,6 @@ TY2D = Union[
     ArrayLike[("num_samples_ax_0", "num_samples_ax_1"), np.float64],
 ]
 
-TModels = Tuple[TypeVar("TModel0", bound="Model"), TypeVar("TModel1", bound="Model")]
 logger = logging.getLogger(__name__)
 
 
@@ -65,7 +64,7 @@ class Model2D:
 
     def __init__(
         self,
-        models: TModels,
+        models: Tuple[Model, Model],
         result_params: Tuple[str],
         model_names: Optional[Tuple[str, str]] = None,
         param_renames: Optional[Dict[str, Optional[str]]] = None,
