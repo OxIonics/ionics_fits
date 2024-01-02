@@ -7,7 +7,7 @@ import numpy as np
 
 from .. import Fitter, Model, NormalFitter
 from ..models import RepeatedModel
-from ..utils import ArrayLike
+from ..utils import Array, ArrayLike
 
 
 if TYPE_CHECKING:
@@ -300,7 +300,7 @@ class Fitter2D:
           fitter class
         """
         x = list(x)
-        self.x = x = [np.array(x_ax) for x_ax in x]
+        self.x = x = tuple([np.array(x_ax) for x_ax in x])
         self.y = y = np.array(y, ndmin=3)
 
         self.model = copy.deepcopy(model)
@@ -452,7 +452,14 @@ class Fitter2D:
         self,
         plot_mode=False,
         x_fit: Optional[TX2D] = None,
-    ) -> Tuple[TX2D, TY2D]:
+    ) -> Union[
+        Tuple[TX2D, TY2D],
+        Tuple[
+            Array[("num_samples_ax_0",), np.float64],
+            Array[("num_samples_ax_1",), np.float64],
+            Array[("num_samples_ax_1", "num_samples_ax_0"), np.float64],
+        ],
+    ]:
         """Evaluates the model function using the fitted parameter set.
 
         :param unpack: if True, we format the output data to be convenient for plotting
