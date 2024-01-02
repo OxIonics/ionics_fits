@@ -223,7 +223,7 @@ class Model2D:
         :param param_values: dictionary of parameter values
         :returns: array of model values
         """
-        x_ax_0, x_ax_1 = x
+        x_ax_0, x_ax_1 = [np.array(x_ax) for x_ax in x]
         x_shape = [len(x_ax) for x_ax in x]
 
         model_0_values = {
