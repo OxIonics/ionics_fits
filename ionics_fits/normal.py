@@ -5,7 +5,8 @@ from scipy import optimize, stats
 from typing import Callable, Dict, Optional, Tuple, TYPE_CHECKING
 
 from . import Fitter, Model, ModelParameter
-from .utils import Array, ArrayLike
+from . common import TX, TY
+from .utils import Array
 
 if TYPE_CHECKING:
     num_samples = float
@@ -27,12 +28,10 @@ class NormalFitter(Fitter):
 
     def __init__(
         self,
-        x: ArrayLike[("num_samples",), np.float64],
-        y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         model: Model,
-        sigma: Optional[
-            ArrayLike[("num_y_channels", "num_samples"), np.float64]
-        ] = None,
+        sigma: Optional[TY] = None,
         curve_fit_args: Optional[Dict] = None,
     ):
         """Fits a model to a dataset and stores the results.
@@ -60,10 +59,10 @@ class NormalFitter(Fitter):
 
     def _fit(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         parameters: Dict[str, ModelParameter],
-        free_func: Callable[..., Array[("num_y_channels", "num_samples"), np.float64]],
+        free_func: Callable[..., TY],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Implementation of the parameter estimation.
 
@@ -130,20 +129,13 @@ class NormalFitter(Fitter):
 
         return p, p_err
 
-    def calc_sigma(
-        self,
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def calc_sigma(self) -> Optional[TX]:
         """Return an array of standard error values for each y-axis data point
         if available.
         """
         return self.sigma
 
-    def chi_squared(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
-        sigma: Array[("num_samples", "num_y_channels"), np.float64],
-    ) -> float:
+    def chi_squared(self, x: TX, y: TY, sigma: TY) -> float:
         """Returns the Chi-squared fit significance for the fit compared to a given
         dataset as a number between 0 and 1.
 

@@ -421,7 +421,7 @@ class Fitter:
 
     x: TX
     y: TY
-    sigma: TY
+    sigma: Optional[TY]
     values: Dict[str, float]
     uncertainties: Dict[str, float]
     derived_values: Dict[str, float]
@@ -631,8 +631,6 @@ class Fitter:
         """Returns an array of fit residuals."""
         return self.y - self.evaluate()[1]
 
-    def calc_sigma(
-        self,
-    ) -> TY:
+    def calc_sigma(self) -> Optional[TY]:
         """Return an array of standard error values for each y-axis data point."""
         raise NotImplementedError
