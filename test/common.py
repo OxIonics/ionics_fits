@@ -202,9 +202,9 @@ def _plot(
         ax[ch, 0].grid()
         ax[ch, 0].legend()
 
-        freq_model, y_f_model = fits.models.utils.get_spectrum(fit.x, y_model_ch)
-        freq_fit, y_f_fit = fits.models.utils.get_spectrum(fit.x, y_fit_ch)
-        freq_heuristic, y_f_heuristic = fits.models.utils.get_spectrum(
+        freq_model, y_f_model = fits.models.heuristics.get_spectrum(fit.x, y_model_ch)
+        freq_fit, y_f_fit = fits.models.heuristics.get_spectrum(fit.x, y_fit_ch)
+        freq_heuristic, y_f_heuristic = fits.models.heuristics.get_spectrum(
             fit.x, y_heuristic_ch
         )
 

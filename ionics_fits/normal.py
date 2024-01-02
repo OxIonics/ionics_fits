@@ -132,7 +132,7 @@ class NormalFitter(Fitter):
 
     def calc_sigma(
         self,
-    ) -> Optional[Array[("num_y_channels", "num_samples"), np.float64]]:
+    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
         """Return an array of standard error values for each y-axis data point
         if available.
         """

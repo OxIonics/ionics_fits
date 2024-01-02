@@ -2,7 +2,7 @@ from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
 
 from . import heuristics
-from .utils import get_spectrum
+from .heuristics import get_spectrum
 from .. import common, Model, ModelParameter
 from ..utils import Array
 

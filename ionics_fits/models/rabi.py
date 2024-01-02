@@ -6,7 +6,7 @@ from . import heuristics
 from .sinc import Sinc2
 from .sinusoid import Sinusoid
 from .. import common, Model, ModelParameter, NormalFitter
-from .utils import get_spectrum
+from .heuristics import get_spectrum
 from ..utils import Array
 
 
@@ -68,7 +68,7 @@ class RabiFlop(Model):
         return 1
 
     def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+        return True, False
 
     # pytype: disable=invalid-annotation
     def _func(

@@ -4,7 +4,6 @@ import numpy as np
 from . import heuristics
 from .rectangle import Rectangle
 from .triangle import Triangle
-from .utils import get_spectrum
 from .. import common, Model, ModelParameter, NormalFitter
 from ..utils import Array
 
@@ -57,7 +56,7 @@ class Sinc(Model):
         self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
         y0 = self.parameters["y0"].get_initial_value()
 
-        omega, spectrum = get_spectrum(x, y, trim_dc=True)
+        omega, spectrum = heuristics.get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
 
         # Fourier transform of a sinc is a rectangle
@@ -131,7 +130,7 @@ class Sinc2(Model):
 
         y0 = self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
 
-        omega, spectrum = get_spectrum(x, y, trim_dc=True)
+        omega, spectrum = heuristics.get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
 
         # Fourier transform of a sinc^2 is a triangle function
