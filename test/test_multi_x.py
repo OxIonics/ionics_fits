@@ -196,6 +196,4 @@ def test_laser_flop_2d(plot_failures):
     def func(x, y, **kwargs):
         return model.__call__((x, y), **kwargs)
 
-    check_param_values(
-        time_mesh, angle_mesh, params, fit, func, plot_failures
-    )
+    check_param_values(time_mesh, angle_mesh, params, fit, func, plot_failures)
