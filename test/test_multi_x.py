@@ -182,7 +182,7 @@ def test_laser_flop_2d(plot_failures):
     # Generate data to fit
     y = np.zeros_like(time_mesh)
     for idx, angle in np.ndenumerate(angle_axis):
-        eta_angle = sinusoid_model(x=angle, a=eta, phi=theta_0)
+        eta_angle = float(sinusoid_model(x=angle, a=eta, phi=theta_0))
         y[idx, :] = flop_model(x=time_axis, eta=eta_angle, omega=omega)
 
     model = fits.multi_x.Model2D(
