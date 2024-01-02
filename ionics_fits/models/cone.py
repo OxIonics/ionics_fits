@@ -37,18 +37,16 @@ class ConeSlice(Model):
         return 1
 
     def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+        return False, False
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=common.scale_x),
-        z0: ModelParameter(scale_func=common.scale_y, fixed_to=0),
-        k: ModelParameter(scale_func=common.scale_y),
-        alpha: ModelParameter(
-            lower_bound=0, scale_func=common.scale_power(x_power=1, y_power=1)
-        ),
+        x0: ModelParameter(scale_func=common.scale_no_rescale),
+        z0: ModelParameter(scale_func=common.scale_no_rescale, fixed_to=0),
+        k: ModelParameter(scale_func=common.scale_no_rescale),
+        alpha: ModelParameter(lower_bound=0, scale_func=common.scale_no_rescale),
     ) -> Array[("num_samples",), np.float64]:
         return np.sign(k) * np.sqrt((k * (x - x0)) ** 2 + alpha**2) + z0
 
