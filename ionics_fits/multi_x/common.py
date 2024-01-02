@@ -334,7 +334,7 @@ class Fitter2D:
 
         # aggregate results
         y_1 = np.zeros((len(self.model.result_params), len(x_ax_1)), dtype=np.float64)
-        sigma_1 = np.zeros_like(y_1)
+        sigma_1 = np.zeros_like(y_1) if fit_0.sigma is not None else None
 
         for param_idx, param_name in enumerate(self.model.result_params):
             y_param = np.array(
@@ -348,7 +348,9 @@ class Fitter2D:
             )
 
             y_1[param_idx, :] = y_param
-            sigma_1[param_idx, :] = sigma_param
+
+            if sigma_1 is not None:
+                sigma_1[param_idx, :] = sigma_param
 
         fit_1 = NormalFitter(
             x=x_ax_1,
