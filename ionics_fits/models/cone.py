@@ -50,6 +50,8 @@ class ConeSlice(Model):
     ) -> Array[("num_samples",), np.float64]:
         return np.sign(k) * np.sqrt((k * (x - x0)) ** 2 + alpha**2) + z0
 
+    # pytype: enable=invalid-annotation
+
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
