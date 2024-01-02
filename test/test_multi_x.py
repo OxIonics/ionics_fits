@@ -192,6 +192,10 @@ def test_laser_flop_2d(plot_failures):
 
     params = {"omega_x0": omega, "x0_x1": -np.pi / 2}
     fit = fits.multi_x.common.Fitter2D(x=(time_axis, angle_axis), y=y.T, model=model)
+
+    def func(x, y, **kwargs):
+        return model.__call__((x, y), **kwargs)
+
     check_param_values(
-        time_mesh, angle_mesh, params, fit, model.__call__, plot_failures
+        time_mesh, angle_mesh, params, fit, func, plot_failures
     )
