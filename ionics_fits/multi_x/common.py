@@ -336,7 +336,9 @@ class Fitter2D:
             sigma_0 = self.fitter_args["sigma"]
             sigma_0 = np.array(sigma_0, ndmin=3)
             sigma_0 = np.moveaxis(sigma_0, -1, 0)
-            sigma_0 = np.reshape(sigma_0, (np.prod(sigma_0.shape[0:2]), sigma_0.shape[2]))
+            sigma_0 = np.reshape(
+                sigma_0, (np.prod(sigma_0.shape[0:2]), sigma_0.shape[2])
+            )
             self.fitter_args["sigma"] = sigma_0
 
         fit_0 = self.fitter_cls(x=x_ax_0, y=y_0, model=model_0, **self.fitter_args)
