@@ -37,7 +37,7 @@ class ConeSlice(Model):
         return 1
 
     def can_rescale(self) -> Tuple[bool, bool]:
-        return False, False
+        return True, True
 
     # pytype: disable=invalid-annotation
     def _func(
