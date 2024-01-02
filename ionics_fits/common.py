@@ -74,6 +74,15 @@ def scale_undefined(x_scale: float, y_scale: float) -> float:
     )
 
 
+def scale_no_rescale(x_scale: float, y_scale: float) -> float:
+    """For model parameters which cannot be rescaled"""
+    if x_scale != 1.0 or y_scale != 1:
+        raise RuntimeError(
+            "Attempt to rescale model parameter which does not support rescaling"
+        )
+    return 1.0
+
+
 @dataclasses.dataclass
 class ModelParameter:
     """Metadata associated with a model parameter.
