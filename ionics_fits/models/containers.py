@@ -67,12 +67,12 @@ class AggregateModel(Model):
         because no one got around to implementing it yet rather than any fundamental
         difficulty.
         """
-        self.__models = models
+        self.models = models
         common_params = common_params or {}
 
         # aggregate internal parameters from all models
         internal_parameters = []
-        for model in self.__models.values():
+        for model in self.models.values():
             internal_parameters += model.internal_parameters
 
         # organise the common parameter mapping data in ways that will be useful later
@@ -83,8 +83,8 @@ class AggregateModel(Model):
         }
 
         # {model_name: [model_common_params]}
-        self.__model_common_params: Dict[str, List[str]] = {
-            model_name: [] for model_name in self.__models.keys()
+        self.model_common_params: Dict[str, List[str]] = {
+            model_name: [] for model_name in self.models.keys()
         }
 
         # {(model_name, param_name): new_param_name}
@@ -98,13 +98,13 @@ class AggregateModel(Model):
             for bind in bound_params:
                 bound_model_name, bound_param_name = bind
 
-                if bound_model_name not in self.__models.keys():
+                if bound_model_name not in self.models.keys():
                     raise ValueError(
                         f"Bound model name {bound_model_name} does not match any "
                         "aggregated model"
                     )
 
-                model_parameters = self.__models[bound_model_name].parameters
+                model_parameters = self.models[bound_model_name].parameters
                 if bound_param_name not in model_parameters.keys():
                     raise ValueError(
                         f"Bound parameter name {bound_param_name} does not match any "
@@ -112,12 +112,12 @@ class AggregateModel(Model):
                     )
 
                 self.__common_param_list[new_param_name] = [bind]
-                self.__model_common_params[bound_model_name].append(bound_param_name)
+                self.model_common_params[bound_model_name].append(bound_param_name)
                 self.__common_param_map[bind] = new_param_name
 
         # aggregate non-common parameters from all models
         parameters: Dict[str, ModelParameter] = {}
-        for model_name, model in self.__models.items():
+        for model_name, model in self.models.items():
             if model.get_num_y_channels() != 1:
                 raise ValueError(
                     "AggregateModel currently only supports models with a single y "
@@ -127,7 +127,7 @@ class AggregateModel(Model):
                 {
                     f"{param_name}_{model_name}": param_data
                     for param_name, param_data in model.parameters.items()
-                    if param_name not in self.__model_common_params[model_name]
+                    if param_name not in self.model_common_params[model_name]
                 }
             )
 
@@ -143,11 +143,11 @@ class AggregateModel(Model):
         super().__init__(parameters=parameters, internal_parameters=internal_parameters)
 
     def get_num_y_channels(self) -> int:
-        return len(self.__models)
+        return len(self.models)
 
     def can_rescale(self) -> Tuple[bool, bool]:
         rescale_x, rescale_y = zip(
-            *[model.can_rescale() for model in self.__models.values()]
+            *[model.can_rescale() for model in self.models.values()]
         )
         return all(rescale_x), all(rescale_y)
 
@@ -157,8 +157,8 @@ class AggregateModel(Model):
         param_values: Dict[str, float],
     ) -> Array[("num_y_channels", "num_samples"), np.float64]:
         ys = np.zeros((self.get_num_y_channels(), len(x)), dtype=np.float64)
-        for idx, (model_name, model) in enumerate(self.__models.items()):
-            model_common_params = self.__model_common_params[model_name]
+        for idx, (model_name, model) in enumerate(self.models.items()):
+            model_common_params = self.model_common_params[model_name]
             model_params = {
                 param_name: param_values[f"{param_name}_{model_name}"]
                 for param_name in model.parameters.keys()
@@ -182,11 +182,11 @@ class AggregateModel(Model):
         x: Array[("num_samples",), np.float64],
         y: Array[("num_y_channels", "num_samples"), np.float64],
     ):
-        for idx, (model_name, model) in enumerate(self.__models.items()):
+        for idx, (model_name, model) in enumerate(self.models.items()):
             # replace bound model parameters with new ones based on our template
             # NB we don't do this in __init__ because we want to capture subsequent
             # changes to parameter metadata
-            for bound_param_name in self.__model_common_params[model_name]:
+            for bound_param_name in self.model_common_params[model_name]:
                 new_param_name = self.__common_param_map[(model_name, bound_param_name)]
                 new_param = self.parameters[new_param_name]
                 model.parameters[bound_param_name] = param_like(new_param)
@@ -196,7 +196,7 @@ class AggregateModel(Model):
         # use the mean value from all models as our heuristic for common params
         for new_param_name, binds in self.__common_param_list.items():
             estimates = [
-                self.__models[model_name].parameters[param_name].get_initial_value()
+                self.models[model_name].parameters[param_name].get_initial_value()
                 for model_name, param_name in binds
             ]
             self.parameters[new_param_name].heuristic = np.mean(estimates)
@@ -211,8 +211,8 @@ class AggregateModel(Model):
         derived_params = {}
         derived_uncertainties = {}
 
-        for idx, (model_name, model) in enumerate(self.__models.items()):
-            model_common_params = self.__model_common_params[model_name]
+        for idx, (model_name, model) in enumerate(self.models.items()):
+            model_common_params = self.model_common_params[model_name]
             model_fitted_params = {
                 param_name: fitted_params[f"{param_name}_{model_name}"]
                 for param_name in model.parameters.keys()
@@ -340,20 +340,20 @@ class RepeatedModel(Model):
                 }
             )
 
-        self.__model = model
+        self.model = model
         self.__common_params = common_params
         self.__independent_params = independent_params
         self.__num_repetitions = num_repetitions
 
         super().__init__(
-            parameters=params, internal_parameters=self.__model.internal_parameters
+            parameters=params, internal_parameters=self.model.internal_parameters
         )
 
     def get_num_y_channels(self) -> int:
-        return self.__num_repetitions * self.__model.get_num_y_channels()
+        return self.__num_repetitions * self.model.get_num_y_channels()
 
     def can_rescale(self) -> Tuple[bool, bool]:
-        return self.__model.can_rescale()
+        return self.model.can_rescale()
 
     def func(
         self,
@@ -362,7 +362,7 @@ class RepeatedModel(Model):
     ) -> Array[("num_y_channels", "num_samples"), np.float64]:
         values = {param: param_values[param] for param in self.__common_params}
 
-        dim = self.__model.get_num_y_channels()
+        dim = self.model.get_num_y_channels()
         ys = np.zeros((self.get_num_y_channels(), len(x)))
         for idx in range(self.__num_repetitions):
             values.update(
@@ -372,7 +372,7 @@ class RepeatedModel(Model):
                 }
             )
             ys[idx * dim : (idx + 1) * dim, :] = np.atleast_2d(
-                self.__model.func(x, values)
+                self.model.func(x, values)
             )
 
         return ys
@@ -382,7 +382,7 @@ class RepeatedModel(Model):
         x: Array[("num_samples",), np.float64],
         y: Array[("num_y_channels", "num_samples"), np.float64],
     ):
-        dim = self.__model.get_num_y_channels()
+        dim = self.model.get_num_y_channels()
 
         common_heuristics = {
             param: [0.0] * self.__num_repetitions for param in self.__common_params
@@ -401,8 +401,8 @@ class RepeatedModel(Model):
                 }
             )
 
-            self.__model.parameters = params
-            self.__model.estimate_parameters(x, y[idx * dim : (idx + 1) * dim])
+            self.model.parameters = params
+            self.model.estimate_parameters(x, y[idx * dim : (idx + 1) * dim])
 
             for param in self.__common_params:
                 common_heuristics[param][idx] = params[param].get_initial_value()
@@ -443,7 +443,7 @@ class RepeatedModel(Model):
         derived_params = {}
         derived_uncertainties = {}
 
-        dim = self.__model.get_num_y_channels()
+        dim = self.model.get_num_y_channels()
 
         # {param_name: [derived_values_from_each_repetition]}
         derived_params_reps = None
@@ -470,7 +470,7 @@ class RepeatedModel(Model):
             }
             rep_uncertainties.update(common_fit_uncertainties)
 
-            derived = self.__model.calculate_derived_params(
+            derived = self.model.calculate_derived_params(
                 x=x,
                 y=y[idx * dim : (idx + 1) * dim],
                 fitted_params=rep_params,
