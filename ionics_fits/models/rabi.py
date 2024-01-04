@@ -144,7 +144,7 @@ class RabiFlop(Model):
 
 
 class RabiFlopFreq(RabiFlop):
-    """Fit model for Rabi flopping pulse detuning scans.
+    """Fit model for Rabi flopping frequency scans.
 
     This model calculates the measurement outcomes for damped Rabi flops when the
     pulse duration is kept fixed and only its frequency is varied. The pulse duration is
