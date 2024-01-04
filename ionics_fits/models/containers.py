@@ -78,7 +78,7 @@ class AggregateModel(Model):
         # organise the common parameter mapping data in ways that will be useful later
 
         # {new_param_name: [(model_name, param_name)]}
-        self.__common_param_list = {
+        self.common_param_list = {
             new_param_name: [] for new_param_name in common_params.keys()
         }
 
@@ -88,7 +88,7 @@ class AggregateModel(Model):
         }
 
         # {(model_name, param_name): new_param_name}
-        self.__common_param_map: Dict[Tuple[str, str], str] = {}
+        self.common_param_map: Dict[Tuple[str, str], str] = {}
 
         # {new_param_name: new_param}
         new_parameters: Dict[str, ModelParameter] = {}
@@ -111,9 +111,9 @@ class AggregateModel(Model):
                         "aggregated model"
                     )
 
-                self.__common_param_list[new_param_name] = [bind]
+                self.common_param_list[new_param_name] = [bind]
                 self.model_common_params[bound_model_name].append(bound_param_name)
-                self.__common_param_map[bind] = new_param_name
+                self.common_param_map[bind] = new_param_name
 
         # aggregate non-common parameters from all models
         parameters: Dict[str, ModelParameter] = {}
@@ -167,7 +167,7 @@ class AggregateModel(Model):
             model_params.update(
                 {
                     bound_param_name: param_values[
-                        self.__common_param_map[(model_name, bound_param_name)]
+                        self.common_param_map[(model_name, bound_param_name)]
                     ]
                     for bound_param_name in model_common_params
                 }
@@ -187,14 +187,14 @@ class AggregateModel(Model):
             # NB we don't do this in __init__ because we want to capture subsequent
             # changes to parameter metadata
             for bound_param_name in self.model_common_params[model_name]:
-                new_param_name = self.__common_param_map[(model_name, bound_param_name)]
+                new_param_name = self.common_param_map[(model_name, bound_param_name)]
                 new_param = self.parameters[new_param_name]
                 model.parameters[bound_param_name] = param_like(new_param)
 
             model.estimate_parameters(x, y[idx])
 
         # use the mean value from all models as our heuristic for common params
-        for new_param_name, binds in self.__common_param_list.items():
+        for new_param_name, binds in self.common_param_list.items():
             estimates = [
                 self.models[model_name].parameters[param_name].get_initial_value()
                 for model_name, param_name in binds
@@ -227,7 +227,7 @@ class AggregateModel(Model):
             model_fitted_params.update(
                 {
                     bound_param_name: fitted_params[
-                        self.__common_param_map[(model_name, bound_param_name)]
+                        self.common_param_map[(model_name, bound_param_name)]
                     ]
                     for bound_param_name in model_common_params
                 }
@@ -235,7 +235,7 @@ class AggregateModel(Model):
             model_fit_uncertainties.update(
                 {
                     bound_param_name: fit_uncertainties[
-                        self.__common_param_map[(model_name, bound_param_name)]
+                        self.common_param_map[(model_name, bound_param_name)]
                     ]
                     for bound_param_name in model_common_params
                 }
@@ -321,7 +321,7 @@ class RepeatedModel(Model):
           - all derived results whose value is not the same for al repetitions are
             omitted.
         """
-        self.__aggregate_results = aggregate_results
+        self.aggregate_results = aggregate_results
         model_params = set(model.parameters.keys())
         common_params = set(common_params or [])
 
@@ -341,16 +341,16 @@ class RepeatedModel(Model):
             )
 
         self.model = model
-        self.__common_params = common_params
-        self.__independent_params = independent_params
-        self.__num_repetitions = num_repetitions
+        self.common_params = common_params
+        self.independent_params = independent_params
+        self.num_repetitions = num_repetitions
 
         super().__init__(
             parameters=params, internal_parameters=self.model.internal_parameters
         )
 
     def get_num_y_channels(self) -> int:
-        return self.__num_repetitions * self.model.get_num_y_channels()
+        return self.num_repetitions * self.model.get_num_y_channels()
 
     def can_rescale(self) -> Tuple[bool, bool]:
         return self.model.can_rescale()
@@ -360,15 +360,15 @@ class RepeatedModel(Model):
         x: Array[("num_samples",), np.float64],
         param_values: Dict[str, float],
     ) -> Array[("num_y_channels", "num_samples"), np.float64]:
-        values = {param: param_values[param] for param in self.__common_params}
+        values = {param: param_values[param] for param in self.common_params}
 
         dim = self.model.get_num_y_channels()
         ys = np.zeros((self.get_num_y_channels(), len(x)))
-        for idx in range(self.__num_repetitions):
+        for idx in range(self.num_repetitions):
             values.update(
                 {
                     param: param_values[f"{param}_{idx}"]
-                    for param in self.__independent_params
+                    for param in self.independent_params
                 }
             )
             ys[idx * dim : (idx + 1) * dim, :] = np.atleast_2d(
@@ -385,52 +385,53 @@ class RepeatedModel(Model):
         dim = self.model.get_num_y_channels()
 
         common_heuristics = {
-            param: [0.0] * self.__num_repetitions for param in self.__common_params
+            param: [0.0] * self.num_repetitions for param in self.common_params
         }
 
-        for idx in range(self.__num_repetitions):
+        for idx in range(self.num_repetitions):
             params = {
                 param: self.parameters[f"{param}_{idx}"]
-                for param in self.__independent_params
+                for param in self.independent_params
             }
 
             params.update(
-                {
-                    param: param_like(self.parameters[param])
-                    for param in self.__common_params
-                }
+                {param: self.parameters[param] for param in self.common_params}
             )
+
+            # Reset heuristics before each iteration
+            for param_data in params.values():
+                param_data.heuristic = None
 
             self.model.parameters = params
             self.model.estimate_parameters(x, y[idx * dim : (idx + 1) * dim])
 
-            for param in self.__common_params:
+            for param in self.common_params:
                 common_heuristics[param][idx] = params[param].get_initial_value()
 
         # Combine the heuristics for the repetitions to find the best set of common
         # parameter values
-        for param in self.__common_params:
+        for param in self.common_params:
             common_heuristics[param].append(np.mean(common_heuristics[param]))
 
         param_estimates = {
             param_name: self.parameters[param_name].get_initial_value()
             for param_name in self.parameters.keys()
-            if param_name not in self.__common_params
+            if param_name not in self.common_params
         }
-        costs = np.zeros(self.__num_repetitions + 1)
-        for idx in range(self.__num_repetitions + 1):
+        costs = np.zeros(self.num_repetitions + 1)
+        for idx in range(self.num_repetitions + 1):
             y_idx = self.__call__(
                 x=x,
                 **param_estimates,
                 **{
                     param_name: common_heuristics[param_name][idx]
-                    for param_name in self.__common_params
+                    for param_name in self.common_params
                 },
             )
             costs[idx] = np.sqrt(np.sum((y - y_idx) ** 2))
         best_heuristic = np.argmin(costs)
 
-        for param in self.__common_params:
+        for param in self.common_params:
             self.parameters[param].heuristic = common_heuristics[param][best_heuristic]
 
     def calculate_derived_params(
@@ -451,22 +452,22 @@ class RepeatedModel(Model):
         derived_param_names = None
 
         common_fitted_params = {
-            param: fitted_params[param] for param in self.__common_params
+            param: fitted_params[param] for param in self.common_params
         }
         common_fit_uncertainties = {
-            param: fit_uncertainties[param] for param in self.__common_params
+            param: fit_uncertainties[param] for param in self.common_params
         }
 
-        for idx in range(self.__num_repetitions):
+        for idx in range(self.num_repetitions):
             rep_params = {
                 param: fitted_params[f"{param}_{idx}"]
-                for param in self.__independent_params
+                for param in self.independent_params
             }
             rep_params.update(common_fitted_params)
 
             rep_uncertainties = {
                 param: fit_uncertainties[f"{param}_{idx}"]
-                for param in self.__independent_params
+                for param in self.independent_params
             }
             rep_uncertainties.update(common_fit_uncertainties)
 
@@ -483,11 +484,11 @@ class RepeatedModel(Model):
                 # We can't preallocate prior to this because we don't know what the
                 # model's derived parameter values are until we've calculated them
                 derived_params_reps = {
-                    param_name: [0.0] * self.__num_repetitions
+                    param_name: [0.0] * self.num_repetitions
                     for param_name in derived_param_names
                 }
                 derived_uncertainties_reps = {
-                    param_name: [0.0] * self.__num_repetitions
+                    param_name: [0.0] * self.num_repetitions
                     for param_name in derived_param_names
                 }
 
@@ -502,25 +503,25 @@ class RepeatedModel(Model):
                 param_values = np.array(
                     [
                         values[f"{param_name}_{idx}"]
-                        for idx in range(self.__num_repetitions)
+                        for idx in range(self.num_repetitions)
                     ]
                 )
                 param_uncerts = np.array(
                     [
                         uncertainties[f"{param_name}_{idx}"]
-                        for idx in range(self.__num_repetitions)
+                        for idx in range(self.num_repetitions)
                     ]
                 )
 
                 derived_params[f"{param_name}_mean"] = np.mean(param_values)
                 derived_uncertainties[f"{param_name}_mean"] = (
-                    np.sqrt(np.sum(param_uncerts**2)) / self.__num_repetitions
+                    np.sqrt(np.sum(param_uncerts**2)) / self.num_repetitions
                 )
 
                 derived_params[f"{param_name}_peak_peak"] = np.ptp(param_values)
                 derived_uncertainties[f"{param_name}_peak_peak"] = float("nan")
 
-        if self.__aggregate_results:
+        if self.aggregate_results:
             keep = [
                 param_name
                 for param_name in derived_param_names
@@ -551,7 +552,7 @@ class RepeatedModel(Model):
                 derived_params.update(
                     {
                         f"{param_name}_{idx}": derived_params_reps[param_name][idx]
-                        for idx in range(self.__num_repetitions)
+                        for idx in range(self.num_repetitions)
                     }
                 )
                 derived_uncertainties.update(
@@ -559,7 +560,7 @@ class RepeatedModel(Model):
                         f"{param_name}_{idx}": derived_uncertainties_reps[param_name][
                             idx
                         ]
-                        for idx in range(self.__num_repetitions)
+                        for idx in range(self.num_repetitions)
                     }
                 )
 
@@ -571,7 +572,7 @@ class RepeatedModel(Model):
             add_statistics(
                 fitted_params,
                 fit_uncertainties,
-                param_names=self.__independent_params,
+                param_names=self.independent_params,
             )
 
         return derived_params, derived_uncertainties
@@ -643,6 +644,7 @@ class MappedModel(Model):
         internal_parameters = (
             list(self.fixed_params.values()) + self.wrapped_model.internal_parameters
         )
+
         super().__init__(
             parameters=exposed_params,
             internal_parameters=internal_parameters,
@@ -675,3 +677,8 @@ class MappedModel(Model):
         y: Array[("num_samples", "num_y_channels"), np.float64],
     ):
         self.wrapped_model.estimate_parameters(x, y)
+
+        for param_name, param_data in self.parameters.items():
+            old_name = self.param_mapping[param_name]
+            old_param = self.wrapped_model.parameters[old_name]
+            param_data.heuristic = old_param.heuristic
