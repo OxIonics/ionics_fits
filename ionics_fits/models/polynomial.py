@@ -342,5 +342,3 @@ class Parabola(MappedModel):
         x0 = -a_1 / (2 * a_2)
         self.parameters["x0"].heuristic = x0
         self.parameters["y0"].heuristic = a_0 - a_2 * x0**2
-
-

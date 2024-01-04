@@ -43,11 +43,7 @@ class Gaussian2D(Model2D):
             models=(models.Gaussian(), outer_model),
             model_names=("x", "y"),
             result_params=("a",),
-            param_renames={
-                "a_y": "a",
-                "y0_x": "z0",
-                "y0_y": None
-            },
+            param_renames={"a_y": "a", "y0_x": "z0", "y0_y": None},
         )
 
 
@@ -73,11 +69,7 @@ class Parabola2D(Model2D):
             models=(models.Parabola(), models.Parabola()),
             model_names=("x", "y"),
             result_params=("y0",),
-            param_renames={
-                "x0_x": "x0",
-                "x0_y": "y0",
-                "y0_y": "z0"
-            },
+            param_renames={"x0_x": "x0", "x0_y": "y0", "y0_y": "z0"},
         )
 
 

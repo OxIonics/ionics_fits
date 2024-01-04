@@ -21,7 +21,8 @@ def gaussian(x, y, a, x0_x, x0_y, sigma_x, sigma_y, z0):
 
 
 def parabola(x, y, k_x, k_y, x0, y0, z0):
-    return k_x * (x - x0)**2 + k_y * (y - y0)**2 + z0
+    return k_x * (x - x0) ** 2 + k_y * (y - y0) ** 2 + z0
+
 
 def cone(x, y, x0_x, x0_y, k_x, k_y, y0):
     return np.sqrt((k_x * (x - x0_x)) ** 2 + (k_y * (y - x0_y)) ** 2) + y0

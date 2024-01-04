@@ -395,10 +395,7 @@ class RepeatedModel(Model):
             }
 
             params.update(
-                {
-                    param: self.parameters[param]
-                    for param in self.common_params
-                }
+                {param: self.parameters[param] for param in self.common_params}
             )
 
             # Reset heuristics before each iteration
