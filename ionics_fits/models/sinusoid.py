@@ -1,8 +1,8 @@
-import copy
 import numpy as np
 from typing import Dict, Tuple, TYPE_CHECKING
 
-from .. import Model, ModelParameter
+from . import heuristics
+from .. import common, Model, ModelParameter
 from ..utils import Array
 from . import utils
 
@@ -41,29 +41,28 @@ class Sinusoid(Model):
     """
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model"""
         return 1
+
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return True, True
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
         x: Array[("num_samples",), np.float64],
-        a: ModelParameter(
-            lower_bound=0, scale_func=lambda x_scale, y_scale, _: y_scale
-        ),
-        omega: ModelParameter(
-            lower_bound=0, scale_func=lambda x_scale, y_scale, _: 1 / x_scale
-        ),
+        a: ModelParameter(lower_bound=0, scale_func=common.scale_y),
+        omega: ModelParameter(lower_bound=0, scale_func=common.scale_x_inv),
         phi: utils.PeriodicModelParameter(
             period=2 * np.pi,
             offset=-np.pi,
+            scale_func=common.scale_invariant,
         ),
-        y0: ModelParameter(scale_func=lambda x_scale, y_scale, _: y_scale),
-        x0: ModelParameter(fixed_to=0, scale_func=lambda x_scale, y_scale, _: x_scale),
+        y0: ModelParameter(scale_func=common.scale_y),
+        x0: ModelParameter(fixed_to=0, scale_func=common.scale_x),
         tau: ModelParameter(
             lower_bound=0,
             fixed_to=np.inf,
-            scale_func=lambda x_scale, y_scale, _: x_scale,
+            scale_func=common.scale_x,
         ),
     ) -> Array[("num_samples",), np.float64]:
         Gamma = np.exp(-x / tau)
@@ -76,59 +75,45 @@ class Sinusoid(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
-        """Set heuristic values for model parameters.
-
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
-
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
-        """
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
         # We don't have good heuristics for these parameters
-        model_parameters["y0"].heuristic = np.mean(y)
-        model_parameters["tau"].heuristic = np.max(x)
+        self.parameters["y0"].heuristic = np.mean(y)
+        self.parameters["tau"].heuristic = np.max(x)
 
-        omega, spectrum = utils.get_spectrum(x, y, density_units=False, trim_dc=True)
+        omega, spectrum = heuristics.get_spectrum(
+            x, y, density_units=False, trim_dc=True
+        )
         spectrum = np.abs(spectrum)
         peak = np.argmax(spectrum)
 
-        model_parameters["a"].heuristic = spectrum[peak] * 2
-        model_parameters["omega"].heuristic = omega[peak]
+        self.parameters["a"].heuristic = spectrum[peak] * 2
+        self.parameters["omega"].heuristic = omega[peak]
 
-        phi_params = copy.deepcopy(model_parameters)
-        phi_params["x0"].heuristic = 0.0
-        phi, _ = self.param_min_sqrs(
+        phi, _ = heuristics.param_min_sqrs(
+            model=self,
             x=x,
             y=y,
-            parameters=phi_params,
             scanned_param="phi",
             scanned_param_values=np.linspace(-np.pi, np.pi, num=20),
+            defaults={"x0": 0},
         )
-        phi = model_parameters["phi"].clip(phi)
 
-        if model_parameters["x0"].fixed_to is None:
-            if model_parameters["phi"].fixed_to is None:
+        phi = self.parameters["phi"].clip(phi)
+
+        if self.parameters["x0"].fixed_to is None:
+            if self.parameters["phi"].fixed_to is None:
                 raise ValueError("Only one of 'x0' and 'phi' may be floated at once")
 
-            model_parameters["phi"].heuristic = 0
-            model_parameters["x0"].heuristic = (
-                -phi / model_parameters["omega"].get_initial_value()
+            self.parameters["phi"].heuristic = 0
+            self.parameters["x0"].heuristic = (
+                -phi / self.parameters["omega"].get_initial_value()
             )
         else:
-            model_parameters["phi"].heuristic = phi
-            model_parameters["x0"].heuristic = 0.0
+            self.parameters["phi"].heuristic = phi
+            self.parameters["x0"].heuristic = 0.0
 
     def calculate_derived_params(
         self,
@@ -137,21 +122,6 @@ class Sinusoid(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """
-        Returns dictionaries of values and uncertainties for the derived model
-        parameters (parameters which are calculated from the fit results rather than
-        being directly part of the fit) based on values of the fitted parameters and
-        their uncertainties.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param: fitted_params: dictionary mapping model parameter names to their
-            fitted values.
-        :param fit_uncertainties: dictionary mapping model parameter names to
-            their fit uncertainties.
-        :returns: tuple of dictionaries mapping derived parameter names to their
-            values and uncertainties.
-        """
         derived_params = {}
         derived_params["f"] = fitted_params["omega"] / (2 * np.pi)
         derived_params["phi_cosine"] = fitted_params["phi"] + np.pi / 2

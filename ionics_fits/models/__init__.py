@@ -2,6 +2,7 @@ from .containers import AggregateModel, RepeatedModel
 from .benchmarking import Benchmarking
 from .exponential import Exponential
 from .gaussian import Gaussian
+from . import heuristics
 from .laser_rabi import (
     LaserFlopFreqCoherent,
     LaserFlopFreqSqueezed,
@@ -21,3 +22,5 @@ from .sinc import Sinc, Sinc2
 from .sinusoid import Sinusoid
 from .triangle import Triangle
 from . import utils
+
+from .cone import ConeSlice  # Relies on the triangle fit for parameter estimation

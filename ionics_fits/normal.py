@@ -5,7 +5,8 @@ from scipy import optimize, stats
 from typing import Callable, Dict, Optional, Tuple, TYPE_CHECKING
 
 from . import Fitter, Model, ModelParameter
-from .utils import Array, ArrayLike
+from .common import TX, TY
+from .utils import Array
 
 if TYPE_CHECKING:
     num_samples = float
@@ -27,12 +28,11 @@ class NormalFitter(Fitter):
 
     def __init__(
         self,
-        x: ArrayLike[("num_samples",), np.float64],
-        y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         model: Model,
-        sigma: Optional[
-            ArrayLike[("num_y_channels", "num_samples"), np.float64]
-        ] = None,
+        sigma: Optional[TY] = None,
+        curve_fit_args: Optional[Dict] = None,
     ):
         """Fits a model to a dataset and stores the results.
 
@@ -41,21 +41,28 @@ class NormalFitter(Fitter):
         :param sigma: optional y-axis standard deviations.
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
-            fitting to change the fit behaviour from the model class' defaults.
+            fitting to change the fit behaviour from the model class' defaults. The
+            model is (deep) copied and stored as an attribute.
+        :param curve_fit_args: optional dictionary of keyword arguments to be passed
+            into scipy.curve_fit.
         """
         if sigma is None:
             self.sigma = None
         else:
             self.sigma = np.array(sigma, dtype=np.float64, copy=True)
 
+        self.curve_fit_args = {"method": "trf"}
+        if curve_fit_args is not None:
+            self.curve_fit_args.update(curve_fit_args)
+
         super().__init__(x=x, y=y, model=model)
 
     def _fit(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         parameters: Dict[str, ModelParameter],
-        free_func: Callable[..., Array[("num_y_channels", "num_samples"), np.float64]],
+        free_func: Callable[..., TY],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Implementation of the parameter estimation.
 
@@ -112,7 +119,7 @@ class NormalFitter(Fitter):
             sigma=sigma_flat,
             absolute_sigma=sigma is not None,
             bounds=(lower, upper),
-            method="trf",
+            **self.curve_fit_args,
         )
 
         p_err = np.sqrt(np.diag(p_cov))
@@ -122,20 +129,13 @@ class NormalFitter(Fitter):
 
         return p, p_err
 
-    def calc_sigma(
-        self,
-    ) -> Optional[Array[("num_y_channels", "num_samples"), np.float64]]:
+    def calc_sigma(self) -> Optional[TX]:
         """Return an array of standard error values for each y-axis data point
         if available.
         """
         return self.sigma
 
-    def chi_squared(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
-        sigma: Array[("num_samples", "num_y_channels"), np.float64],
-    ) -> float:
+    def chi_squared(self, x: TX, y: TY, sigma: TY) -> float:
         """Returns the Chi-squared fit significance for the fit compared to a given
         dataset as a number between 0 and 1.
 
@@ -163,7 +163,7 @@ class NormalFitter(Fitter):
             )
 
         y_fit = self.model.func(x, self.values)
-        chi_2 = np.sum(np.power((y - y_fit) / sigma, 2))
+        chi_2 = np.sum(((y - y_fit) / sigma) ** 2)
         p = stats.chi2.sf(chi_2, n)
 
         return p

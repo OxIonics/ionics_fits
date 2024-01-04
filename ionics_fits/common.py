@@ -1,10 +1,12 @@
 from __future__ import annotations
-import dataclasses
+
 import copy
+import dataclasses
 import inspect
 import logging
 import numpy as np
-from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+
 from .utils import Array, ArrayLike
 
 
@@ -19,11 +21,80 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+TX = ArrayLike[("num_samples",), np.float64]
+TY = Union[
+    Array[("num_y_channels", "num_samples"), np.float64],
+    Array[("num_samples"), np.float64],
+]
+
+
+def scale_invariant(x_scale: float, y_scale: float) -> float:
+    """Scale function for model parameters whose value is invariant under rescaling of
+    the x- and y-axes"""
+    return 1
+
+
+def scale_x(x_scale: float, y_scale: float) -> float:
+    """
+    Scale function for model parameters whose value scales linearly with the x-axis
+    """
+    return x_scale
+
+
+def scale_x_inv(x_scale: float, y_scale: float) -> float:
+    """
+    Scale function for model parameters whose value scales with 1/x_scale
+    """
+    return 1 / x_scale
+
+
+def scale_y(x_scale: float, y_scale: float) -> float:
+    """
+    Scale function for model parameters whose value scales linearly with the x-axis
+    """
+    return y_scale
+
+
+def scale_power(x_power: int, y_power: int) -> Callable[[float, float], float]:
+    """Returns a scale function for model parameters whose value scales as a power of
+    the x- and y-axes
+    """
+
+    def scale_func(x_scale: float, y_scale: float) -> float:
+        return (x_scale**x_power) * (y_scale**y_power)
+
+    return scale_func
+
+
+def scale_undefined(x_scale: float, y_scale: float) -> float:
+    """This is typically used when the appropriate scale factor to use must be
+    determined at runtime"""
+    raise RuntimeError(
+        "Attempt to rescale model parameter with undefined scale function"
+    )
+
+
+def scale_no_rescale(x_scale: float, y_scale: float) -> float:
+    """For model parameters which cannot be rescaled"""
+    if x_scale != 1.0 or y_scale != 1:
+        raise RuntimeError(
+            "Attempt to rescale model parameter which does not support rescaling"
+        )
+    return 1.0
+
+
 @dataclasses.dataclass
 class ModelParameter:
     """Metadata associated with a model parameter.
 
     Attributes:
+        scale_func: callable returning a scale factor which the parameter must be
+            *multiplied* by if it was fitted using `x` / `y` data that has been
+            *multiplied* by the given scale factors. Scale factors are used to improve
+            numerical stability by avoiding asking the optimizer to work with very large
+            or very small values of `x` and `y`. The callable takes the x-axis and
+            y-axis scale factors as arguments. A number of default scale functions are
+            provided for convenience.
         lower_bound: lower bound for the parameter. Fitted values are guaranteed to be
             greater than or equal to the lower bound. Parameter bounds may be used by
             fit heuristics to help find good starting points for the optimizer.
@@ -45,59 +116,66 @@ class ModelParameter:
             used as an initial value during fitting. It is set by the
             `estimate_parameters` method of the model in which the parameter is used
             and should not be set by the user.
-        scale_func: callable returning a scale factor which the parameter must be
-            *multiplied* by if it was fitted using `x` / `y` data that has been
-            *multiplied* by the given scale factors. Scale factors are used to improve
-            numerical stability by avoiding asking the optimizer to work with very large
-            or very small values of `x` and `y`. The callable takes three arguments: the
-            x-axis and y-axis scale factors and the model instance. If any `scale_func`
-            returns a value that is `0`, not finite (e.g. `nan`) or `None` we do not
-            rescale the coordinates. c.f. :meth can_rescale: and :meth rescale:.
     """
 
+    scale_func: Callable[[float, float], float]
     lower_bound: float = -np.inf
     upper_bound: float = np.inf
     fixed_to: Optional[float] = None
     user_estimate: Optional[float] = None
     heuristic: Optional[float] = None
-    scale_factor: float = 1
-    scale_func: Callable[
-        [
-            float,
-            float,
-            Model,
-        ],
-        Optional[float],
-    ] = lambda x_scale, y_scale, model: 1
+    scale_factor: Optional[float] = dataclasses.field(init=False, default=None)
 
-    def can_rescale(self, x_scale: float, y_scale: float, model: Model) -> bool:
-        """Returns `True` if the parameter can be rescaled."""
-        scale_factor = self.scale_func(x_scale, y_scale, model)
-        return (
-            scale_factor is not None and np.isfinite(scale_factor) and scale_factor != 0
-        )
+    def __getattribute__(self, name):
+        attr = object.__getattribute__(self, name)
+        if name == "scale_factor":
+            return attr
 
-    def rescale(self, x_scale: float, y_scale: float, model: Model):
+        scale_factor = self.scale_factor
+        if attr is None or scale_factor is None:
+            return attr
+
+        if name in [
+            "lower_bound",
+            "upper_bound",
+            "fixed_to",
+            "user_estimate",
+            "heuristic",
+        ]:
+            attr /= scale_factor
+
+        return attr
+
+    def __setattr__(self, name, value):
+        scale_factor = self.scale_factor
+
+        if None not in [scale_factor, value] and name in [
+            "lower_bound",
+            "upper_bound",
+            "fixed_to",
+            "user_estimate",
+            "heuristic",
+        ]:
+            value *= scale_factor
+        object.__setattr__(self, name, value)
+
+    def rescale(self, x_scale: float, y_scale: float):
         """Rescales the parameter metadata based on the specified x and y data scale
-        factors and returns the overall scale factor used.
+        factors.
         """
-        scale_factor = self.scale_func(x_scale, y_scale, model)
+        if self.scale_factor is not None:
+            raise RuntimeError("Attempt to rescale an already rescaled model parameter")
+        self.scale_factor = self.scale_func(x_scale, y_scale)
 
-        if scale_factor is None:
-            raise ValueError("Scale factor must not be None during rescale")
+    def unscale(self):
+        """Disables rescaling of the parameter metadata"""
+        if self.scale_factor is None:
+            raise RuntimeError(
+                "Attempt to unscale a model parameter which was not rescaled."
+            )
+        self.scale_factor = None
 
-        def _rescale(attr):
-            if attr is None:
-                return None
-            return attr / scale_factor
-
-        self.lower_bound = _rescale(self.lower_bound)
-        self.upper_bound = _rescale(self.upper_bound)
-        self.fixed_to = _rescale(self.fixed_to)
-        self.user_estimate = _rescale(self.user_estimate)
-        self.scale_factor *= scale_factor
-
-    def get_initial_value(self) -> float:
+    def get_initial_value(self, default: Optional[float] = None) -> float:
         """
         Get initial value.
 
@@ -105,13 +183,21 @@ class ModelParameter:
         parameters, it is the value used to seed the fit. In the latter case, the
         initial value is retrieved from `user_estimate` if that attribute is not
         `None`, otherwise `heuristic` is used.
+
+        :param default: optional value to use if no other value is available
         """
         if self.fixed_to is not None:
             value = self.fixed_to
+            if self.user_estimate is not None:
+                raise ValueError(
+                    "User estimates must not be provided for fixed parameters"
+                )
         elif self.user_estimate is not None:
             value = self.user_estimate
         elif self.heuristic is not None:
             value = self.clip(self.heuristic)
+        elif default is not None:
+            value = self.clip(default)
         else:
             raise ValueError("No initial value specified")
 
@@ -119,6 +205,13 @@ class ModelParameter:
             raise ValueError("Initial value outside bounds.")
 
         return value
+
+    def has_initial_value(self) -> bool:
+        """
+        Returns True if the parameter is fixed, has a user estimate or a heuristic.
+        """
+        values = [self.fixed_to, self.user_estimate, self.heuristic]
+        return any([None is not value for value in values])
 
     def has_user_initial_value(self) -> bool:
         """Returns True if the parameter is fixed or has a user estimate"""
@@ -137,7 +230,11 @@ class Model:
     the data statistics.
     """
 
-    def __init__(self, parameters: Optional[Dict[str, ModelParameter]] = None):
+    def __init__(
+        self,
+        parameters: Optional[Dict[str, ModelParameter]] = None,
+        internal_parameters: Optional[List[ModelParameter]] = None,
+    ):
         """
         :param parameters: optional dictionary mapping names of model parameters to
             their metadata. This should be `None` (default) if the model has a static
@@ -145,6 +242,11 @@ class Model:
             the call signature of :meth _func:. The model parameters are stored as
             `self.parameters` and may be modified after construction to change the model
             behaviour during fitting (e.g. to change the bounds, fixed parameters, etc).
+        :param internal_parameters: optional list of "internal" model parameters, which
+            are not exposed to the user as arguments of :meth func:. Internal parameters
+            are rescaled in the same way as regular model parameters, but are not
+            otherwise used by :class Model:. These are typically used by models which
+            encapsulate / modify the behaviour of other models.
         """
         if parameters is None:
             spec = inspect.getfullargspec(self._func)
@@ -157,10 +259,9 @@ class Model:
             }
         else:
             self.parameters = parameters
+        self.internal_parameters = internal_parameters or []
 
-    def __call__(
-        self, x: Array[("num_samples",), np.float64], **kwargs: float
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def __call__(self, x: TX, **kwargs: float) -> TY:
         """Evaluates the model.
 
         - keyword arguments specify values for model parameters (see model definition)
@@ -176,37 +277,41 @@ class Model:
         args.update(kwargs)
         return self.func(x, args)
 
-    def can_rescale(self, x_scale: float, y_scale: float) -> bool:
-        """Returns True if the model can be rescaled"""
-        return all(
-            [
-                param_data.can_rescale(x_scale, y_scale, self)
-                for param_data in self.parameters.values()
-            ]
-        )
+    def can_rescale(self) -> Tuple[bool, bool]:
+        """
+        Returns a Tuple of bools specifying whether the model can be rescaled along
+        the x- and y-axes
+        """
+        raise NotImplementedError
 
-    @staticmethod
-    def get_scaled_model(model, x_scale: float, y_scale: float):
-        """Returns a scaled copy of a given model object
+    def rescale(self, x_scale: float, y_scale: float):
+        """Rescales the model parameters based on the specified x and y data scale
+        factors.
 
-        :param model: model to be copied and rescaled
         :param x_scale: x-axis scale factor
         :param y_scale: y-axis scale factor
-        :returns: a scaled copy of model
         """
-        scaled_model = copy.deepcopy(model)
-        for param in scaled_model.parameters.values():
-            param.rescale(x_scale, y_scale, scaled_model)
+        for param_name, param_data in self.parameters.items():
+            if param_data.scale_func == scale_undefined:
+                raise RuntimeError(
+                    f"Parameter {param_name} has an undefined scale function"
+                )
+            param_data.rescale(x_scale, y_scale)
 
-        return scaled_model
+        for param_data in self.internal_parameters:
+            param_data.rescale(x_scale, y_scale)
+
+    def unscale(self):
+        """Disables rescaling of the model parameters."""
+        parameters = list(self.parameters.values()) + self.internal_parameters
+        for param_data in parameters:
+            param_data.unscale()
 
     def get_num_y_channels(self) -> int:
         """Returns the number of y channels supported by the model."""
         raise NotImplementedError
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
@@ -224,8 +329,8 @@ class Model:
 
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+        x: TX,
+    ) -> TY:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
@@ -248,9 +353,8 @@ class Model:
 
     def estimate_parameters(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
-        model_parameters: Dict[str, ModelParameter],
+        x: TX,
+        y: TY,
     ):
         """Set heuristic values for model parameters.
 
@@ -259,23 +363,18 @@ class Model:
         `user_estimate` attributes) to find initial guesses for other parameters.
 
         The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If all parameters of the model allow
-        rescaling, then `x`, `y` and `model_parameters` will contain rescaled values.
-
-        TODO: this should act directly on self.model_parameters rather than taking
-        model parameters as an argument (this is a hangover from an old design)
+        contain any infinite or nan values. If the model allows rescaling then rescaled
+        units will be used everywhere (`x` and `y` as well as parameter values).
 
         :param x: x-axis data, rescaled if allowed.
         :param y: y-axis data, rescaled if allowed.
-        :param model_parameters: dictionary mapping model parameter names to their
-            metadata, rescaled if allowed.
         """
         raise NotImplementedError
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
@@ -287,7 +386,7 @@ class Model:
 
         :param x: x-axis data
         :param y: y-axis data
-        :param: fitted_params: dictionary mapping model parameter names to their
+        :param fitted_params: dictionary mapping model parameter names to their
             fitted values.
         :param fit_uncertainties: dictionary mapping model parameter names to
             their fit uncertainties.
@@ -295,211 +394,6 @@ class Model:
             values and uncertainties.
         """
         return {}, {}
-
-    def param_min_sqrs(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
-        parameters: Dict[str, ModelParameter],
-        scanned_param: str,
-        scanned_param_values: ArrayLike["num_values", np.float64],
-    ) -> Tuple[float, float]:
-        """Scans one model parameter while holding the others fixed to find the value
-        that gives the best fit to the data (minimum sum-squared residuals).
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param parameters: dictionary of model parameters. All parameters apart from the
-          scanned parameter must have an initial value set.
-        :param scanned_param: name of parameter to optimize
-        :param scanned_param_values: array of scanned parameter values to test
-
-        :returns: tuple with the value from :param scanned_param_values: which results
-        in lowest residuals and the root-sum-squared residuals for that value.
-        """
-        param_values = {
-            param: param_data.get_initial_value()
-            for param, param_data in parameters.items()
-            if param != scanned_param
-        }
-
-        scanned_param_values = np.asarray(scanned_param_values).squeeze()
-        costs = np.zeros_like(scanned_param_values)
-        for idx, value in np.ndenumerate(scanned_param_values):
-            param_values[scanned_param] = value
-            y_params = self.func(x, param_values)
-            costs[idx] = np.sqrt(np.sum(np.square(y - y_params)))
-
-        # handle a quirk of numpy indexing if only one value is passed in
-        if scanned_param_values.size == 1:
-            return float(scanned_param_values), float(costs)
-
-        opt = np.argmin(costs)
-        return float(scanned_param_values[opt]), float(costs[opt])
-
-    def find_x_offset_sym_peak(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-        parameters: Dict[str, ModelParameter],
-        omega: Array[("num_spectrum_pts",), np.float64],
-        spectrum: Array[("num_spectrum_pts",), np.float64],
-        omega_cut_off: float,
-        test_pts: Optional[Array[("num_test_pts",), np.float64]] = None,
-        x_offset_param_name: str = "x0",
-        y_offset_param_name: str = "y0",
-    ):
-        """Finds the x-axis offset for symmetric, peaked (maximum deviation from the
-        baseline occurs at the origin) functions.
-
-        This heuristic draws candidate x-offset points from three sources and picks the
-        best one (in the least-squares residuals sense). Sources:
-          - FFT shift theorem based on provided spectrum data
-          - Tests all points in the top quartile of deviation from the baseline
-          - Optionally, user-provided "test points", taken from another heuristic. This
-            allows the developer to combine the general-purpose heuristics here with
-            other heuristics which make use of more model-specific assumptions
-
-        :param x: x-axis data
-        :param y: y-axis data. For models with multiple y channels, this should contain
-            data from a single channel only.
-        :param parameters: dictionary of model parameters. All model parameters other
-          than the x-axis offset must have initial values set before calling this method
-        :param omega: FFT frequency axis
-        :param spectrum: complex FFT data. For models with multiple y channels, this
-          should contain data from a single channel only.
-        :param omega_cut_off: highest value of omega to use in offset estimation
-        :param test_pts: optional array of x-axis points to test
-        :param x_offset_param_name: name of the x-axis offset model parameter
-        :param y_offset_param_name: name of the y-axis offset model parameter
-
-        :returns: an estimate of the x-axis offset
-        """
-        if y.ndim != 1:
-            raise ValueError(
-                f"{y.shape[0]} y-channels were provided to a method which takes 1."
-            )
-
-        x0_candidates = np.array([])
-
-        if test_pts is not None:
-            x0_candidates = np.append(x0_candidates, test_pts)
-
-        try:
-            fft_candidate = self.find_x_offset_fft(
-                x=x, omega=omega, spectrum=spectrum, omega_cut_off=omega_cut_off
-            )
-            x0_candidates = np.append(x0_candidates, fft_candidate)
-        except ValueError:
-            pass
-
-        y0 = parameters[y_offset_param_name].get_initial_value()
-        deviations = np.argsort(np.abs(y - y0))
-        top_quartile_deviations = deviations[int(len(deviations) * 3 / 4) :]
-        deviations_candidates = x[top_quartile_deviations]
-        x0_candidates = np.append(x0_candidates, deviations_candidates)
-
-        best_x0, _ = self.param_min_sqrs(
-            x=x,
-            y=y,
-            parameters=parameters,
-            scanned_param=x_offset_param_name,
-            scanned_param_values=x0_candidates,
-        )
-        return best_x0
-
-    def find_x_offset_sampling(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
-        parameters: Dict[str, ModelParameter],
-        width: float,
-        x_offset_param_name: str = "x0",
-    ) -> float:
-        """Finds the x-axis offset of a dataset by stepping through a range of potential
-        offset values and picking the one that gives the lowest residuals.
-
-        This method is typically called during parameter estimation after all other
-        model parameters have been estimated from the periodogram (which is not itself
-        sensitive to offsets).
-
-        There are a few ways one can implemented this functionality: for strongly
-        peaked functions we could have used a simple peak search; we could have used an
-        FFT, fitted a line to the phase and used the Fourier Transform Shift Theorem.
-
-        This function takes a more brute-force approach by evaluating the model at a
-        range of offset values, picking the one that gives the lowest residuals. This
-        may be appropriate where one needs the estimate to be highly robust in the face
-        of noisy, irregularly sampled data.
-
-        :param x: x-axis data
-        :param y: y-axis data
-        :param parameters: dictionary of model parameters.
-        :param width: width of the feature we're trying to find (e.g. FWHMH). Used to
-            pick the spacing between offset values to try.
-        :param x_offset_param_name: name of the x-axis offset parameter
-
-        :returns: an estimate of the x-axis offset
-        """
-        offsets = np.arange(min(x), max(x), width / 6)
-        return self.param_min_sqrs(x, y, parameters, x_offset_param_name, offsets)[0]
-
-    def find_x_offset_fft(
-        self,
-        x: Array[("num_samples",), np.float64],
-        omega: Array[("num_spectrum_pts",), np.float64],
-        spectrum: Array[("num_spectrum_pts",), np.float64],
-        omega_cut_off: float,
-    ) -> float:
-        """Finds the x-axis offset of a dataset from the phase of an FFT.
-
-        This method is typically called during parameter estimation after all other
-        model parameters have been estimated from the periodogram (which is not itself
-        sensitive to offsets).
-
-        This method uses the FFT shift theorem to extract the offset from the phase
-        slope of an FFT. At present it only supports models with a single y channel.
-
-        :param omega: FFT frequency axis
-        :param spectrum: complex FFT data. For models with multiple y channels, this
-          should contain data from a single channel only.
-        :param omega_cut_off: highest value of omega to use in offset estimation
-
-        :returns: an estimate of the x-axis offset
-        """
-        if spectrum.ndim != 1:
-            raise ValueError(
-                f"{spectrum.shape[1]} y channels were provided to a method which "
-                "takes 1"
-            )
-
-        keep = omega < omega_cut_off
-        if np.sum(keep) < 2:
-            raise ValueError("Insufficient data below cut-off")
-
-        omega = omega[keep]
-        phi = np.unwrap(np.angle(spectrum[keep]))
-        phi -= phi[0]
-
-        p = np.polyfit(omega, phi, deg=1)
-
-        x0 = min(x) - p[0]
-        x0 = x0 if x0 > min(x) else x0 + x.ptp()
-        return x0
-
-    def get_initial_values(
-        self, model_parameters: Optional[Dict[str, ModelParameter]] = None
-    ) -> Dict[str, float]:
-        """Returns a dictionary mapping model parameter names to their initial values.
-
-        :param model_parameters: optional dictionary mapping model parameter names to
-           :class ModelParameter:s
-        """
-        model_paramers = model_parameters or self.parameters
-        return {
-            param: param_data.get_initial_value()
-            for param, param_data in model_paramers.items()
-        }
 
 
 class Fitter:
@@ -534,9 +428,9 @@ class Fitter:
         y_scale: the applied y-axis scale factor
     """
 
-    x: Array[("num_samples",), np.float64]
-    y: Array[("num_y_channels", "num_samples"), np.float64]
-    sigma: Optional[Array[("num_y_channels", "num_samples"), np.float64]] = None
+    x: TX
+    y: TY
+    sigma: Optional[TY]
     values: Dict[str, float]
     uncertainties: Dict[str, float]
     derived_values: Dict[str, float]
@@ -549,8 +443,8 @@ class Fitter:
 
     def __init__(
         self,
-        x: ArrayLike[("num_samples",), np.float64],
-        y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         model: Model,
     ):
         """Fits a model to a dataset and stores the results.
@@ -559,7 +453,8 @@ class Fitter:
         :param y: y-axis data
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
-            fitting to change the fit behaviour from the model class' defaults.
+            fitting to change the fit behaviour from the model class' defaults. The
+            model is (deep) copied and stored as an attribute.
         """
         self.model = copy.deepcopy(model)
 
@@ -616,27 +511,24 @@ class Fitter:
         #
         # Currently we use a single scale factor for all y channels. This may change in
         # future
-        self.x_scale = np.max(np.abs(self.x))
-        self.y_scale = np.max(np.abs(self.y))
+        rescale_x, rescale_y = self.model.can_rescale()
+        self.x_scale = np.max(np.abs(self.x)) if rescale_x else 1.0
+        self.y_scale = np.max(np.abs(self.y)) if rescale_y else 1.0
 
-        if self.model.can_rescale(self.x_scale, self.y_scale):
-            scaled_model = self.model.get_scaled_model(
-                self.model, self.x_scale, self.y_scale
-            )
-        else:
-            self.x_scale = 1
+        # Corner-case if a y-channel has values that are all 0
+        if self.y_scale == 0 or not np.isfinite(self.y_scale):
             self.y_scale = 1
-            scaled_model = copy.deepcopy(self.model)
+            rescale_y = False
+
+        self.model.rescale(self.x_scale, self.y_scale)
 
         x_scaled = self.x / self.x_scale
         y_scaled = self.y / self.y_scale
 
-        scaled_model.estimate_parameters(x_scaled, y_scaled, scaled_model.parameters)
+        self.model.estimate_parameters(x_scaled, y_scaled)
 
-        for param, param_data in scaled_model.parameters.items():
-            try:
-                param_data.get_initial_value()
-            except ValueError:
+        for param, param_data in self.model.parameters.items():
+            if not param_data.has_initial_value():
                 raise RuntimeError(
                     "No fixed_to, user_estimate or heuristic specified"
                     f" for parameter `{param}`."
@@ -644,12 +536,12 @@ class Fitter:
 
         self.fixed_parameters = {
             param_name: param_data.fixed_to
-            for param_name, param_data in scaled_model.parameters.items()
+            for param_name, param_data in self.model.parameters.items()
             if param_data.fixed_to is not None
         }
         self.free_parameters = [
             param_name
-            for param_name, param_data in scaled_model.parameters.items()
+            for param_name, param_data in self.model.parameters.items()
             if param_data.fixed_to is None
         ]
 
@@ -665,49 +557,44 @@ class Fitter:
                 for param, value in zip(self.free_parameters, list(free_param_values))
             }
             params.update(self.fixed_parameters)
-            y = scaled_model.func(x, params)
+            y = self.model.func(x, params)
             return y
 
         fitted_params, uncertainties = self._fit(
-            x_scaled, y_scaled, scaled_model.parameters, free_func
+            x_scaled, y_scaled, self.model.parameters, free_func
         )
         fitted_params.update(
             {param: value for param, value in self.fixed_parameters.items()}
         )
         uncertainties.update({param: 0 for param in self.fixed_parameters.keys()})
 
-        fitted_params = {
-            param: value * scaled_model.parameters[param].scale_factor
+        self.values = {
+            param: value * self.model.parameters[param].scale_factor
             for param, value in fitted_params.items()
         }
-        uncertainties = {
-            param: value * scaled_model.parameters[param].scale_factor
+        self.uncertainties = {
+            param: value * self.model.parameters[param].scale_factor
             for param, value in uncertainties.items()
         }
 
-        initial_values = {
-            param: param_data.get_initial_value()
-            * scaled_model.parameters[param].scale_factor
-            for param, param_data in scaled_model.parameters.items()
-        }
+        self.model.unscale()
 
-        (
-            self.derived_values,
-            self.derived_uncertainties,
-        ) = self.model.calculate_derived_params(
-            self.x, self.y, fitted_params, uncertainties
+        derived = self.model.calculate_derived_params(
+            self.x, self.y, self.values, self.uncertainties
         )
+        self.derived_values, self.derived_uncertainties = derived
 
-        self.values = fitted_params
-        self.uncertainties = uncertainties
-        self.initial_values = initial_values
+        self.initial_values = {
+            param: param_data.get_initial_value()
+            for param, param_data in self.model.parameters.items()
+        }
 
     def _fit(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         parameters: Dict[str, ModelParameter],
-        free_func: Callable[..., Array[("num_y_channels", "num_samples"), np.float64]],
+        free_func: Callable[..., TY],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Implementation of the parameter estimation.
 
@@ -728,11 +615,8 @@ class Fitter:
     def evaluate(
         self,
         transpose_and_squeeze=False,
-        x_fit: Optional[Array[("num_samples",), np.float64]] = None,
-    ) -> Tuple[
-        Array[("num_samples",), np.float64],
-        Array[("num_y_channels", "num_samples"), np.float64],
-    ]:
+        x_fit: Optional[TX] = None,
+    ) -> Tuple[TX, TY]:
         """Evaluates the model function using the fitted parameter set.
 
         :param transpose_and_squeeze: if True, array `y_fit` is transposed
@@ -752,14 +636,10 @@ class Fitter:
             return x_fit, y_fit.T.squeeze()
         return x_fit, y_fit
 
-    def residuals(self) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def residuals(self) -> TY:
         """Returns an array of fit residuals."""
         return self.y - self.evaluate()[1]
 
-    def calc_sigma(
-        self,
-    ) -> Optional[Array[("num_y_channels", "num_samples"), np.float64]]:
-        """Return an array of standard error values for each y-axis data point
-        if available.
-        """
-        return None
+    def calc_sigma(self) -> Optional[TY]:
+        """Return an array of standard error values for each y-axis data point."""
+        raise NotImplementedError

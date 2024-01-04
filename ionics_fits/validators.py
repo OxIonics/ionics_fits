@@ -45,11 +45,16 @@ class NSigmaValidator(FitValidator):
                 "Cannot validate fit without standard errors for each point"
             )
 
-        window = self.window_fun(fit_results)
+        x = fit_results.x
+        y = fit_results.y
+        sigma = fit_results.sigma
 
-        x = fit_results.x[window]
-        y = fit_results.y[:, window]
-        sigma = fit_results.sigma[:, window]
+        if list(fit_results.x) == 1:
+            window = self.window_fun(fit_results)
+
+            x = fit_results.x[window]
+            y = fit_results.y[:, window]
+            sigma = fit_results.sigma[:, window]
 
         _, y_fit = fit_results.evaluate(x_fit=x)
 
