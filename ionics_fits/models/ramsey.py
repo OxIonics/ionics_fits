@@ -2,7 +2,8 @@ from typing import Dict, Tuple, TYPE_CHECKING
 
 import numpy as np
 
-from .. import Model, ModelParameter
+from .. import common, Model, ModelParameter
+from . import heuristics
 from .utils import PeriodicModelParameter
 from ..utils import Array
 
@@ -49,6 +50,9 @@ class Ramsey(Model):
     def get_num_y_channels(self) -> int:
         return 1
 
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return True, True
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
@@ -56,28 +60,31 @@ class Ramsey(Model):
         P_readout_e: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            scale_func=lambda x_scale, y_scale, _: y_scale,
+            scale_func=common.scale_y,
         ),
         P_readout_g: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            scale_func=lambda x_scale, y_scale, _: y_scale,
+            scale_func=common.scale_y,
         ),
         t: ModelParameter(
-            lower_bound=0.0, scale_func=(lambda x_scale, y_scale, _: 1 / x_scale)
+            lower_bound=0.0,
+            scale_func=common.scale_x_inv,
         ),
         t_pi_2: ModelParameter(
-            lower_bound=0.0, scale_func=lambda x_scale, y_scale, _: 1 / x_scale
+            lower_bound=0.0,
+            scale_func=common.scale_x_inv,
         ),
-        w_0: ModelParameter(scale_func=lambda x_scale, y_scale, _: x_scale),
+        w_0: ModelParameter(scale_func=common.scale_x),
         phi: PeriodicModelParameter(
             period=2 * np.pi,
             offset=-np.pi,
+            scale_func=common.scale_invariant,
         ),
         tau: ModelParameter(
             lower_bound=0.0,
             fixed_to=np.inf,
-            scale_func=lambda x_scale, y_scale, _: 1 / x_scale,
+            scale_func=common.scale_x_inv,
         ),
     ):
         delta = x - w_0
@@ -105,33 +112,32 @@ class Ramsey(Model):
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples",), np.float64],
-        model_parameters: Dict[str, ModelParameter],
     ):
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
         if self.start_excited:
-            model_parameters["P_readout_e"].heuristic = y[0]
-            model_parameters["P_readout_g"].heuristic = abs(1 - y[0])
+            self.parameters["P_readout_e"].heuristic = y[0]
+            self.parameters["P_readout_g"].heuristic = abs(1 - y[0])
         else:
-            model_parameters["P_readout_g"].heuristic = y[0]
-            model_parameters["P_readout_e"].heuristic = abs(1 - y[0])
+            self.parameters["P_readout_g"].heuristic = y[0]
+            self.parameters["P_readout_e"].heuristic = abs(1 - y[0])
 
         unknowns = {
             param_name
-            for param_name, param_data in model_parameters.items()
+            for param_name, param_data in self.parameters.items()
             if not param_data.has_user_initial_value() and param_name != "tau"
         }
 
         # This is the most common use-case for this model. TODO: cover other use-cases
         # as they arise...
         if unknowns.issubset({"w_0", "phi"}):
-            model_parameters["phi"].heuristic = 0.0
-            model_parameters["w_0"].heuristic = self.find_x_offset_sampling(
+            self.parameters["phi"].heuristic = 0.0
+            self.parameters["w_0"].heuristic = heuristics.find_x_offset_sampling(
+                model=self,
                 x=x,
                 y=y,
-                parameters=model_parameters,
-                width=2 * np.pi / model_parameters["t"].get_initial_value(),
+                width=2 * np.pi / self.parameters["t"].get_initial_value(),
                 x_offset_param_name="w_0",
             )
         else:
@@ -139,9 +145,7 @@ class Ramsey(Model):
                 f"No Ramsey heuristic currently available for the unknowns: {unknowns}"
             )
 
-        model_parameters["tau"].heuristic = (
-            10 * model_parameters["t"].get_initial_value()
-        )
+        self.parameters["tau"].heuristic = 10 * self.parameters["t"].get_initial_value()
 
     def calculate_derived_params(
         self,
