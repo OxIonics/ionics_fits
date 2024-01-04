@@ -6,7 +6,7 @@ import ionics_fits as fits
 from . import common
 
 
-def gaussian(x, y, a, x0_x, x0_y, sigma_x, sigma_y, y0):
+def gaussian(x, y, a, x0_x, x0_y, sigma_x, sigma_y, z0):
 
     A = a / (sigma_x * np.sqrt(2 * np.pi)) / (sigma_y * np.sqrt(2 * np.pi))
 
@@ -16,9 +16,12 @@ def gaussian(x, y, a, x0_x, x0_y, sigma_x, sigma_y, y0):
             -(((x - x0_x) / (np.sqrt(2) * sigma_x)) ** 2)
             - (((y - x0_y) / (np.sqrt(2) * sigma_y)) ** 2)
         )
-        + y0
+        + z0
     )
 
+
+def parabola(x, y, k_x, k_y, x0, y0, z0):
+    return k_x * (x - x0)**2 + k_y * (y - y0)**2 + z0
 
 def cone(x, y, x0_x, x0_y, k_x, k_y, y0):
     return np.sqrt((k_x * (x - x0_x)) ** 2 + (k_y * (y - x0_y)) ** 2) + y0
@@ -69,7 +72,7 @@ def test_call_2d(plot_failures):
         "x0_y": +0.5,
         "sigma_x": 2,
         "sigma_y": 5,
-        "y0": 1.5,
+        "z0": 1.5,
     }
 
     x_ax_0 = np.linspace(-20, 20, 30)
@@ -91,7 +94,7 @@ def test_gaussian_2d(plot_failures):
         "x0_y": +0.5,
         "sigma_x": 2,
         "sigma_y": 5,
-        "y0": 1.5,
+        "z0": 1.5,
     }
 
     x_ax_0 = np.linspace(-20, 20, 30)
@@ -104,9 +107,9 @@ def test_gaussian_2d(plot_failures):
         x=(x_ax_0, x_ax_1), y=y.T, model=fits.multi_x.Gaussian2D()
     )
 
-    assert fit.values.keys() == params.keys()
-    assert fit.uncertainties.keys() == params.keys()
-    assert fit.initial_values.keys() == params.keys()
+    assert set(fit.values.keys()) == set(params.keys())
+    assert set(fit.uncertainties.keys()) == set(params.keys())
+    assert set(fit.initial_values.keys()) == set(params.keys())
     assert set(fit.free_parameters) == set(params.keys())
     assert set(fit.derived_values.keys()) == set(
         ["FWHMH_x", "w0_x", "FWHMH_y", "peak_y", "w0_y"]
@@ -122,6 +125,41 @@ def test_gaussian_2d(plot_failures):
     assert common.is_close(residuals.squeeze(), np.zeros_like(y).T, tol=1e-3)
 
     check_param_values(x_mesh_0, x_mesh_1, params, fit, gaussian, plot_failures)
+
+
+def test_parabola_2d(plot_failures):
+    """Test 2D Parabola fitting"""
+    params = {
+        "x0": -2,
+        "y0": +0.5,
+        "k_x": 2,
+        "k_y": 5,
+        "z0": 1.5,
+    }
+
+    x_ax_0 = np.linspace(-20, 20, 30)
+    x_ax_1 = np.linspace(-50, 50, 70)
+    x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+
+    y = parabola(x_mesh_0, x_mesh_1, **params)
+
+    fit = fits.multi_x.common.Fitter2D(
+        x=(x_ax_0, x_ax_1), y=y.T, model=fits.multi_x.Parabola2D()
+    )
+
+    assert set(fit.values.keys()) == set(params.keys())
+    assert set(fit.uncertainties.keys()) == set(params.keys())
+    assert set(fit.initial_values.keys()) == set(params.keys())
+    assert set(fit.free_parameters) == set(params.keys())
+    assert set(fit.derived_values.keys()) == set([])
+
+    _, y_fit = fit.evaluate()
+    assert common.is_close(y_fit.squeeze(), y.T, tol=1e-3)
+
+    residuals = fit.residuals()
+    assert common.is_close(residuals.squeeze(), np.zeros_like(y).T, tol=1e-3)
+
+    check_param_values(x_mesh_0, x_mesh_1, params, fit, parabola, plot_failures)
 
 
 def test_cone_2d(plot_failures):

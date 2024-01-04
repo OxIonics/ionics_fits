@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 class Gaussian2D(Model2D):
     """2D Gaussian according to:
     ```
-    y = (
+    z = (
         a / ((sigma * sqrt(2*pi)) * (sigma * sqrt(2*pi)))
-        * exp(-0.5*((x-x0)/(sigma_x))^2 -0.5*((y-y0)/(sigma_y))^2) + y0
+        * exp(-0.5*((x-x0)/(sigma_x))^2 -0.5*((y-y0)/(sigma_y))^2) + z0
     ```
     Parameters are:
       - a
@@ -23,7 +23,7 @@ class Gaussian2D(Model2D):
       - y0
       - sigma_x
       - sigma_y
-      - y0
+      - z0
 
     Derived results are:
       - FWHMH_x
@@ -43,7 +43,41 @@ class Gaussian2D(Model2D):
             models=(models.Gaussian(), outer_model),
             model_names=("x", "y"),
             result_params=("a",),
-            param_renames={"a_y": "a", "y0_x": "y0", "y0_x": "y0", "y0_y": None},
+            param_renames={
+                "a_y": "a",
+                "y0_x": "z0",
+                "y0_y": None
+            },
+        )
+
+
+class Parabola2D(Model2D):
+    """2D Parabola according to:
+    ```
+    z = k_x * (x - x0)^2 + k_y *(y - y0) + z0
+    ```
+
+    Parameters are:
+      - x0
+      - y0
+      - k_x
+      - k_y
+      - y0
+
+    See ionics_fits.models.Parabola for details.
+    """
+
+    def __init__(self):
+
+        super().__init__(
+            models=(models.Parabola(), models.Parabola()),
+            model_names=("x", "y"),
+            result_params=("y0",),
+            param_renames={
+                "x0_x": "x0",
+                "x0_y": "y0",
+                "y0_y": "z0"
+            },
         )
 
 
