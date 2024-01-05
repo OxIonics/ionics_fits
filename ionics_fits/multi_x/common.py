@@ -34,32 +34,32 @@ TY2D = Union[
 logger = logging.getLogger(__name__)
 
 
-class Model2D:
-    """Base class providing a :class Model:-like interface for models with
-    2-dimensional x-axes.
-
-    2D x-axis data is represented by the tuple `x=(x_axis_0, x_axis_1)`.
-
-    This class provides a means of combining a pair of 1D :class Model:s to create a 2D
-    model. Each 1D model is a function of one x-axis dimension:
-      `model_0 = models[0] = f(x_axis_0)`
-      `model_1 = models[1] = g(x_axis_1)`
+class Model2D(Model):
+    """Combines a pair of :class Model:s, which are each a function of 1 x-axis, to
+    make a new :class Model:, which is a function of 2 x-axes.
 
     All y-axis data is generated from the output of the first model; the output from
     the second model provides the values of certain "result" parameters used by the
     first model. In other words:
-      `y(x_0, x_1) = model_0(x_0 | result_params = model_1(x_1))`
+      ```
+      model_0 = models[0] = f(x_axis_0)
+      model_1 = models[1] = g(x_axis_1)
+      y(x_0, x_1) = model_0(x_0 | result_params = model_1(x_1))
+      ```
 
-    - All parameters from the two models apart from the first model's *result
-      parameters* are parameters of the 2D model.
+      An intrinsic limitation of this approach is that the overall fit function must
+      be separable into functions of the two axes. This means, for example, that
+      fit-functions must be aligned with the x axes.
+
+    Model parameters and results:
+    - All parameters from the two models - apart from the first model's *result
+      parameters* - are parameters of the 2D model.
     - All derived results from the two models are included in the :class Model2D:'s
       derived results.
     - By default, a parameter/derived result named `param` from a model named `model` is
       exposed as a parameter / result of the :class Model2D: named `param_model`. Custom
       naming schemes are possible by passing a `param_renames` dictionary into
       :meth __init__:.
-
-    See also :class Fitter2D:.
     """
 
     def __init__(
