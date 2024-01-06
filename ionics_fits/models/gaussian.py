@@ -64,17 +64,17 @@ class Gaussian(Model):
         #   F[A * exp(-(x/w)^2)](k) = A * sqrt(pi) * w * exp(-(pi*k*w)^2)
         #
         # Half-width at 1/e when k = 1/(pi*w)
-        omega, spectrum = get_spectrum(x, y, trim_dc=True)
+        omega, spectrum = get_spectrum(x, y, trim_dc=True, density_units=False)
         abs_spectrum = np.abs(spectrum)
 
         k = omega / (2 * np.pi)
 
-        peak = np.max(abs_spectrum)
-        W = peak / np.exp(1)
-        width = 1 / (np.pi * k[np.argmin(np.abs(abs_spectrum - W))])
+        peak = abs_spectrum[0]
+        W = peak * np.exp(-1)
+        half_width = k[np.argmin(np.abs(abs_spectrum - W))]
 
-        sigma = width / 2
-        a = peak * np.pi * np.sqrt(2)
+        sigma = 1 / (np.sqrt(2) * np.pi * half_width)
+        a = peak
 
         self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
         y0 = self.parameters["y0"].get_initial_value()
