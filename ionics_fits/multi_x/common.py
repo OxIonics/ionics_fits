@@ -147,21 +147,8 @@ class Model2D(Model):
     def get_num_y_channels(self) -> int:
         return self.models[0].get_num_y_channels()
 
-    def estimate_parameters(
-        self,
-        x: TX2D,
-        y: TY2D,
-    ):
-        raise NotImplementedError
-
-    def calculate_derived_params(
-        self,
-        x: TX2D,
-        y: TY2D,
-        fitted_params: Dict[str, float],
-        fit_uncertainties: Dict[str, float],
-    ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        raise NotImplementedError
+    def get_num_x_axes(self) -> int:
+        return 2
 
     def func(self, x: TX2D, param_values: Dict[str, float]) -> TY2D:
         x_ax_0, x_ax_1 = [np.array(x_ax) for x_ax in x]
@@ -191,6 +178,118 @@ class Model2D(Model):
             y[:, :, x_idx] = y_idx
 
         return y
+
+    def estimate_parameters(self, x: TX2D, y: TY2D):
+        x_ax_0 = x[0]
+        x_ax_1 = x[1]
+
+        # Step 1: find heuristics for model 0
+        # Run the heuristics for each point on the second axis, then pick the best set
+        heuristics = {
+            param_name: np.zeros(len(x_ax_1) + 1)
+            for param_name in self.models[0].parameters.keys()
+        }
+
+        for x_1_idx in range(len(x_ax_1)):
+            self.models[0].clear_heuristics()
+            self.models[0].estimate_parameters(x=x_ax_0, y=y[:, x_1_idx, :])
+            for param_name, param_data in self.models[0].parameters.items():
+                heuristics[param_name][x_1_idx] = param_data.get_initial_value()
+
+        for param_name in heuristics.keys():
+            heuristics[param_name][-1] = np.mean(heuristics[param_name][:-1])
+
+        costs = np.zeros(len(x_ax_1) + 1)
+        for idx in range(len(costs)):
+            y_idx = self.models[0].func(
+                x=x_ax_0,
+                param_values={
+                    param_name: heuristics[param_name][idx]
+                    for param_name in heuristics.keys()
+                },
+            )
+            costs[idx] = np.sqrt(np.sum((y - y_idx) ** 2))
+
+        best_heuristic = np.argmin(costs)
+
+        for model_param_name, new_param_name in self.model_param_maps[0].items():
+            heuristic = heuristics[model_param_name][best_heuristic]
+            self.parameters[new_param_name].heuristic = heuristic
+
+        # Step 2: use the heuristics from model 0 as an input for model 1
+        y_1 = np.zeros((len(self.result_params), len(x_ax_1)))
+        for idx, result_param_name in enumerate(self.result_params):
+            y_1[idx, :] = heuristics[result_param_name][:-1]
+
+        self.models[1].estimate_parameters(x_ax_1, y_1)
+
+        for model_param_name, new_param_name in self.model_param_maps[1].items():
+            param_data = self.models[1].parameters[model_param_name]
+            heuristic = param_data.get_initial_value()
+            self.parameters[new_param_name].heuristic = heuristic
+
+    def calculate_derived_params(
+        self,
+        x: TX2D,
+        y: TY2D,
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        derived_values = {}
+        derived_uncertainties = {}
+
+        model_values = ({}, {})
+        model_uncertainties = ({}, {})
+        model_derived_values = ({}, {})
+        model_derived_uncertainties = ({}, {})
+
+        # Result parameters do not have meaningful fitted values / uncertainties
+        for param_name in self.result_params:
+            model_values[0][param_name] = float("nan")
+            model_uncertainties[0][param_name] = float("nan")
+
+        for model_idx, model in enumerate(self.models):
+            param_map = self.model_param_maps[model_idx]
+            model_values[model_idx].update(
+                {
+                    model_param_name: fitted_params[new_param_name]
+                    for model_param_name, new_param_name in param_map.items()
+                }
+            )
+            model_uncertainties[model_idx].update(
+                {
+                    model_param_name: fit_uncertainties[new_param_name]
+                    for model_param_name, new_param_name in param_map.items()
+                }
+            )
+            derived = model.calculate_derived_params(
+                x=x[model_idx],
+                y=np.full_like(x[model_idx], float("nan")),
+                fitted_params=model_values[model_idx],
+                fit_uncertainties=model_uncertainties[model_idx],
+            )
+
+            model_derived_values[model_idx].update(derived[0])
+            model_derived_uncertainties[model_idx].update(derived[1])
+
+        duplicates = set(model_derived_values[0].keys()).intersection(
+            set(model_derived_values[1].keys())
+        )
+        if duplicates:
+            raise ValueError(
+                "Duplicate derived result names found between the two models: "
+                f"{duplicates}."
+            )
+
+        derived_values = {}
+        derived_values.update(model_derived_values[0])
+        derived_values.update(model_derived_values[1])
+
+        derived_uncertainties = {}
+        derived_uncertainties.update(model_derived_uncertainties[0])
+        derived_uncertainties.update(model_derived_uncertainties[1])
+
+        return derived_values, derived_uncertainties
 
 
 class Fitter2D:
