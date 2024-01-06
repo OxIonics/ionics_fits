@@ -335,9 +335,9 @@ class Parabola(MappedModel):
         """
         super().estimate_parameters(x, y)
 
-        a_0 = self.wrapped_model.parameters["a_0"].get_initial_value()
-        a_1 = self.wrapped_model.parameters["a_1"].heuristic
-        a_2 = self.wrapped_model.parameters["a_2"].get_initial_value()
+        a_0 = self.model.parameters["a_0"].get_initial_value()
+        a_1 = self.model.parameters["a_1"].heuristic
+        a_2 = self.model.parameters["a_2"].get_initial_value()
 
         x0 = -a_1 / (2 * a_2)
         self.parameters["x0"].heuristic = x0

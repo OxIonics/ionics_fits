@@ -40,12 +40,12 @@ class Gaussian2D(Model2D):
         # non-empty model names and Wrap the 2D model rather than wrapping the 1D
         # models
         inner_model = models.containers.MappedModel(
-            wrapped_model=models.Gaussian(),
+            model=models.Gaussian(),
             param_mapping={"a_x": "a", "x0_x": "x0", "sigma_x": "sigma", "z0": "y0"},
             derived_result_mapping={"FWHMH_x": "FWHMH", "w0_x": "w0"},
         )
         outer_model = models.containers.MappedModel(
-            wrapped_model=models.Gaussian(),
+            model=models.Gaussian(),
             param_mapping={
                 "a": "a",
                 "x0_y": "x0",
@@ -83,11 +83,11 @@ class Parabola2D(Model2D):
         # non-empty model names and Wrap the 2D model rather than wrapping the 1D
         # models
         inner_model = models.containers.MappedModel(
-            wrapped_model=models.Parabola(),
+            model=models.Parabola(),
             param_mapping={"x0": "x0", "y0_x": "y0", "k_x": "k"},
         )
         outer_model = models.containers.MappedModel(
-            wrapped_model=models.Parabola(),
+            model=models.Parabola(),
             param_mapping={"y0": "x0", "z0": "y0", "k_y": "k"},
         )
 
@@ -117,14 +117,14 @@ class Cone2D(Model2D):
         # non-empty model names and Wrap the 2D model rather than wrapping the 1D
         # models
         inner_model = models.containers.MappedModel(
-            wrapped_model=models.ConeSlice(),
+            model=models.ConeSlice(),
             param_mapping={"alpha": "alpha", "y0": "z0", "x0_x": "x0", "k_x": "k"},
         )
 
         triangle = models.Triangle()
         triangle.parameters["y0"].fixed_to = 0
         outer_model = models.containers.MappedModel(
-            wrapped_model=triangle,
+            model=triangle,
             param_mapping={"x0_y": "x0", "k_y": "k"},
             fixed_params={
                 param_name: param_data.fixed_to
