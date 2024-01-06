@@ -182,7 +182,7 @@ def test_cone_2d(plot_failures):
     fit = fits.multi_x.common.Fitter2D(
         x=(x_ax_0, x_ax_1),
         y=y.T,
-        model=fits.multi_x.models.Cone(),
+        model=fits.multi_x.models.Cone2D(),
     )
 
     check_param_values(x_mesh_0, x_mesh_1, params, fit, cone, plot_failures)

@@ -36,14 +36,29 @@ class Gaussian2D(Model2D):
     """
 
     def __init__(self):
-        outer_model = models.Gaussian()
-        outer_model.parameters["y0"].fixed_to = 0
+        # TODO: once we have proper support for 2D models, we should provide
+        # non-empty model names and Wrap the 2D model rather than wrapping the 1D
+        # models
+        inner_model = models.containers.MappedModel(
+            wrapped_model=models.Gaussian(),
+            param_mapping={"a_x": "a", "x0_x": "x0", "sigma_x": "sigma", "z0": "y0"},
+            derived_result_mapping={"FWHMH_x": "FWHMH", "w0_x": "w0"},
+        )
+        outer_model = models.containers.MappedModel(
+            wrapped_model=models.Gaussian(),
+            param_mapping={
+                "a": "a",
+                "x0_y": "x0",
+                "sigma_y": "sigma",
+            },
+            fixed_params={"y0": 0},
+            derived_result_mapping={"FWHMH_y": "FWHMH", "w0_y": "w0", "peak_y": "peak"},
+        )
 
         super().__init__(
-            models=(models.Gaussian(), outer_model),
-            model_names=("x", "y"),
-            result_params=("a",),
-            param_renames={"a_y": "a", "y0_x": "z0", "y0_y": None},
+            models=(inner_model, outer_model),
+            model_names=("", ""),
+            result_params=("a_x",),
         )
 
 
@@ -64,16 +79,26 @@ class Parabola2D(Model2D):
     """
 
     def __init__(self):
+        # TODO: once we have proper support for 2D models, we should provide
+        # non-empty model names and Wrap the 2D model rather than wrapping the 1D
+        # models
+        inner_model = models.containers.MappedModel(
+            wrapped_model=models.Parabola(),
+            param_mapping={"x0": "x0", "y0_x": "y0", "k_x": "k"},
+        )
+        outer_model = models.containers.MappedModel(
+            wrapped_model=models.Parabola(),
+            param_mapping={"y0": "x0", "z0": "y0", "k_y": "k"},
+        )
 
         super().__init__(
-            models=(models.Parabola(), models.Parabola()),
-            model_names=("x", "y"),
-            result_params=("y0",),
-            param_renames={"x0_x": "x0", "x0_y": "y0", "y0_y": "z0"},
+            models=(inner_model, outer_model),
+            model_names=("", ""),
+            result_params=("y0_x",),
         )
 
 
-class Cone(Model2D):
+class Cone2D(Model2D):
     """2D Cone Model.
 
     Parameters are (x params inherit from :class :class ionics_fits.models.ConeSlide:
@@ -88,20 +113,28 @@ class Cone(Model2D):
     """
 
     def __init__(self):
+        # TODO: once we have proper support for 2D models, we should provide
+        # non-empty model names and Wrap the 2D model rather than wrapping the 1D
+        # models
+        inner_model = models.containers.MappedModel(
+            wrapped_model=models.ConeSlice(),
+            param_mapping={"alpha": "alpha", "y0": "z0", "x0_x": "x0", "k_x": "k"},
+        )
+
         triangle = models.Triangle()
-        # triangle.parameters["y0"].fixed_to = 0
+        triangle.parameters["y0"].fixed_to = 0
+        outer_model = models.containers.MappedModel(
+            wrapped_model=triangle,
+            param_mapping={"x0_y": "x0", "k_y": "k"},
+            fixed_params={
+                param_name: param_data.fixed_to
+                for param_name, param_data in triangle.parameters.items()
+                if param_data.fixed_to is not None
+            },
+        )
 
         super().__init__(
-            models=(models.ConeSlice(), triangle),
-            model_names=("x", "y"),
+            models=(inner_model, outer_model),
+            model_names=("", ""),
             result_params=("alpha",),
-            param_renames={
-                "y0_y": None,
-                "z0_x": "y0",
-                "sym_y": None,
-                "y_min_y": None,
-                "y_max_y": None,
-                "k_p_y": None,
-                "k_m_y": None,
-            },
         )

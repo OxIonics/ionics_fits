@@ -47,19 +47,19 @@ class Model2D(Model):
       y(x_0, x_1) = model_0(x_0 | result_params = model_1(x_1))
       ```
 
-      An intrinsic limitation of this approach is that the overall fit function must
-      be separable into functions of the two axes. This means, for example, that
-      fit-functions must be aligned with the x axes.
+    An intrinsic limitation of this approach is that the 2D fit function must be
+    separable into functions of the two axes. This means, for example, that the 1D
+    fit-functions must be aligned with the  two x axes. For example, one can't represent
+    a non axis-aligned Gaussian in this way.
 
     Model parameters and results:
     - All parameters from the two models - apart from the first model's *result
       parameters* - are parameters of the 2D model.
     - All derived results from the two models are included in the :class Model2D:'s
       derived results.
-    - By default, a parameter/derived result named `param` from a model named `model` is
-      exposed as a parameter / result of the :class Model2D: named `param_model`. Custom
-      naming schemes are possible by passing a `param_renames` dictionary into
-      :meth __init__:.
+    - A parameter/derived result named `param` from a model named `model` is
+      exposed as a parameter / result of the :class Model2D: named `param_model`.
+    - A :class WrappedModel: can be used to provide custom naming schemes
     """
 
     def __init__(
@@ -67,7 +67,6 @@ class Model2D(Model):
         models: Tuple[Model, Model],
         result_params: Tuple[str],
         model_names: Optional[Tuple[str, str]] = None,
-        param_renames: Optional[Dict[str, Optional[str]]] = None,
     ):
         """
         :param models: Tuple containing the two :class Model:s to be combined to make
@@ -81,28 +80,12 @@ class Model2D(Model):
             when generating names for fit results and derived parameters. Empty strings
             are allowed so long as the two models do not share any parameter names. If
             this argument is `None` the model names default to `x0` and `x1`
-            respectively.
-        :param param_renames: optional dictionary mapping names of parameters/derived
-            results in the :class Model2D: to new parameter names to rename them with.
-            This provides a means for more flexible parameter name schemes than the
-            default `{param_name}_{model_name}` format. Parameters may be renamed to
-            `None` to exclude them from the 2D model.
+            respectively. If a model name is an empty string, the trailing underscore
+            is omitted in parameter / result names.
         """
         self.models = models
         self.result_params = result_params
         self.model_names = model_names if model_names is not None else ("x0", "x1")
-        self.param_renames = param_renames or {}
-
-        self.dropped_params = [
-            old_name
-            for old_name, new_name in self.param_renames.items()
-            if new_name is None
-        ]
-        self.param_renames = {
-            old_name: new_name
-            for old_name, new_name in self.param_renames.items()
-            if new_name is not None
-        }
 
         missing = set(self.result_params) - set(self.models[0].parameters.keys())
         if missing:
@@ -113,116 +96,74 @@ class Model2D(Model):
 
         if len(self.result_params) != self.models[1].get_num_y_channels():
             raise ValueError(
-                f"{len(self.result_params)} parameters passed when second model "
+                f"{len(self.result_params)} result parameters passed when second model "
                 f"requires {self.models[1].get_num_y_channels()}"
             )
 
-        model_parameters = ({}, {})  # new_param_name: param_data
-        for model_idx, model in enumerate(self.models):
-            model_name = self.model_names[model_idx]
-            model_parameters[model_idx].update(
+        # Map the parameters of the 1D models onto parameters of the 2D models
+        parameters = {}
+        internal_parameters = [
+            self.models[0].parameters[param_name] for param_name in self.result_params
+        ]
+
+        self.model_param_maps = ({}, {})  # model_param_name: new_param_name
+
+        for model_idx, model_name in enumerate(self.model_names):
+            # Result parameters are internal parameters of the 2D model
+            exclusions = self.result_params if model_idx == 0 else []
+            suffix = f"_{model_name}" if model_name else ""
+            self.model_param_maps[model_idx].update(
                 {
-                    f"{param_name}_{model_name}": param_data
-                    for param_name, param_data in self.models[
-                        model_idx
-                    ].parameters.items()
+                    model_param_name: f"{model_param_name}{suffix}"
+                    for model_param_name in self.models[model_idx].parameters.keys()
+                    if model_param_name not in exclusions
                 }
             )
 
-        for param_name in self.result_params:
-            del model_parameters[0][f"{param_name}_{self.model_names[0]}"]
-
-        duplicates = set(model_parameters[0].keys()).intersection(
-            set(model_parameters[1].keys())
+        duplicates = set(self.model_param_maps[0].values()).intersection(
+            set(self.model_param_maps[1].values())
         )
         if duplicates:
             raise ValueError(
                 f"Duplicate parameter names found between the two models: {duplicates}."
-                " Do the models have different suffixes?"
             )
 
-        self.parameters = {}
-        self.parameters.update(model_parameters[0])
-        self.parameters.update(model_parameters[1])
-
-        # Apply parameter renames
-        missing = set(self.param_renames.keys()) - set(self.parameters.keys())
-        if missing:
-            raise ValueError(
-                "Parameter renames do not correspond to any parameter of the 2D model: "
-                f"{missing}"
+        # Create the parameters / internal parameters for the 2D model
+        for model_idx, param_map in enumerate(self.model_param_maps):
+            model = self.models[model_idx]
+            parameters.update(
+                {
+                    new_param_name: model.parameters[model_param_name]
+                    for model_param_name, new_param_name in param_map.items()
+                }
             )
+            internal_parameters += model.internal_parameters
 
-        renamed_parameters = {
-            self.param_renames[param_name]: param_data
-            for param_name, param_data in self.parameters.items()
-            if param_name in self.param_renames.keys()
-        }
+        super().__init__(parameters=parameters, internal_parameters=internal_parameters)
 
-        self.parameters = {
-            param_name: param_data
-            for param_name, param_data in self.parameters.items()
-            if param_name not in self.param_renames.keys()
-        }
+    def can_rescale(self) -> Tuple[bool, bool]:
+        raise NotImplementedError
 
-        duplicates = set(renamed_parameters.keys()).intersection(self.parameters.keys())
-        if duplicates:
-            raise ValueError(
-                "Parameter renames duplicate existing model parameter names: "
-                f"{duplicates}"
-            )
+    def get_num_y_channels(self) -> int:
+        return self.models[0].get_num_y_channels()
 
-        self.parameters.update(renamed_parameters)
+    def estimate_parameters(
+        self,
+        x: TX,
+        y: TY,
+    ):
+        raise NotImplementedError
 
-        # cache these so we don't need to calculate them each time we evaluate func
-        # model_param_name: new_param_name
-        model_0_param_map = {}
-        for model_param_name in self.models[0].parameters.keys():
-            if model_param_name in self.result_params:
-                continue
-
-            new_param_name = f"{model_param_name}_{self.model_names[0]}"
-            new_param_name = self.param_renames.get(new_param_name, new_param_name)
-
-            model_0_param_map[model_param_name] = new_param_name
-
-        model_1_param_map = {}
-        for model_param_name in self.models[1].parameters.keys():
-            new_param_name = f"{model_param_name}_{self.model_names[1]}"
-            new_param_name = self.param_renames.get(new_param_name, new_param_name)
-            model_1_param_map[model_param_name] = new_param_name
-
-        self.model_param_maps = (model_0_param_map, model_1_param_map)
-
-    def __call__(self, x: TX2D, **kwargs: float) -> TY2D:
-        """Evaluates the model.
-
-        :param x: tuple of `(x_axis_0, x_axis_1)`
-        :param kwargs: keyword arguments specify values for parameters of the 2D model.
-
-        All model parameters which are not `fixed_to` a value by default must be
-        specified. Any parameters which are not specified default to their `fixed_to`
-        values.
-        """
-        args = {
-            param_name: param_data.fixed_to
-            for param_name, param_data in self.parameters.items()
-            if param_data.fixed_to is not None
-        }
-        args.update(kwargs)
-        return self.func(x, args)
+    def calculate_derived_params(
+        self,
+        x: TX,
+        y: TY,
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        raise NotImplementedError
 
     def func(self, x: TX2D, param_values: Dict[str, float]) -> TY2D:
-        """Evaluates the model at a given set of x-axis points and with a given set of
-        parameter values and returns the result.
-
-        To use the model as a function outside of a fit, :meth __call__: generally
-        provides a more convenient interface.
-
-        :param x: tuple of `(x_axis_0, x_axis_1)`
-        :param param_values: dictionary of parameter values
-        :returns: array of model values
-        """
         x_ax_0, x_ax_1 = [np.array(x_ax) for x_ax in x]
         x_shape = [len(x_ax) for x_ax in x]
 
@@ -250,10 +191,6 @@ class Model2D(Model):
             y[:, :, x_idx] = y_idx
 
         return y
-
-    def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model."""
-        return self.models[0].get_num_y_channels()
 
 
 class Fitter2D:
@@ -371,82 +308,56 @@ class Fitter2D:
         )
 
         # aggregate results
+        self.fits = (fit_0, fit_1)
         self.values: Dict[str, float] = {}
         self.uncertainties: Dict[str, float] = {}
         self.derived_values: Dict[str, float] = {}
         self.derived_uncertainties: Dict[str, float] = {}
         self.initial_values: Dict[str, float] = {}
+        self.free_parameters: List[str] = []
 
-        renames = self.model.param_renames
-        for result_dict_name in [
-            "values",
-            "uncertainties",
-            "derived_values",
-            "derived_uncertainties",
-            "initial_values",
-        ]:
+        for result_dict_name in ["values", "uncertainties", "initial_values"]:
             result_dict = getattr(self, result_dict_name)
-            model_0_results = getattr(fit_0, result_dict_name)
-            model_1_results = getattr(fit_1, result_dict_name)
+            for model_idx, model in enumerate(self.model.models):
+                fit_results = getattr(self.fits[model_idx], result_dict_name)
+                param_map = self.model.model_param_maps[model_idx]
+                result_dict.update(
+                    {
+                        new_param_name: fit_results[model_param_name]
+                        for model_param_name, new_param_name in param_map.items()
+                    }
+                )
 
-            if result_dict_name in ["values", "uncertainties", "initial_values"]:
-                model_0_keys = self.model.models[0].parameters.keys()
-                model_0_keys = [
-                    key for key in model_0_keys if key not in self.model.result_params
-                ]
-                model_1_keys = self.model.models[1].parameters.keys()
-            else:
-                model_0_keys = model_0_results.keys()
-                model_1_keys = model_1_results.keys()
+        for model_idx, model in enumerate(self.model.models):
+            param_map = self.model.model_param_maps[model_idx]
+            model_name = self.model.model_names[model_idx]
+            suffix = f"_{model_name}" if model_name else ""
+            fit = self.fits[model_idx]
 
-            fit_0_values = {
-                f"{param_name}_{self.model.model_names[0]}": model_0_results[param_name]
-                for param_name in model_0_keys
-            }
-            fit_1_values = {
-                f"{param_name}_{self.model.model_names[1]}": model_1_results[param_name]
-                for param_name in model_1_keys
-            }
+            self.derived_values.update(
+                {
+                    f"{model_param_name}{suffix}": value
+                    for model_param_name, value in fit.derived_values.items()
+                }
+            )
+            self.derived_uncertainties.update(
+                {
+                    f"{model_param_name}{suffix}": value
+                    for model_param_name, value in fit.derived_uncertainties.items()
+                }
+            )
 
-            result_dict.update(fit_0_values)
-            result_dict.update(fit_1_values)
-
-            for old_name in self.model.dropped_params:
-                if old_name in result_dict.keys():
-                    del result_dict[old_name]
-
-            for old_name, new_name in renames.items():
-                if old_name not in result_dict.keys():
-                    continue
-                result_dict[new_name] = result_dict.pop(old_name)
-
-        free_parameters = [
-            f"{param_name}_{self.model.model_names[0]}"
-            for param_name in fit_0.free_parameters
-            if param_name in self.model.models[0].parameters.keys()
-        ]
-        free_parameters += [
-            f"{param_name}_{self.model.model_names[1]}"
-            for param_name in fit_1.free_parameters
-        ]
-
-        free_parameters = [
-            param_name
-            for param_name in free_parameters
-            if param_name not in self.model.dropped_params
-        ]
-        free_parameters = [
-            renames.get(param_name, param_name) for param_name in free_parameters
-        ]
-        self.free_parameters = free_parameters
+            self.free_parameters += [
+                param_map[model_param_name]
+                for model_param_name, new_param_name in param_map.items()
+                if model_param_name in fit.free_parameters
+            ]
 
         self.sigma = fit_0.calc_sigma()
         if self.sigma is not None:
             y_shape = self.y.shape
             self.sigma = np.reshape(self.sigma, (y_shape[2], y_shape[0], y_shape[1]))
             self.sigma = np.moveaxis(self.sigma, 0, -1)
-
-        self.fits = (fit_0, fit_1)  # TODO: annotate and check against fit!
 
     def evaluate(
         self,
