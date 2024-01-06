@@ -89,7 +89,7 @@ class Sinusoid(Model):
         spectrum = np.abs(spectrum)
         peak = np.argmax(spectrum)
 
-        self.parameters["a"].heuristic = spectrum[peak] * 2
+        self.parameters["a"].heuristic = spectrum[peak]
         self.parameters["omega"].heuristic = omega[peak]
 
         phi, _ = heuristics.param_min_sqrs(
