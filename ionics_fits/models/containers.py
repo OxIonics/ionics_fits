@@ -586,6 +586,7 @@ class MappedModel(Model):
         wrapped_model: Model,
         param_mapping: Dict[str, str],
         fixed_params: Optional[Dict[str, float]] = None,
+        derived_result_mapping: Optional[Dict[str, Optional[str]]] = None,
     ):
         """Init
 
@@ -596,8 +597,11 @@ class MappedModel(Model):
         :param fixed_params: dictionary mapping names of parameters used in the
             wrapped model to values they are fixed to in the new model. These
             will not be parameters of the new model.
+        :param derived_result_mapping: optional dictionary mapping names of derived
+            result in the new model to names of derived results in the wrapped model.
         """
         self.wrapped_model = wrapped_model
+        self.derived_result_mapping = derived_result_mapping or {}
         wrapped_params = self.wrapped_model.parameters
 
         fixed_params = fixed_params or {}
@@ -682,3 +686,51 @@ class MappedModel(Model):
             old_name = self.param_mapping[param_name]
             old_param = self.wrapped_model.parameters[old_name]
             param_data.heuristic = old_param.heuristic
+
+    def calculate_derived_params(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        new_fitted_params = {
+            old_name: fitted_params[new_name]
+            for new_name, old_name in self.param_mapping.items()
+        }
+        new_fitted_params.update(
+            {
+                param_name: param_data.fixed_to
+                for param_name, param_data in self.fixed_params.items()
+            }
+        )
+
+        new_fit_uncertainties = {
+            old_name: fit_uncertainties[new_name]
+            for new_name, old_name in self.param_mapping.items()
+        }
+        new_fit_uncertainties.update(
+            {param_name: 0.0 for param_name, param_data in self.fixed_params.items()}
+        )
+        derived = self.wrapped_model.calculate_derived_params(
+            x=y,
+            y=y,
+            fitted_params=new_fitted_params,
+            fit_uncertainties=new_fit_uncertainties,
+        )
+        mapping = self.derived_result_mapping
+        for derived_dict in derived:
+            for new_result_name, model_result_name in mapping.items():
+                if model_result_name not in derived_dict:
+                    raise ValueError(
+                        f"Mapped derived result '{model_result_name}' not found."
+                    )
+                value = derived_dict.pop(model_result_name)
+                if new_result_name in derived_dict:
+                    raise ValueError(
+                        f"Mapped derived result '{new_result_name}' duplicates "
+                        "existing derived resut name."
+                    )
+                derived_dict[new_result_name] = value
+
+        return derived
