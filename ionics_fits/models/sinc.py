@@ -142,11 +142,11 @@ class Sinc2(Model):
 
         fit = NormalFitter(omega, abs_spectrum, model=tri)
 
-        intercept = fit.values["y0"] / -fit.values["k"]
+        intercept = fit.values["y0"] / - fit.values["k"]
         sgn = 1 if y[np.argmax(np.abs(y - y0))] > y0 else -1
 
-        self.parameters["w"].heuristic = 0.5 * intercept
-        self.parameters["a"].heuristic = fit.values["y0"] * sgn * intercept
+        self.parameters["w"].heuristic = w = intercept / 2
+        self.parameters["a"].heuristic = fit.values["y0"] * w * sgn
 
         x0 = heuristics.find_x_offset_sym_peak(
             model=self,
