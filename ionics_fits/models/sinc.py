@@ -56,7 +56,7 @@ class Sinc(Model):
         self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
         y0 = self.parameters["y0"].get_initial_value()
 
-        omega, spectrum = heuristics.get_spectrum(x, y, trim_dc=True)
+        omega, spectrum = heuristics.get_spectrum(x, y, trim_dc=True, density_units=False)
         abs_spectrum = np.abs(spectrum)
 
         # Fourier transform of a sinc is a rectangle
@@ -68,10 +68,10 @@ class Sinc(Model):
         fit = NormalFitter(omega, abs_spectrum, model=rect)
 
         self.parameters["w"].heuristic = fit.values["x_r"]
-        w = self.parameters["w"].get_initial_value()
+        w = self.parameters["w"].get_initial_value() + abs_spectrum[1]
 
         sgn = 1 if y[np.argmax(np.abs(y - y0))] > y0 else -1
-        self.parameters["a"].heuristic = 2 * w * fit.values["a"] * sgn
+        self.parameters["a"].heuristic = (w / np.pi) * fit.values["a"] * sgn
 
         x0 = heuristics.find_x_offset_sym_peak(
             model=self,

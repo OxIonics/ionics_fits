@@ -8,7 +8,7 @@ from . import common
 
 def test_sinc(plot_failures: bool):
     """Test for sinc.Sinc"""
-    x = np.linspace(-20, 10, 200)
+    x = np.linspace(-20, 20, 200)
     params = {
         "x0": [-13, -1, 0, 1, 5],
         "y0": [-1, 0, 10],
@@ -20,9 +20,25 @@ def test_sinc(plot_failures: bool):
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures),
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.25),
     )
 
+def test_sinc_heuristic(plot_failures: bool):
+    """Test sinc.Sinc heuristic gives an accurate estimate in an easy case"""
+    x = np.linspace(-20, 20, 200)
+    params = {
+        "x0": 5,
+        "y0": 2,
+        "a": -4,
+        "w": 3,
+    }
+    model = fits.models.Sinc()
+    common.check_multiple_param_sets(
+        x,
+        model,
+        params,
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.05),
+    )
 
 def test_sinc2(plot_failures: bool):
     """Test for sinc.Sinc2"""
