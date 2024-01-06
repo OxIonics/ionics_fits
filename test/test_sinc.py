@@ -23,6 +23,7 @@ def test_sinc(plot_failures: bool):
         common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.25),
     )
 
+
 def test_sinc_heuristic(plot_failures: bool):
     """Test sinc.Sinc heuristic gives an accurate estimate in an easy case"""
     x = np.linspace(-20, 20, 200)
@@ -39,6 +40,7 @@ def test_sinc_heuristic(plot_failures: bool):
         params,
         common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.05),
     )
+
 
 def test_sinc2(plot_failures: bool):
     """Test for sinc.Sinc2"""
@@ -57,6 +59,7 @@ def test_sinc2(plot_failures: bool):
         common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.25),
     )
 
+
 def test_sinc2_heuristic(plot_failures: bool):
     """Test sinc.Sinc2 heuristic gives an accurate estimate in an easy case"""
     x = np.linspace(-20, 20, 200)
@@ -73,6 +76,7 @@ def test_sinc2_heuristic(plot_failures: bool):
         params,
         common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.02),
     )
+
 
 def sinc_param_generator(
     fuzzed_params: Dict[str, Tuple[float, float]]
