@@ -149,15 +149,15 @@ class Model2D(Model):
 
     def estimate_parameters(
         self,
-        x: TX,
-        y: TY,
+        x: TX2D,
+        y: TY2D,
     ):
         raise NotImplementedError
 
     def calculate_derived_params(
         self,
-        x: TX,
-        y: TY,
+        x: TX2D,
+        y: TY2D,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
