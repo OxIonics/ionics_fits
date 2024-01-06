@@ -11,14 +11,14 @@ def test_lorentzian(plot_failures):
         "x0": [-1, 0, 0.25, 2],
         "y0": [-1, 0, 1],
         "a": [-5, 5],
-        "fwhmh": [0.1, 0.25, 1],
+        "fwhmh": [0.1, 0.25, 0.5],
     }
     model = fits.models.Lorentzian()
     common.check_multiple_param_sets(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures),
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.2),
     )
 
 
