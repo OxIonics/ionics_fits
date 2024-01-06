@@ -42,7 +42,7 @@ class Gaussian2D(Model2D):
         inner_model = models.containers.MappedModel(
             model=models.Gaussian(),
             param_mapping={"a_x": "a", "x0_x": "x0", "sigma_x": "sigma", "z0": "y0"},
-            derived_result_mapping={"FWHMH_x": "FWHMH", "w0_x": "w0"},
+            derived_result_mapping={"FWHMH_x": "FWHMH", "w0_x": "w0", None: "peak"},
         )
         outer_model = models.containers.MappedModel(
             model=models.Gaussian(),
@@ -52,7 +52,7 @@ class Gaussian2D(Model2D):
                 "sigma_y": "sigma",
             },
             fixed_params={"y0": 0},
-            derived_result_mapping={"FWHMH_y": "FWHMH", "w0_y": "w0", "peak_y": "peak"},
+            derived_result_mapping={"FWHMH_y": "FWHMH", "w0_y": "w0"},
         )
 
         super().__init__(
