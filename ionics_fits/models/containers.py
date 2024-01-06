@@ -248,7 +248,6 @@ class AggregateModel(Model):
                 fit_uncertainties=model_fit_uncertainties,
             )
             model_derived_params, model_derived_uncertainties = derived
-
             derived_params.update(
                 {
                     f"{param_name}_{model_name}": value
@@ -599,6 +598,8 @@ class MappedModel(Model):
             will not be parameters of the new model.
         :param derived_result_mapping: optional dictionary mapping names of derived
             result in the new model to names of derived results in the wrapped model.
+            Derived results may be renamed to `None` to exclude them from the model's
+            outputs.
         """
         self.model = model
         self.derived_result_mapping = derived_result_mapping or {}
@@ -721,6 +722,10 @@ class MappedModel(Model):
         mapping = self.derived_result_mapping
         for derived_dict in derived:
             for new_result_name, model_result_name in mapping.items():
+                if new_result_name is None:
+                    del derived_dict[model_result_name]
+                    continue
+
                 if model_result_name not in derived_dict:
                     raise ValueError(
                         f"Mapped derived result '{model_result_name}' not found."
