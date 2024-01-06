@@ -53,7 +53,9 @@ class TestConfig:
     """Configuration settings for a model test.
 
     Attributes (test are only performed if values are not `None`):
+        :param_tol: tolerance to check fitted parameter values against
         :param residual_tol: tolerance to check fit residuals against
+        :param heuristic_tol: tolerance to check heuristic values against
         :param plot_failures: if `True` we plot the dataset/fit results for failed tests
         :param plot_all: if `True` we plot every run, not just failures (used in
             debugging)
@@ -61,6 +63,7 @@ class TestConfig:
 
     param_tol: Optional[float] = 1e-3
     residual_tol: Optional[float] = None
+    heuristic_tol: Optional[float] = None
     plot_failures: bool = True
     plot_all: bool = False
 
@@ -139,6 +142,22 @@ def check_single_param_set(
             "Error in parameter values is too large:\n"
             f"test parameter set was: {params_str}\n"
             f"fitted parameters were: {fitted_params_str}\n"
+            f"estimated parameters were: {initial_params_str}\n"
+            f"free parameters were: {fit.free_parameters}"
+        )
+
+    if config.heuristic_tol is not None and not params_close(
+        test_params, fit.initial_values, config.heuristic_tol
+    ):
+        if config.plot_failures:
+            _plot(
+                fit,
+                y,
+            )
+
+        raise ValueError(
+            "Error in heuristics is too large:\n"
+            f"test parameter set was: {params_str}\n"
             f"estimated parameters were: {initial_params_str}\n"
             f"free parameters were: {fit.free_parameters}"
         )
