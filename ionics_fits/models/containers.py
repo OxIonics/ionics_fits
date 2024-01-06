@@ -385,7 +385,7 @@ class RepeatedModel(Model):
         dim = self.model.get_num_y_channels()
 
         common_heuristics = {
-            param: [0.0] * self.num_repetitions for param in self.common_params
+            param: np.zeros(self.num_repetitions + 1) for param in self.common_params
         }
 
         for idx in range(self.num_repetitions):
@@ -411,7 +411,7 @@ class RepeatedModel(Model):
         # Combine the heuristics for the repetitions to find the best set of common
         # parameter values
         for param in self.common_params:
-            common_heuristics[param].append(np.mean(common_heuristics[param]))
+            common_heuristics[param][-1] = np.mean(common_heuristics[param][:-1])
 
         param_estimates = {
             param_name: self.parameters[param_name].get_initial_value()
