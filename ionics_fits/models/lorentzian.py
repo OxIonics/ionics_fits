@@ -63,8 +63,7 @@ class Lorentzian(Model):
         peak = abs_spectrum[0]
         W = peak * np.exp(-1)
 
-        # We loose a sample to trim_dc
-        idx_1_e = np.argmin(np.abs(abs_spectrum - W)) + 1
+        idx_1_e = np.argmin(np.abs(abs_spectrum - W))
 
         # We usually don't have great spectral resolution around the peak so interpolate
         if k[idx_1_e] > W:
