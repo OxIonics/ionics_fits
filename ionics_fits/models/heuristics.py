@@ -239,7 +239,7 @@ def get_spectrum(
     dx = x.ptp() / x.size
     n = x.size
     omega = np.fft.fftfreq(n, dx) * (2 * np.pi)
-    y_f = np.fft.fft(y, norm="ortho") / np.sqrt(n)
+    y_f = np.fft.fft(y) * (x.ptp() / n)
 
     y_f = y_f[: int(n / 2)]
     omega = omega[: int(n / 2)]

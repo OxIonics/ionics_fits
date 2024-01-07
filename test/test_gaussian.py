@@ -18,7 +18,7 @@ def test_gaussian(plot_failures):
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures),
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.2),
     )
 
 

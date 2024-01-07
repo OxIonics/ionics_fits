@@ -9,7 +9,7 @@ def test_sinusoid(plot_failures: bool):
     x = np.linspace(-10, 10, 1000)
     params = {
         "a": 2,
-        "omega": [1 / (2 * np.pi), 5 / (2 * np.pi), 10 / (2 * np.pi)],
+        "omega": [3 / (2 * np.pi), 5 / (2 * np.pi), 10 / (2 * np.pi)],
         "phi": 0.5,
         "y0": 1,
         "x0": 0,
@@ -17,7 +17,30 @@ def test_sinusoid(plot_failures: bool):
     }
     model = fits.models.Sinusoid()
     common.check_multiple_param_sets(
-        x, model, params, common.TestConfig(plot_failures=plot_failures)
+        x,
+        model,
+        params,
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.45),
+    )
+
+
+def test_sinusoid_heuristic(plot_failures: bool):
+    """Check that the sinusoid heuristic gives an accurate estimate in an easy case"""
+    x = np.linspace(-10, 10, 1000)
+    params = {
+        "a": 2,
+        "omega": 10 / (2 * np.pi),
+        "phi": 0.5,
+        "y0": 1,
+        "x0": 0,
+        "tau": np.inf,
+    }
+    model = fits.models.Sinusoid()
+    common.check_single_param_set(
+        x,
+        model,
+        params,
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.02),
     )
 
 

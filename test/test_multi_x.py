@@ -87,6 +87,50 @@ def test_call_2d(plot_failures):
     assert common.is_close(y_model.squeeze(), y.T, tol=1e-3)
 
 
+def test_estimate_params_2d(plot_failures):
+    """Check that the 2D model parameter estimator produces the correct output"""
+    params = {
+        "a": 5,
+        "x0_x": -2,
+        "x0_y": +0.5,
+        "sigma_x": 2,
+        "sigma_y": 0.5,
+        "z0": 1.5,
+    }
+
+    x_ax_0 = np.linspace(-20, 20, 50)
+    x_ax_1 = np.linspace(-4, 4, 50)
+    x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+
+    y = np.array(gaussian(x_mesh_0, x_mesh_1, **params), ndmin=3)
+    model = fits.multi_x.Gaussian2D()
+
+    model.estimate_parameters((x_ax_0, x_ax_1), y)
+    estimates = {
+        param_name: param_data.get_initial_value()
+        for param_name, param_data in model.parameters.items()
+    }
+
+    assert common.params_close(params, estimates, 0.2)
+
+    derived_values, derived_uncertainties = model.calculate_derived_params(
+        x=(x_ax_0, x_ax_1),
+        y=y,
+        fitted_params=params,
+        fit_uncertainties={param_name: 0 for param_name in params.keys()},
+    )
+
+    assert set(derived_values.keys()) == set(derived_uncertainties.keys())
+    assert set(derived_values.keys()) == {"FWHMH_x", "FWHMH_y", "w0_x", "w0_y", "peak"}
+    assert derived_values["FWHMH_x"] == 2.35482 * params["sigma_x"]
+    assert derived_values["w0_x"] == 4 * params["sigma_x"]
+    assert derived_values["FWHMH_y"] == 2.35482 * params["sigma_y"]
+    assert derived_values["w0_y"] == 4 * params["sigma_y"]
+    assert derived_values["peak"] == params["a"] / (
+        params["sigma_y"] * np.sqrt(2 * np.pi)
+    )
+
+
 def test_gaussian_2d(plot_failures):
     """Test 2D Gaussian fitting"""
     params = {
@@ -113,10 +157,10 @@ def test_gaussian_2d(plot_failures):
     assert set(fit.initial_values.keys()) == set(params.keys())
     assert set(fit.free_parameters) == set(params.keys())
     assert set(fit.derived_values.keys()) == set(
-        ["FWHMH_x", "w0_x", "FWHMH_y", "peak_y", "w0_y"]
+        ["FWHMH_x", "w0_x", "FWHMH_y", "peak", "w0_y"]
     )
     assert set(fit.derived_uncertainties.keys()) == set(
-        ["FWHMH_x", "w0_x", "FWHMH_y", "peak_y", "w0_y"]
+        ["FWHMH_x", "w0_x", "FWHMH_y", "peak", "w0_y"]
     )
 
     _, y_fit = fit.evaluate()
@@ -182,7 +226,7 @@ def test_cone_2d(plot_failures):
     fit = fits.multi_x.common.Fitter2D(
         x=(x_ax_0, x_ax_1),
         y=y.T,
-        model=fits.multi_x.models.Cone(),
+        model=fits.multi_x.models.Cone2D(),
     )
 
     check_param_values(x_mesh_0, x_mesh_1, params, fit, cone, plot_failures)

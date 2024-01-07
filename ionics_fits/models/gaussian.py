@@ -64,17 +64,34 @@ class Gaussian(Model):
         #   F[A * exp(-(x/w)^2)](k) = A * sqrt(pi) * w * exp(-(pi*k*w)^2)
         #
         # Half-width at 1/e when k = 1/(pi*w)
-        omega, spectrum = get_spectrum(x, y, trim_dc=True)
+        omega, spectrum = get_spectrum(x, y, trim_dc=True, density_units=False)
         abs_spectrum = np.abs(spectrum)
-
         k = omega / (2 * np.pi)
 
-        peak = np.max(abs_spectrum)
-        W = peak / np.exp(1)
-        width = 1 / (np.pi * k[np.argmin(np.abs(abs_spectrum - W))])
+        peak = abs_spectrum[0]
+        W = peak * np.exp(-1)
+        idx_1_e = np.argmin(np.abs(abs_spectrum - W))
 
-        sigma = width / 2
-        a = peak * np.pi * np.sqrt(2)
+        # We usually don't have great spectral resolution around the peak so interpolate
+        if k[idx_1_e] > W:
+            upper_idx = idx_1_e
+            lower_idx = idx_1_e + 1
+        else:
+            upper_idx = idx_1_e - 1
+            lower_idx = idx_1_e
+
+        df_dk = (abs_spectrum[lower_idx] - abs_spectrum[upper_idx]) / (k[1] - k[0])
+
+        # if we don't have enough data to figure this out, set the half-width to one
+        # sample wide
+        if df_dk == 0:
+            half_width = k[1] - k[0]
+        else:
+            df = abs_spectrum[idx_1_e] - W
+            half_width = k[idx_1_e] - df / df_dk
+
+        sigma = 1 / (np.sqrt(2) * np.pi * half_width)
+        a = peak
 
         self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
         y0 = self.parameters["y0"].get_initial_value()

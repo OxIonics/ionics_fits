@@ -308,7 +308,22 @@ class Model:
             param_data.unscale()
 
     def get_num_y_channels(self) -> int:
-        """Returns the number of y channels supported by the model."""
+        """Returns the number of y-axis dimensions ("channels") the model has."""
+        raise NotImplementedError
+
+    def clear_heuristics(self):
+        """Clear the heuristics for all model parameters.
+
+        This is mainly used in container-type models, where the parameter estimator
+        my be run multiple times for the same model instance.
+        """
+        for param_data in self.parameters.values():
+            param_data.heuristic = None
+        for param_data in self.internal_parameters:
+            param_data = None
+
+    def get_num_x_axes(self) -> int:
+        """Returns the number of x-axis dimensions the model has."""
         raise NotImplementedError
 
     def func(self, x: TX, param_values: Dict[str, float]) -> TY:
