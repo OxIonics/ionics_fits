@@ -70,7 +70,7 @@ def test_sinc2_heuristic(plot_failures: bool):
         "w": 3,
     }
     model = fits.models.Sinc2()
-    common.check_multiple_param_sets(
+    common.check_single_param_set(
         x,
         model,
         params,
