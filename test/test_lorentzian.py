@@ -32,7 +32,7 @@ def test_lorentzian_heuristic(plot_failures):
         "fwhmh": 0.25,
     }
     model = fits.models.Lorentzian()
-    common.check_multiple_param_sets(
+    common.check_single_param_set(
         x,
         model,
         params,
