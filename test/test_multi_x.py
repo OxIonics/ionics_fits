@@ -157,10 +157,10 @@ def test_gaussian_2d(plot_failures):
     assert set(fit.initial_values.keys()) == set(params.keys())
     assert set(fit.free_parameters) == set(params.keys())
     assert set(fit.derived_values.keys()) == set(
-        ["FWHMH_x", "w0_x", "FWHMH_y", "peak_y", "w0_y"]
+        ["FWHMH_x", "w0_x", "FWHMH_y", "peak", "w0_y"]
     )
     assert set(fit.derived_uncertainties.keys()) == set(
-        ["FWHMH_x", "w0_x", "FWHMH_y", "peak_y", "w0_y"]
+        ["FWHMH_x", "w0_x", "FWHMH_y", "peak", "w0_y"]
     )
 
     _, y_fit = fit.evaluate()
