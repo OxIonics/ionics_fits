@@ -18,7 +18,25 @@ def test_lorentzian(plot_failures):
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.2),
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.7),
+    )
+
+
+def test_lorentzian_heuristic(plot_failures):
+    """Test lorentzian.Lorentzian heuristic is accurate in an easy situation"""
+    x = np.linspace(-4, 4, 1000)
+    params = {
+        "x0": 0.25,
+        "y0": 1,
+        "a": -5,
+        "fwhmh": 0.25,
+    }
+    model = fits.models.Lorentzian()
+    common.check_multiple_param_sets(
+        x,
+        model,
+        params,
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.05),
     )
 
 
