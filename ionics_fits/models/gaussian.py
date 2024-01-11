@@ -70,8 +70,8 @@ class Gaussian(Model):
         except Exception:
             peak_heuristics = basic_heuristics
 
-        cost_fft = np.sum((y - self.func(x, fft_heuristics))**2)
-        cost_peak_heuristcs = np.sum((y - self.func(x, peak_heuristics))**2)
+        cost_fft = np.sum((y - self.func(x, fft_heuristics)) ** 2)
+        cost_peak_heuristcs = np.sum((y - self.func(x, peak_heuristics)) ** 2)
 
         best = fft_heuristics if cost_fft < cost_peak_heuristcs else peak_heuristics
 
@@ -110,9 +110,8 @@ class Gaussian(Model):
 
         peak = y[x0_ind] - y0
         inside = np.abs(y - y[x0_ind]) <= np.abs(peak * (1 - np.exp(-1)))
-        inside_shift = np.full_like(inside, True)
         full_width_1_e = x[inside].ptp()
-        
+
         sigma = full_width_1_e / (2 * np.sqrt(2))
         sigma = self.parameters["sigma"].get_initial_value(sigma)
 

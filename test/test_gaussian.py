@@ -71,9 +71,9 @@ def test_152(plot_failures):
     model = fits.models.Gaussian()
     model.parameters["sigma"].lower_bound = 1e-9
     fit = fits.NormalFitter(x=x, y=y, sigma=sigma, model=model)
-    
+
     assert np.abs(fit.initial_values["x0"] - 1800) < 10
-    assert np.abs(1 - fit.initial_values["sigma"] / 43.5) < .25
+    assert np.abs(1 - fit.initial_values["sigma"] / 43.5) < 0.25
     assert np.abs(1 - fit.initial_values["y0"]) < 0.1
     assert np.abs(1 - -fit.initial_values["a"] / 120) < 0.35
 
