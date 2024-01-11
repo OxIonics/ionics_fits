@@ -60,8 +60,15 @@ class Gaussian(Model):
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
-        fft_heuristics = self._estimate_params_fft(x=x, y=y)
-        peak_heuristics = self._estimate_params_peak(x=x, y=y)
+        basic_heuristics = self._estimate_parameters_basic(x=x, y=y)
+        try:
+            fft_heuristics = self._estimate_params_fft(x=x, y=y)
+        except Exception:
+            fft_heuristics = basic_heuristics
+        try:
+            peak_heuristics = self._estimate_params_peak(x=x, y=y)
+        except Exception:
+            peak_heuristics = basic_heuristics
 
         cost_fft = np.sum((y - self.func(x, fft_heuristics))**2)
         cost_peak_heuristcs = np.sum((y - self.func(x, peak_heuristics))**2)
@@ -70,6 +77,24 @@ class Gaussian(Model):
 
         for param_name, heuristic in best.items():
             self.parameters[param_name].heuristic = heuristic
+
+    def _estimate_parameters_basic(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+    ):
+        # fallback heuristics (e.g. don't fail even if we have a dataset that's too
+        # small for the better heuristics)
+        x0 = self.parameters["x0"].get_initial_value(np.mean(x))
+        y0 = self.parameters["y0"].get_initial_value(0.5 * (y[0] + y[-1]))
+        sigma = self.parameters["sigma"].get_initial_value(x.ptp() / 2)
+
+        x0_ind = np.argmin(np.abs(x - x0))
+        peak = y[x0_ind] - y0
+        a = peak * sigma * np.sqrt(2 * np.pi)
+        a = self.parameters["a"].get_initial_value(a)
+
+        return {"a": a, "sigma": sigma, "y0": y0, "x0": x0}
 
     def _estimate_params_peak(
         self,
@@ -83,13 +108,17 @@ class Gaussian(Model):
         y0 = y[np.argmax(np.abs(x - x0))]
         y0 = self.parameters["y0"].get_initial_value(y0)
 
-        # peak = a / (sigma * sqrt(2*pi))
         peak = y[x0_ind] - y0
         inside = np.abs(y - y[x0_ind]) <= np.abs(peak * (1 - np.exp(-1)))
         inside_shift = np.full_like(inside, True)
         full_width_1_e = x[inside].ptp()
+        
         sigma = full_width_1_e / (2 * np.sqrt(2))
+        sigma = self.parameters["sigma"].get_initial_value(sigma)
+
         a = peak * sigma * np.sqrt(2 * np.pi)
+        a = self.parameters["a"].get_initial_value(a)
+
         return {"a": a, "sigma": sigma, "y0": y0, "x0": x0}
 
     def _estimate_params_fft(
