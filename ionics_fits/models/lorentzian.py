@@ -96,7 +96,7 @@ class Lorentzian(Model):
 
         cut_off = 2 * tau
 
-        x0 = heuristics.find_x_offset_sym_peak(
+        x0 = heuristics.find_x_offset_sym_peak_fft(
             model=self,
             x=x,
             y=y,
