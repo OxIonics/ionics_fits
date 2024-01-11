@@ -60,10 +60,55 @@ class Gaussian(Model):
         # Ensure that y is a 1D array
         y = np.squeeze(y)
 
+        fft_heuristics = self._estimate_params_fft(x=x, y=y)
+        peak_heuristics = self._estimate_params_peak(x=x, y=y)
+
+        cost_fft = np.sum((y - self.func(x, fft_heuristics))**2)
+        cost_peak_heuristcs = np.sum((y - self.func(x, peak_heuristics))**2)
+
+        best = fft_heuristics if cost_fft < cost_peak_heuristcs else peak_heuristics
+
+        for param_name, heuristic in best.items():
+            self.parameters[param_name].heuristic = heuristic
+
+    def _estimate_params_peak(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+    ) -> Dict[str, float]:
+        x0 = heuristics.get_sym_x(x=x, y=y)
+        x0_ind = np.argmin(np.abs(x - x0))
+        x0 = self.parameters["x0"].get_initial_value(x0)
+
+        y0 = y[np.argmax(np.abs(x - x0))]
+        y0 = self.parameters["y0"].get_initial_value(y0)
+
+        # peak = a / (sigma * sqrt(2*pi))
+        peak = y[x0_ind] - y0
+        inside = np.abs(y - y[x0_ind]) <= np.abs(peak * (1 - np.exp(-1)))
+        inside_shift = np.full_like(inside, True)
+        full_width_1_e = x[inside].ptp()
+        sigma = full_width_1_e / (2 * np.sqrt(2))
+        a = peak * sigma * np.sqrt(2 * np.pi)
+        return {"a": a, "sigma": sigma, "y0": y0, "x0": x0}
+
+    def _estimate_params_fft(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_samples",), np.float64],
+    ) -> Dict[str, float]:
         # Gaussian Fourier Transform:
         #   F[A * exp(-(x/w)^2)](k) = A * sqrt(pi) * w * exp(-(pi*k*w)^2)
         #
         # Half-width at 1/e when k = 1/(pi*w)
+        #
+        # This heuristic generally works extremely well when we have enough data but
+        # struggles for smaller datasets
+
+        fft_heuristics = {}
+        y0 = self.parameters["y0"].get_initial_value(np.mean([y[0], y[-1]]))
+        fft_heuristics["y0"] = y0
+
         omega, spectrum = get_spectrum(x, y, trim_dc=True, density_units=False)
         abs_spectrum = np.abs(spectrum)
         k = omega / (2 * np.pi)
@@ -93,18 +138,16 @@ class Gaussian(Model):
         sigma = 1 / (np.sqrt(2) * np.pi * half_width)
         a = peak
 
-        self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
-        y0 = self.parameters["y0"].get_initial_value()
         peak_idx = np.argmax(np.abs(y - y0))
         y_peak = y[peak_idx]
         sgn = 1 if y_peak > y0 else -1
 
-        self.parameters["a"].heuristic = a * sgn
-        self.parameters["sigma"].heuristic = sigma
+        fft_heuristics["a"] = a * sgn
+        fft_heuristics["sigma"] = sigma
 
         cut_off = 2 * omega[np.argmin(np.abs(abs_spectrum - W))]
 
-        x0 = heuristics.find_x_offset_sym_peak(
+        x0 = heuristics.find_x_offset_sym_peak_fft(
             model=self,
             x=x,
             y=y,
@@ -112,9 +155,12 @@ class Gaussian(Model):
             spectrum=spectrum,
             omega_cut_off=cut_off,
             test_pts=x[peak_idx],
+            defaults=fft_heuristics,
         )
 
-        self.parameters["x0"].heuristic = x0
+        fft_heuristics["x0"] = x0
+
+        return fft_heuristics
 
     def calculate_derived_params(
         self,
