@@ -172,7 +172,7 @@ def check_single_param_set(
             )
 
         raise ValueError(
-            "Error in parameter values is too large:\n"
+            "Error in residuals is too large:\n"
             f"test parameter set was: {params_str}\n"
             f"fitted parameters were: {fitted_params_str}\n"
             f"estimated parameters were: {initial_params_str}\n"

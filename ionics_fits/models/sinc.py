@@ -75,7 +75,7 @@ class Sinc(Model):
         sgn = 1 if y[np.argmax(np.abs(y - y0))] > y0 else -1
         self.parameters["a"].heuristic = (w / np.pi) * fit.values["a"] * sgn
 
-        x0 = heuristics.find_x_offset_sym_peak(
+        x0 = heuristics.find_x_offset_sym_peak_fft(
             model=self,
             x=x,
             y=y,
@@ -150,7 +150,7 @@ class Sinc2(Model):
         self.parameters["w"].heuristic = w = intercept / 2
         self.parameters["a"].heuristic = fit.values["y0"] * w * sgn
 
-        x0 = heuristics.find_x_offset_sym_peak(
+        x0 = heuristics.find_x_offset_sym_peak_fft(
             model=self,
             x=x,
             y=y,
