@@ -77,10 +77,16 @@ def get_sym_x(
     y: Array[("num_y_channels", "num_samples"), np.float64],
 ) -> float:
     """Returns `x_0` such that y(x-x_0) is maximally symmetric."""
+    y = np.atleast_2d(y)
     x_span = x.ptp()
     num_samples = x.size
     window_min = min(x) + 0.125 * x_span
     window_max = max(x) - 0.125 * x_span
+
+    # min of three points per window
+    window_min = max(window_min, x[2])
+    window_max = min(window_max, x[-3])
+
     window = np.argwhere(np.logical_and(x >= window_min, x <= window_max)).squeeze()
     costs = np.zeros_like(window, dtype=float)
 
@@ -144,7 +150,7 @@ def find_x_offset_fft(
     return x0
 
 
-def find_x_offset_sym_peak(
+def find_x_offset_sym_peak_fft(
     model: Model,
     x: Array[("num_samples",), np.float64],
     y: Array[("num_samples",), np.float64],
@@ -154,6 +160,7 @@ def find_x_offset_sym_peak(
     test_pts: Optional[Array[("num_values",), np.float64]] = None,
     x_offset_param_name: str = "x0",
     y_offset_param_name: str = "y0",
+    defaults: Optional[Dict[str, float]] = None,
 ):
     """Finds the x-axis offset for symmetric, peaked (maximum deviation from the
     baseline occurs at the origin) functions.
@@ -177,9 +184,13 @@ def find_x_offset_sym_peak(
     :param test_pts: optional array of x-axis points to test
     :param x_offset_param_name: name of the x-axis offset model parameter
     :param y_offset_param_name: name of the y-axis offset model parameter
+    :param defaults: optional dictionary of fallback values to use for parameters with
+        no initial value specified.
 
     :returns: an estimate of the x-axis offset
     """
+    defaults = defaults or {}
+
     if y.ndim != 1:
         raise ValueError(
             f"{y.shape[0]} y-channels were provided to a method which takes 1."
@@ -198,7 +209,8 @@ def find_x_offset_sym_peak(
     except ValueError:
         pass
 
-    y0 = model.parameters[y_offset_param_name].get_initial_value()
+    y0_default = defaults.get(y_offset_param_name)
+    y0 = model.parameters[y_offset_param_name].get_initial_value(y0_default)
     deviations = np.argsort(np.abs(y - y0))
     top_quartile_deviations = deviations[int(len(deviations) * 3 / 4) :]
     deviations_candidates = x[top_quartile_deviations]
@@ -210,6 +222,7 @@ def find_x_offset_sym_peak(
         y=y,
         scanned_param=x_offset_param_name,
         scanned_param_values=x0_candidates,
+        defaults=defaults,
     )
     return best_x0
 
