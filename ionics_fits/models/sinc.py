@@ -132,7 +132,7 @@ class Sinc2(Model):
 
         y0 = self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
 
-        omega, spectrum = heuristics.get_spectrum(x, y, trim_dc=True)
+        omega, spectrum = heuristics.get_spectrum(x, y, trim_dc=True, density_units=False)
         abs_spectrum = np.abs(spectrum)
 
         # Fourier transform of a sinc^2 is a triangle function
@@ -147,8 +147,9 @@ class Sinc2(Model):
         intercept = fit.values["y0"] / -fit.values["k"]
         sgn = 1 if y[np.argmax(np.abs(y - y0))] > y0 else -1
 
-        self.parameters["w"].heuristic = w = intercept / 2
-        self.parameters["a"].heuristic = fit.values["y0"] * w * sgn
+        w = self.parameters["w"].get_initial_value(intercept / 2)
+        self.parameters["w"].heuristic = w
+        self.parameters["a"].heuristic = fit.values["y0"] * sgn * intercept / (2 * np.pi)
 
         x0 = heuristics.find_x_offset_sym_peak_fft(
             model=self,
