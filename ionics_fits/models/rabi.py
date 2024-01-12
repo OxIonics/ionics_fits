@@ -203,7 +203,7 @@ class RabiFlopFreq(RabiFlop):
                 unknowns.add(param)
 
         if unknowns == {"w_0"}:
-            omega, spectrum = get_spectrum(x, y, trim_dc=True)
+            omega, spectrum = get_spectrum(x, y, trim_dc=True, density_units=False)
             w_0 = heuristics.find_x_offset_sym_peak_fft(
                 model=self,
                 x=x,
