@@ -4,6 +4,78 @@ import ionics_fits as fits
 from . import common
 
 
+def test_155(plot_failures):
+    """Regression test for issue #155"""
+    x = np.array(
+        [
+            6.20335041,
+            6.20667686,
+            6.21000332,
+            6.21332977,
+            6.21665623,
+            6.21998268,
+            6.22330913,
+            6.22663559,
+            6.22996204,
+            6.2332885,
+            6.23661495,
+            6.2399414,
+            6.24326786,
+            6.24659431,
+            6.24992077,
+            6.25324722,
+            6.25657368,
+            6.25990013,
+            6.26322658,
+            6.26655304,
+            6.26987949,
+            6.27320595,
+            6.2765324,
+            6.27985885,
+            6.28318531,
+        ]
+    )
+    y = np.array(
+        [
+            [
+                0.14,
+                0.18,
+                0.1,
+                0.04,
+                0.04,
+                0.06,
+                0.08,
+                0.2,
+                0.18,
+                0.5,
+                0.64,
+                0.72,
+                0.9,
+                0.92,
+                1.0,
+                0.92,
+                0.88,
+                0.74,
+                0.58,
+                0.42,
+                0.22,
+                0.14,
+                0.1,
+                0.06,
+                0.1,
+            ]
+        ]
+    )
+
+    model = fits.models.Sinc2()
+    fit = fits.NormalFitter(x=x, y=y, model=model)
+
+    assert np.abs(1 - fit.initial_values["x0"] / 6.24) < 0.01
+    assert np.abs(fit.initial_values["y0"] - 0.06733490126289012) < 0.1
+    assert np.abs(1 - fit.initial_values["a"] / 0.927) < 0.05
+    assert np.abs(1 - fit.initial_values["w"] / 98.3) < 0.25
+
+
 def _test_rabi_freq(plot_failures: bool, P_readout_e: float):
     """Test for rabi.RabiFlopFreq"""
     w = np.linspace(-2e6, 2e6, 200) * 2 * np.pi
