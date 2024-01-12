@@ -8,6 +8,11 @@ Changes are divided into four categories:
 * Other - small changes, such as tweaks to internals, which most users will not need to be aware of
 * New models
 
+## 1.3.0.5
+
+### API changes
+* **New feature**: Added a sigmoid model
+
 ## 1.3.00
 
 This release includes some invasive refactoring of `ionics_fits` internals to simplify
