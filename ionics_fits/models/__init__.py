@@ -18,6 +18,7 @@ from . import quantum_phys
 from .rabi import RabiFlopFreq, RabiFlopTime
 from .ramsey import Ramsey
 from .rectangle import Rectangle
+from .sigmoid import LogisticFunction
 from .sinc import Sinc, Sinc2
 from .sinusoid import Sinusoid
 from .triangle import Triangle
