@@ -56,7 +56,7 @@ def test_sinc2(plot_failures: bool):
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.25),
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.1),
     )
 
 
