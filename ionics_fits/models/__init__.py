@@ -1,5 +1,12 @@
+from . import utils
 from . import containers
-from .containers import AggregateModel, MappedModel, ReparametrizedModel, RepeatedModel
+from .containers import (
+    AggregateModel,
+    MappedModel,
+    ReparametrizedModel,
+    RepeatedModel,
+    ScaledModel,
+)
 from .benchmarking import Benchmarking
 from .exponential import Exponential
 from .gaussian import Gaussian
@@ -21,8 +28,7 @@ from .ramsey import Ramsey
 from .rectangle import Rectangle
 from .sigmoid import LogisticFunction
 from .sinc import Sinc, Sinc2
-from .sinusoid import SineMinMax, Sinusoid, Sine2
+from .sinusoid import SineMinMax, Sinusoid
 from .triangle import Triangle
-from . import utils
 
 from .cone import ConeSlice  # Relies on the triangle fit for parameter estimation

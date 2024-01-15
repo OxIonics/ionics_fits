@@ -181,7 +181,7 @@ The library is designed to be extensible and ergonomic to user. For example do y
 * Want to tweak the parameter estimator for a model? Create a new model class that
 inherits from the original model and modify away.
 * Fit a dataset in Hertz, while the model uses radians / s? Use the
-:func:`ionics_fits.models.utils.rescale_model_x` helper.
+:class:`ionics_fits.models.containers.ScaledModel` helper.
 
 If you're struggling to do what you want, it's probably a bug in the library so please
 report it.
