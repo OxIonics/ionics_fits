@@ -1,0 +1,189 @@
+from typing import Dict, List, Tuple, TYPE_CHECKING
+
+import numpy as np
+
+from ... import Model, ModelParameter
+from ...utils import Array
+
+
+if TYPE_CHECKING:
+    num_samples = float
+    num_y_channels = float
+
+
+class ReparametrizedModel(Model):
+    """Model formed by reparametrizing an existing :class Model:.
+
+    Reparametrizing a model involves replacing "bound" parameters with "new" parameters,
+    whose values the bound parameter values are calculated from.
+
+    All non-bound parameters of the original model as well as all "new" parameters are
+    parameters of the :class ReparametrizedModel: (bound parameters are internal
+    parameters of the new model, but are not directly exposed to the user). All derived
+    results from the original model are derived results from the
+    :class ReparametrizedModel: (override :meth calculate_derived_params: to change this
+    behaviour).
+
+    Subclasses must override :meth bound_param_values:, :meth model_uncertainty_func:
+    and :meth reparametrized_value_func: to specify the mapping between "new" and
+    "bound" parameters.
+    """
+
+    def __init__(
+        self,
+        model: Model,
+        new_params: Dict[str, ModelParameter],
+        bound_params: List[str],
+    ):
+        """
+        :param model: The model to be reparametrized. This model is considered "owned"
+          by the :class ReparametrizedModel: and should not be used / modified
+          elsewhere.
+        :param new_params: dictionary of new parameters of the
+          :class ReparametrizedModel:
+        :param bound_params: list of parameters of the :class Model: to be
+          reparametrized. These parameters are not exposed as parameters of the
+          :class ReparametrizedModel:.
+        """
+        self.model = model
+        self.bound_params = bound_params
+        internal_parameters = self.model.internal_parameters
+        parameters = dict(self.model.parameters)
+
+        if not set(bound_params).issubset(set(parameters.keys())):
+            raise ValueError("Bound parameters must all be parameters of the model")
+
+        duplicates = set(new_params.keys()).intersection(parameters.keys())
+        if duplicates:
+            raise ValueError(
+                "New parameter names must not duplicate existing parameter names. "
+                f"Duplicates are {duplicates}."
+            )
+
+        for param_name in bound_params:
+            internal_parameters.append(parameters.pop(param_name))
+
+        super().__init__(parameters=parameters, internal_parameters=internal_parameters)
+
+    @staticmethod
+    def bound_param_values(param_values: dict[str, float]) -> dict[str, float]:
+        """Returns a dictionary of values of the model's bound parameters.
+
+        This method must be overridden to specify the mapping from parameters of the
+        :class ReparameterizedModel: to values of the bound parameters.
+
+        :param new_param_values: dictionary of parameter values for the
+          :class ReparameterizedModel:.
+        :returns: dictionary of values for the bound parameters of the original model.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def bound_param_uncertainties(
+        param_values: dict[str, float], param_uncertainties: dict[str, float]
+    ) -> dict[str, float]:
+        """Returns a dictionary of uncertainties for the model's bound parameters.
+
+        This method must be overridden to specify the mapping from parameter
+        uncertainties for the :class ReparameterizedModel: to bound parameter
+        uncertainties.
+
+        :param param_values: dictionary of values for parameters of the
+          :class ReparameterizedModel:.
+        :param param_uncertainties: dictionary of uncertainties for parameters of the
+          :class ReparameterizedModel:.
+        :returns: dictionary of values for the bound parameters of the original model.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def new_param_values(model_param_values: dict[str, float]) -> dict[str, float]:
+        """Returns a dictionary of values of the model's "new" parameters.
+
+        This method must be overridden to specify the mapping from values of the
+        original model to values of the :class ReparametrizedModel:'s "new" parameters.
+
+        This is used to find estimates for the new parameters from on the original
+        model's parameter estimates.
+
+        :param model_param_values: dictionary of parameter values for the original model
+        :returns: dictionary of values for the "new" parameters of the
+          :class ReparametrizedModel:
+        """
+        raise NotImplementedError
+
+    def get_num_y_channels(self) -> int:
+        return self.model.get_num_y_channels()
+
+    def can_rescale(self) -> Tuple[bool, bool]:
+        return self.model.can_rescale()
+
+    def func(
+        self,
+        x: Array[("num_samples",), np.float64],
+        param_values: Dict[str, float],
+    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+        model_values = self.bound_param_values(x, param_values)
+        model_values.update(
+            {
+                param_name: param_value
+                for param_name, param_value in param_values.items()
+                if param_name in self.model.parameters.keys()
+            }
+        )
+        return self.model.func(x, model_values)
+
+    def estimate_parameters(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
+    ):
+        self.model.estimate_parameters(x=x, y=y)
+        model_heuristics = {
+            param_name: param_data.get_initial_value()
+            for param_name, param_data in self.model.parameters.items()
+        }
+        new_heuristics = self.new_param_values(model_heuristics)
+
+        for param_name, heuristic in model_heuristics.items():
+            if param_name in self.bound_params:
+                continue
+            self.parameters[param_name].heuristic = heuristic
+
+        for param_name, param_heuristic in new_heuristics.items():
+            self.parameters[param_name].heuristic = param_heuristic
+
+    def calculate_derived_params(
+        self,
+        x: Array[("num_samples",), np.float64],
+        y: Array[("num_y_channels", "num_samples"), np.float64],
+        fitted_params: Dict[str, float],
+        fit_uncertainties: Dict[str, float],
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+
+        model_fitted_params = self.bound_param_values(fitted_params)
+        model_fitted_params.update(
+            {
+                param_name: param_value
+                for param_name, param_value in fitted_params.items()
+                if param_name not in self.bound_params
+            }
+        )
+
+        model_fit_uncertainties = self.bound_param_uncertainties(
+            fitted_params, fit_uncertainties
+        )
+        model_fit_uncertainties.update(
+            {
+                param_name: param_value
+                for param_name, param_value in fit_uncertainties.items()
+                if param_name not in self.bound_params
+            }
+        )
+
+        return self.model.calculate_derived_params(
+            x=y,
+            y=y,
+            fitted_params=model_fitted_params,
+            fit_uncertainties=model_fit_uncertainties,
+        )
