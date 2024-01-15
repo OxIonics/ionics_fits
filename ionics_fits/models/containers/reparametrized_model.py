@@ -24,6 +24,8 @@ class ReparametrizedModel(Model):
     :class ReparametrizedModel: (override :meth calculate_derived_params: to change this
     behaviour).
 
+    Values and uncertainties for the bound parameters are exposed as derived results.
+
     Subclasses must override :meth bound_param_values:, :meth model_uncertainty_func:
     and :meth reparametrized_value_func: to specify the mapping between "new" and
     "bound" parameters.
@@ -62,11 +64,12 @@ class ReparametrizedModel(Model):
 
         for param_name in bound_params:
             internal_parameters.append(parameters.pop(param_name))
+        parameters.update(new_params)
 
         super().__init__(parameters=parameters, internal_parameters=internal_parameters)
 
     @staticmethod
-    def bound_param_values(param_values: dict[str, float]) -> dict[str, float]:
+    def bound_param_values(param_values: Dict[str, float]) -> Dict[str, float]:
         """Returns a dictionary of values of the model's bound parameters.
 
         This method must be overridden to specify the mapping from parameters of the
@@ -80,8 +83,8 @@ class ReparametrizedModel(Model):
 
     @staticmethod
     def bound_param_uncertainties(
-        param_values: dict[str, float], param_uncertainties: dict[str, float]
-    ) -> dict[str, float]:
+        param_values: Dict[str, float], param_uncertainties: Dict[str, float]
+    ) -> Dict[str, float]:
         """Returns a dictionary of uncertainties for the model's bound parameters.
 
         This method must be overridden to specify the mapping from parameter
@@ -97,7 +100,7 @@ class ReparametrizedModel(Model):
         raise NotImplementedError
 
     @staticmethod
-    def new_param_values(model_param_values: dict[str, float]) -> dict[str, float]:
+    def new_param_values(model_param_values: Dict[str, float]) -> Dict[str, float]:
         """Returns a dictionary of values of the model's "new" parameters.
 
         This method must be overridden to specify the mapping from values of the
@@ -123,7 +126,7 @@ class ReparametrizedModel(Model):
         x: Array[("num_samples",), np.float64],
         param_values: Dict[str, float],
     ) -> Array[("num_y_channels", "num_samples"), np.float64]:
-        model_values = self.bound_param_values(x, param_values)
+        model_values = self.bound_param_values(param_values)
         model_values.update(
             {
                 param_name: param_value
@@ -161,29 +164,33 @@ class ReparametrizedModel(Model):
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
 
-        model_fitted_params = self.bound_param_values(fitted_params)
-        model_fitted_params.update(
-            {
-                param_name: param_value
-                for param_name, param_value in fitted_params.items()
-                if param_name not in self.bound_params
-            }
-        )
-
-        model_fit_uncertainties = self.bound_param_uncertainties(
+        bound_values = self.bound_param_values(fitted_params)
+        bound_uncertainties = self.bound_param_uncertainties(
             fitted_params, fit_uncertainties
         )
-        model_fit_uncertainties.update(
-            {
-                param_name: param_value
-                for param_name, param_value in fit_uncertainties.items()
-                if param_name not in self.bound_params
-            }
-        )
 
-        return self.model.calculate_derived_params(
+        model_fitted_params = {
+            param_name: param_value
+            for param_name, param_value in fitted_params.items()
+            if param_name not in self.bound_params
+        }
+        model_fit_uncertainties = {
+            param_name: param_value
+            for param_name, param_value in fit_uncertainties.items()
+            if param_name not in self.bound_params
+        }
+
+        model_fitted_params.update(bound_values)
+        model_fit_uncertainties.update(bound_uncertainties)
+
+        derived_values, derived_uncertainties = self.model.calculate_derived_params(
             x=y,
             y=y,
             fitted_params=model_fitted_params,
             fit_uncertainties=model_fit_uncertainties,
         )
+
+        derived_values.update(bound_values)
+        derived_uncertainties.update(bound_uncertainties)
+
+        return derived_values, derived_uncertainties
