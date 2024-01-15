@@ -14,6 +14,8 @@ Changes are divided into four categories:
 * **New feature**: Added `ReparametrizedModel` container
 * **New feature**: Added `SineMinMax` model
 * **New feature**: Added `Sine2` model
+* **Breaking change**: `rescale_model_x` has been replaced with `ScaledModel` to make
+  this feature consistent with the rest of the toolkit.
 
 ### API changes
 * **New feature**: Added a sigmoid model
