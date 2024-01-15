@@ -159,16 +159,16 @@ class SineMinMax(ReparametrizedModel):
 
     def __init__(self):
         super().__init__(
-            model=Sinusoid,
+            model=Sinusoid(),
             new_params={
                 "min": ModelParameter(scale_func=common.scale_y),
-                "max": ModelParameter(scale_func=common.scale_y)
+                "max": ModelParameter(scale_func=common.scale_y),
             },
             bound_params=["a", "y0"],
         )
 
     @staticmethod
-    def bound_param_values(param_values: dict[str, float]) -> dict[str, float]:
+    def bound_param_values(param_values: Dict[str, float]) -> Dict[str, float]:
         return {
             "a": 0.5 * (param_values["max"] - param_values["min"]),
             "y0": 0.5 * (param_values["max"] + param_values["min"]),
@@ -176,15 +176,15 @@ class SineMinMax(ReparametrizedModel):
 
     @staticmethod
     def bound_param_uncertainties(
-        param_values: dict[str, float], param_uncertainties: dict[str, float]
-    ) -> dict[str, float]:
+        param_values: Dict[str, float], param_uncertainties: Dict[str, float]
+    ) -> Dict[str, float]:
         err = 0.5 * np.sqrt(
             param_uncertainties["max"] ** 2 + param_uncertainties["min"] ** 2
         )
         return {"a": err, "y0": err}
 
     @staticmethod
-    def new_param_values(model_param_values: dict[str, float]) -> dict[str, float]:
+    def new_param_values(model_param_values: Dict[str, float]) -> Dict[str, float]:
         return {
             "max": (model_param_values["y0"] + model_param_values["a"]),
             "min": (model_param_values["y0"] - model_param_values["a"]),
