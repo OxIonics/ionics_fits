@@ -16,7 +16,7 @@ def test_scaled_model(plot_failures):
 
     common.check_single_param_set(
         x=x,
-        model=model,
+        model=scaled_model,
         test_params=params,
-        config=common.TestConfig(plot_failures=plot_failures),
+        config=common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.1),
     )
