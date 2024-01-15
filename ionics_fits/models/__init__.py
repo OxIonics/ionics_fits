@@ -1,4 +1,5 @@
-from .containers import AggregateModel, RepeatedModel
+from . import containers
+from .containers import AggregateModel, MappedModel, ReparametrizedModel, RepeatedModel
 from .benchmarking import Benchmarking
 from .exponential import Exponential
 from .gaussian import Gaussian
