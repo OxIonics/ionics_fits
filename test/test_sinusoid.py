@@ -24,20 +24,39 @@ def test_sinusoid(plot_failures: bool):
     )
 
 
-def test_sin_min_max(plot_failures: bool):
-    """Test for sinusoid.SinMinMax"""
+def test_sin2(plot_failures: bool):
+    """Test for sinusoid.Sine2"""
     x = np.linspace(-10, 10, 1000)
     params = {
-        "min": -1,
-        "max": 3,
+        "a": 2,
         "omega": 10 / (2 * np.pi),
         "phi": 0.5,
         "y0": 1,
         "x0": 0,
         "tau": np.inf,
     }
-    model = fits.models.SinMinMax()
-    common.check_multiple_param_sets(
+    model = fits.models.Sine2()
+    common.check_single_param_set(
+        x,
+        model,
+        params,
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.45),
+    )
+
+
+def test_sine_min_max(plot_failures: bool):
+    """Test for sinusoid.SineMinMax"""
+    x = np.linspace(-10, 10, 1000)
+    params = {
+        "min": -1,
+        "max": 3,
+        "omega": 10 / (2 * np.pi),
+        "phi": 0.5,
+        "x0": 0,
+        "tau": np.inf,
+    }
+    model = fits.models.SineMinMax()
+    common.check_single_param_set(
         x,
         model,
         params,
