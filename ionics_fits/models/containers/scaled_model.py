@@ -17,16 +17,18 @@ class ScaledModel(Model):
     This is useful, for example, to convert models between linear and angular units.
     """
 
-    def __init__(self, model: Model, x_scale: float):
+    def __init__(self, model: Model, x_scale: float, x_offset: float = 0.0):
         """
         :param model: model to rescale. This model is considered "owned" by the
           :class ScaledModel: and should not be used/modified elsewhere.
         :param x_scale: multiplicative x-axis scale factor. To convert a model that
           takes x in angular units and convert to one that takes x in linear units use
           `x_scale = 2 * np.pi`
+        :param x_offset: additive x-axis offset
         """
         self.model = model
         self.x_scale = x_scale
+        self.x_offset = x_offset
 
         super().__init__(
             parameters=self.model.parameters,
@@ -36,14 +38,14 @@ class ScaledModel(Model):
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples", "num_y_channels"), np.float64]:
-        return self.model.func(x * self.x_scale, param_values)
+        return self.model.func(x * self.x_scale + self.x_offset, param_values)
 
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples", "num_y_channels"), np.float64],
     ):
-        self.model.estimate_parameters(x * self.x_scale, y)
+        self.model.estimate_parameters(x * self.x_scale + self.x_offset, y)
         for param_name, param_data in self.model.parameters.items():
             self.parameters[param_name].heuristic = param_data.get_initial_value()
 
@@ -61,8 +63,8 @@ class ScaledModel(Model):
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         return self.model.calculate_derived_params(
-            x=x * self.x_scale,
+            x=x * self.x_scale + self.x_offset,
             y=y,
             fitted_params=fitted_params,
-            fit_uncertainties=fit_uncertainties
+            fit_uncertainties=fit_uncertainties,
         )
