@@ -27,7 +27,6 @@ class ScaledModel(Model):
         """
         self.model = model
         self.x_scale = x_scale
-        self._rescale = True
 
         super().__init__(
             parameters=self.model.parameters,
@@ -37,18 +36,16 @@ class ScaledModel(Model):
     def func(
         self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
     ) -> Array[("num_samples", "num_y_channels"), np.float64]:
-        x = (x * self.x_scale) if self._rescale else x
-        return self.model.func(x, param_values)
+        return self.model.func(x * self.x_scale, param_values)
 
     def estimate_parameters(
         self,
         x: Array[("num_samples",), np.float64],
         y: Array[("num_samples", "num_y_channels"), np.float64],
     ):
-        # avoid double rescaling if estimate_parameters calls self.func internally
-        self._rescale = False
-        super().estimate_parameters(x * self._x_scale, y)
-        self._rescale = True
+        self.model.estimate_parameters(x * self.x_scale, y)
+        for param_name, param_data in self.model.parameters.items():
+            self.parameters[param_name].heuristic = param_data.get_initial_value()
 
     def can_rescale(self) -> Tuple[bool, bool]:
         return self.model.can_rescale()
@@ -63,4 +60,9 @@ class ScaledModel(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        return self.model.calculate_derived_params()
+        return self.model.calculate_derived_params(
+            x=x * self.x_scale,
+            y=y,
+            fitted_params=fitted_params,
+            fit_uncertainties=fit_uncertainties
+        )
