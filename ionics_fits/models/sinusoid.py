@@ -8,6 +8,7 @@ from . import utils
 
 if TYPE_CHECKING:
     num_samples = float
+    num_y_channels = float
 
 
 class Sinusoid(Model):
@@ -154,7 +155,6 @@ class SineMinMax(ReparametrizedModel):
     are replaced with new `min` and `max` parameters defined by:
       - `min = y0 - a`
       - `max = y0 + a`
-
     """
 
     def __init__(self):
@@ -189,3 +189,12 @@ class SineMinMax(ReparametrizedModel):
             "max": (model_param_values["y0"] + model_param_values["a"]),
             "min": (model_param_values["y0"] - model_param_values["a"]),
         }
+
+
+class Sine2(Sinusoid):
+    """Sine Squared model.
+
+    This class is equivalent to :class Sinusoid: except that the output is squared.
+    """
+    def func(self, x: common.TX, param_values: Dict[str, float]) -> common.TY:
+        return self._func(x=x, **param_values)
