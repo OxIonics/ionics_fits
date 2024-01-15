@@ -11,6 +11,11 @@ Changes are divided into four categories:
 ## 1.3.0.5
 
 ### API changes
+* **New feature**: Added `ReparametrizedModel` container
+* **New feature**: Added `SineMinMax` model
+* **New feature**: Added `Sine2` model
+
+### API changes
 * **New feature**: Added a sigmoid model
 
 ## 1.3.00
