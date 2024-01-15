@@ -24,6 +24,27 @@ def test_sinusoid(plot_failures: bool):
     )
 
 
+def test_sin_min_max(plot_failures: bool):
+    """Test for sinusoid.SinMinMax"""
+    x = np.linspace(-10, 10, 1000)
+    params = {
+        "min": -1,
+        "max": 3,
+        "omega": 10 / (2 * np.pi),
+        "phi": 0.5,
+        "y0": 1,
+        "x0": 0,
+        "tau": np.inf,
+    }
+    model = fits.models.SinMinMax()
+    common.check_multiple_param_sets(
+        x,
+        model,
+        params,
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.45),
+    )
+
+
 def test_sinusoid_heuristic(plot_failures: bool):
     """Check that the sinusoid heuristic gives an accurate estimate in an easy case"""
     x = np.linspace(-10, 10, 1000)
