@@ -287,7 +287,8 @@ class MolmerSorensenFreq(MolmerSorensen):
     parameter.
 
     Derived parameters:
-        - f_loop_{n}: frequency offset of nth loop closure (Hz) for n = [1, 5]
+        - f_loop_{n}_{i}: frequency offset of nth loop closure (Hz) for n = [1, 5] at
+            "plus" (i = p) or "minus" (i = m) detuning
 
     """
 
@@ -411,10 +412,17 @@ class MolmerSorensenFreq(MolmerSorensen):
         )
 
         for n in range(1, 6):
-            derived_params[f"f_loop_{n}"] = (
+            derived_params[f"f_loop_{n}_p"] = (
                 n / fitted_params["t_pulse"] + derived_params["f_0"]
             )
-            derived_uncertainties[f"f_loop_{n}"] = np.sqrt(
+            derived_params[f"f_loop_{n}_m"] = (
+                -n / fitted_params["t_pulse"] + derived_params["f_0"]
+            )
+            derived_uncertainties[f"f_loop_{n}_p"] = np.sqrt(
+                (n * fit_uncertainties["t_pulse"]) ** 2
+                + derived_uncertainties["f_0"] ** 2
+            )
+            derived_uncertainties[f"f_loop_{n}_m"] = np.sqrt(
                 (n * fit_uncertainties["t_pulse"]) ** 2
                 + derived_uncertainties["f_0"] ** 2
             )
