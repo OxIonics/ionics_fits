@@ -56,7 +56,7 @@ class Lorentzian(Model):
         # Fourier transform:
         #  f(y) = a * fwhmh^2 / ((x - x0)^2 + fwhmh^2) + y0
         #  f(k) = a * fwhmh * pi * exp(-2*pi*i*k*x0) * exp(-2*pi*fwhmh*|k|)
-        omega, spectrum = get_spectrum(x, y, trim_dc=True, density_units=False)
+        omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
         k = omega / (2 * np.pi)
 
