@@ -1,6 +1,6 @@
 from typing import cast, Dict, Optional, Tuple, TYPE_CHECKING
 import numpy as np
-from scipy import signal
+from scipy import fft, signal
 
 from .. import Model
 from ..utils import Array, ArrayLike

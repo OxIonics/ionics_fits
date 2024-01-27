@@ -1,5 +1,6 @@
 from typing import Dict, Tuple, TYPE_CHECKING
 import numpy as np
+from scipy.optimize import curve_fit
 
 from . import heuristics
 from .heuristics import get_spectrum
