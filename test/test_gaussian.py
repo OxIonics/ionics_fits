@@ -6,7 +6,7 @@ from . import common
 
 def test_gaussian(plot_failures):
     """Test for gaussian.Gaussian"""
-    x = np.linspace(-10, 20, 500)
+    x = np.linspace(-12, 20, 500)
     params = {
         "x0": [-3, 1, 0, 0.25, 10],
         "y0": [-1, 0, 1],
@@ -18,7 +18,7 @@ def test_gaussian(plot_failures):
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.2),
+        common.TestConfig(plot_failures=plot_failures, heuristic_tol=3e-2),
     )
 
 
