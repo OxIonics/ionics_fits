@@ -28,7 +28,7 @@ from .ramsey import Ramsey
 from .rectangle import Rectangle
 from .sigmoid import LogisticFunction
 from .sinc import Sinc, Sinc2
-from .sinusoid import SineMinMax, Sine2, Sinusoid
+from .sinusoid import SineMinMax, Sinusoid
 from .triangle import Triangle
 
 from .cone import ConeSlice  # Relies on the triangle fit for parameter estimation
