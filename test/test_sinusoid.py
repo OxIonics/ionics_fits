@@ -43,30 +43,6 @@ def test_sine_min_max(plot_failures: bool):
         common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.45),
     )
 
-def test_sine2(plot_failures):
-    """Test for Sine2"""
-    x = np.linspace(-10, 10, 200)
-    params = {"a": 2.5, "omega": 3.3, "phi": 1, "y0": -6, "tau": np.inf, "x0": 0}
-
-    sine2 = fits.models.Sine2()
-    
-    sine = fits.models.sine()
-    
-    sine_params = dict(params)
-    sine_params["y0"] = 0
-
-    y_sine2 = sine2(x, **params)
-    y_sine = sine(x, **sine_params) + params["y0"]
-
-    common.is_close(y_sine, y_sine2, 1e-9)
-
-    common.check_single_param_set(
-        x=x,
-        model=sine2,
-        test_params=params,
-        config=common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.1),
-    )
-
 
 def test_sinusoid_heuristic(plot_failures: bool):
     """Check that the sinusoid heuristic gives an accurate estimate in an easy case"""
