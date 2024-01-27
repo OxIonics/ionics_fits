@@ -138,24 +138,21 @@ class Gaussian(Model):
 
         omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
-        
+
         def fun(omega, alpha, w):
-            return alpha * np.exp(-(0.5*omega*w)**2)
+            return alpha * np.exp(-((0.5 * omega * w) ** 2))
 
         alpha0 = abs_spectrum[0]
-        w0 = 2 / omega[abs_spectrum < alpha0 *np.exp(-1)][0]
+        w0 = 2 / omega[abs_spectrum < alpha0 * np.exp(-1)][0]
         (alpha, w), _ = curve_fit(
-            f=fun,
-            xdata=omega,
-            ydata=abs_spectrum,
-            p0=[alpha0, w0]
+            f=fun, xdata=omega, ydata=abs_spectrum, p0=[alpha0, w0]
         )
 
         peak_idx = np.argmax(np.abs(y - y0))
         y_peak = y[peak_idx]
         sgn = 1 if y_peak > y0 else -1
 
-        fft_heuristics["sigma"] = sigma = w / np.sqrt(2)
+        fft_heuristics["sigma"] = w / np.sqrt(2)
         fft_heuristics["a"] = sgn * alpha
 
         x0 = heuristics.find_x_offset_sym_peak_fft(
@@ -164,7 +161,7 @@ class Gaussian(Model):
             y=y,
             omega=omega,
             spectrum=spectrum,
-            omega_cut_off=4/w,
+            omega_cut_off=4 / w,
             test_pts=x[peak_idx],
             defaults=fft_heuristics,
         )
