@@ -128,8 +128,6 @@ class Gaussian(Model):
         # Gaussian Fourier Transform:
         #   F[A * exp(-(x/w)^2)](k) = A * sqrt(pi) * w * exp(-(pi*k*w)^2)
         #
-        # Half-width at 1/e when k = 1/(pi*w)
-        #
         # This heuristic generally works extremely well when we have enough data but
         # struggles for smaller datasets
 
@@ -137,43 +135,27 @@ class Gaussian(Model):
         y0 = self.parameters["y0"].get_initial_value(np.mean([y[0], y[-1]]))
         fft_heuristics["y0"] = y0
 
-        omega, spectrum = get_spectrum(x, y, trim_dc=True, density_units=False)
+        omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
-        k = omega / (2 * np.pi)
+        
+        def fun(omega, alpha, w):
+            return alpha * np.exp(-(0.5*omega*w)**2)
 
-        peak = abs_spectrum[0]
-        W = peak * np.exp(-1)
-        idx_1_e = np.argmin(np.abs(abs_spectrum - W))
-
-        # We usually don't have great spectral resolution around the peak so interpolate
-        if k[idx_1_e] > W:
-            upper_idx = idx_1_e
-            lower_idx = idx_1_e + 1
-        else:
-            upper_idx = idx_1_e - 1
-            lower_idx = idx_1_e
-
-        df_dk = (abs_spectrum[lower_idx] - abs_spectrum[upper_idx]) / (k[1] - k[0])
-
-        # if we don't have enough data to figure this out, set the half-width to one
-        # sample wide
-        if df_dk == 0:
-            half_width = k[1] - k[0]
-        else:
-            df = abs_spectrum[idx_1_e] - W
-            half_width = k[idx_1_e] - df / df_dk
-
-        sigma = 1 / (np.sqrt(2) * np.pi * half_width)
-        a = peak
+        alpha0 = abs_spectrum[0]
+        w0 = 2 / omega[abs_spectrum < alpha0 *np.exp(-1)][0]
+        (alpha, w), _ = curve_fit(
+            f=fun,
+            xdata=omega,
+            ydata=abs_spectrum,
+            p0=[alpha0, w0]
+        )
 
         peak_idx = np.argmax(np.abs(y - y0))
         y_peak = y[peak_idx]
         sgn = 1 if y_peak > y0 else -1
 
-        fft_heuristics["a"] = a * sgn
-        fft_heuristics["sigma"] = sigma
-
-        cut_off = 2 * omega[np.argmin(np.abs(abs_spectrum - W))]
+        fft_heuristics["sigma"] = sigma = w / np.sqrt(2)
+        fft_heuristics["a"] = sgn * alpha
 
         x0 = heuristics.find_x_offset_sym_peak_fft(
             model=self,
@@ -181,7 +163,7 @@ class Gaussian(Model):
             y=y,
             omega=omega,
             spectrum=spectrum,
-            omega_cut_off=cut_off,
+            omega_cut_off=4/w,
             test_pts=x[peak_idx],
             defaults=fft_heuristics,
         )
