@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Dict, Tuple, TYPE_CHECKING
 
-from . import heuristics, ReparametrizedModel, ScaledModel
+from . import heuristics, ReparametrizedModel
 from .. import common, Model, ModelParameter
 from ..utils import Array
 from . import utils

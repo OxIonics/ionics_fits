@@ -236,7 +236,7 @@ def get_spectrum(
     Array[("num_spectrum_samples",), np.float64],
 ]:
     """Returns the frequency spectrum (Fourier transform) of a dataset.
-    
+
     NB the returned spectrum will only match the Fourier transform of the model function
     in the limit where the model function is zero outside of the sampling window.
 
