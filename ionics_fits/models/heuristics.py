@@ -230,19 +230,23 @@ def find_x_offset_sym_peak_fft(
 def get_spectrum(
     x: Array[("num_samples",), np.float64],
     y: Array[("num_samples",), np.float64],
-    density_units: bool = True,
     trim_dc: bool = False,
 ) -> Tuple[
     Array[("num_spectrum_samples",), np.float64],
     Array[("num_spectrum_samples",), np.float64],
 ]:
     """Returns the frequency spectrum (Fourier transform) of a dataset.
+    
+    NB the returned spectrum will only match the Fourier transform of the model function
+    in the limit where the model function is zero outside of the sampling window.
+
+    NB for narrow-band signals the peak amplitude depends on where the signal frequency
+    lies compared to the frequency bins.
 
     :param x: 1D ndarray of shape (num_samples,) containing x-axis data
     :param y: 1D ndarray of shape (num_samples,) containing y-axis data
-    :param density_units: if `False` we apply normalization for narrow-band signals. If
-        `True` we normalize for continuous distributions.
     :param trim_dc: if `True` we do not return the DC component.
+    :returns: tuple of (angular freq, fft)
     """
     if x.ndim != 1:
         raise ValueError("x-axis data must be a 1D array.")
@@ -252,14 +256,10 @@ def get_spectrum(
     dx = x.ptp() / x.size
     n = x.size
     omega = np.fft.fftfreq(n, dx) * (2 * np.pi)
-    y_f = np.fft.fft(y) * (x.ptp() / n)
+    y_f = fft.rfft(y) * dx
 
     y_f = y_f[: int(n / 2)]
     omega = omega[: int(n / 2)]
-
-    if density_units:
-        d_omega = 2 * np.pi / (n * dx)
-        y_f /= d_omega
 
     if trim_dc:
         omega = omega[1:]
@@ -271,7 +271,6 @@ def get_spectrum(
 def get_pgram(
     x: Array[("num_samples",), np.float64],
     y: Array[("num_samples",), np.float64],
-    density_units: bool = True,
 ) -> Tuple[
     Array[("num_spectrum_samples",), np.float64],
     Array[("num_spectrum_samples",), np.float64],
@@ -284,8 +283,6 @@ def get_pgram(
     :param x: x-axis data
     :param y: y-axis data. For models with multiple y channels, this should contain
         data from a single channel only.
-    :param density_units: if `False` (default) we apply normalization for narrow-band
-        signals. If `True` we normalize for continuous distributions.
     :returns: tuple with the frequency axis (angular units) and the periodogram
     """
     if y.ndim != 1 and y.shape[1] > 1:
@@ -296,18 +293,13 @@ def get_pgram(
     dx = np.min(np.diff(x))
     duration = x.ptp()
     n = int(duration / dx)
-    d_omega = 2 * np.pi / (n * dx)
+    df = 1 / (n * dx)
 
-    # Nyquist limit does not apply to irregularly spaced data
-    # We'll use it as a starting point anyway...
     f_nyquist = 0.5 / dx
 
-    omega_list = 2 * np.pi * np.linspace(d_omega, f_nyquist, n)
+    omega_list = 2 * np.pi * np.linspace(df, f_nyquist, n)
     pgram = signal.lombscargle(x, y, omega_list, precenter=True)
     pgram = np.sqrt(np.abs(pgram) * 4 / len(y))
-
-    if density_units:
-        pgram /= d_omega
 
     return omega_list, pgram
 

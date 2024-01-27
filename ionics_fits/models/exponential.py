@@ -16,11 +16,11 @@ class Exponential(Model):
     Fit parameters (all floated by default unless stated otherwise):
       - x_dead: x-axis "dead time" (fixed to 0 by default)
       - y0: initial (x = x_dead) y-axis offset
-      - y_inf: y-axis asymptote (i.e. y(x - x_0 >> tau) => y_inf)
+      - y_inf: y-axis asymptote (i.e. y(x - x_dead >> tau) => y_inf)
       - tau: decay constant
 
     Derived parameters:
-      - x_1_e: x-axis value for 1/e decay including dead time (`x_1_e = x0 + tau`)
+      - x_1_e: x-axis value for 1/e decay including dead time (`x_1_e = x_dead + tau`)
     """
 
     def get_num_y_channels(self) -> int:
