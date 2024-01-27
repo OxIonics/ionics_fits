@@ -49,21 +49,28 @@ class ReparametrizedModel(Model):
         """
         self.model = model
         self.bound_params = bound_params
+        self.unbound_model_params = [
+            param_name
+            for param_name in self.model.parameters.keys()
+            if param_name not in bound_params
+        ]
+
         internal_parameters = self.model.internal_parameters
         parameters = dict(self.model.parameters)
 
         if not set(bound_params).issubset(set(parameters.keys())):
             raise ValueError("Bound parameters must all be parameters of the model")
 
+        for param_name in bound_params:
+            internal_parameters.append(parameters.pop(param_name))
+
         duplicates = set(new_params.keys()).intersection(parameters.keys())
         if duplicates:
             raise ValueError(
-                "New parameter names must not duplicate existing parameter names. "
-                f"Duplicates are {duplicates}."
+                "New parameter names must not duplicate names of unbound model "
+                f"parametes. Duplicates are {duplicates}."
             )
 
-        for param_name in bound_params:
-            internal_parameters.append(parameters.pop(param_name))
         parameters.update(new_params)
 
         super().__init__(parameters=parameters, internal_parameters=internal_parameters)
@@ -129,9 +136,8 @@ class ReparametrizedModel(Model):
         model_values = self.bound_param_values(param_values)
         model_values.update(
             {
-                param_name: param_value
-                for param_name, param_value in param_values.items()
-                if param_name in self.model.parameters.keys()
+                param_name: param_values[param_name]
+                for param_name in self.unbound_model_params
             }
         )
         return self.model.func(x, model_values)
@@ -148,10 +154,8 @@ class ReparametrizedModel(Model):
         }
         new_heuristics = self.new_param_values(model_heuristics)
 
-        for param_name, heuristic in model_heuristics.items():
-            if param_name in self.bound_params:
-                continue
-            self.parameters[param_name].heuristic = heuristic
+        for param_name in self.unbound_model_params:
+            self.parameters[param_name].heuristic = model_heuristics[param_name]
 
         for param_name, param_heuristic in new_heuristics.items():
             self.parameters[param_name].heuristic = param_heuristic
@@ -170,14 +174,12 @@ class ReparametrizedModel(Model):
         )
 
         model_fitted_params = {
-            param_name: param_value
-            for param_name, param_value in fitted_params.items()
-            if param_name not in self.bound_params
+            param_name: fitted_params[param_name]
+            for param_name in self.unbound_model_params
         }
         model_fit_uncertainties = {
-            param_name: param_value
-            for param_name, param_value in fit_uncertainties.items()
-            if param_name not in self.bound_params
+            param_name: fit_uncertainties[param_name]
+            for param_name in self.unbound_model_params
         }
 
         model_fitted_params.update(bound_values)
