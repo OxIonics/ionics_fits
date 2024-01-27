@@ -84,10 +84,7 @@ class Sinusoid(Model):
         self.parameters["y0"].heuristic = np.mean(y)
         self.parameters["tau"].heuristic = np.max(x)
 
-        omega, spectrum = heuristics.get_spectrum(
-            x, y, density_units=False, trim_dc=True
-        )
-        spectrum = np.abs(spectrum)
+        omega, spectrum = heuristics.get_pgram(x, y)
         peak = np.argmax(spectrum)
 
         self.parameters["a"].heuristic = spectrum[peak]
