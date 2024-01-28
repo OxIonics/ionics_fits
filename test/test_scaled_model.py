@@ -6,7 +6,7 @@ from . import common
 
 def test_scaled_model(plot_failures):
     """Test for ScaledModel"""
-    x = np.linspace(-10, 10, 200)
+    x = np.linspace(-3, 10, 500)
     params = {"a": 2.5, "omega": 3.3, "phi": 1, "y0": -6, "tau": np.inf, "x0": 0}
 
     model = fits.models.Sinusoid()
