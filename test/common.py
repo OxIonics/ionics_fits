@@ -196,27 +196,33 @@ def _plot(
     y_heuristic = np.atleast_2d(y_heuristic)
     y_fit = np.atleast_2d(y_fit)
 
-    _, ax = plt.subplots(fit.model.get_num_y_channels(), 2)
-    for ch in range(fit.model.get_num_y_channels()):
+    _, ax = plt.subplots(fit.model.get_num_y_axes(), 2)
+    for ch in range(fit.model.get_num_y_axes()):
+
+        x = fit.x.squeeze()
+        if x.ndim != 1:
+            raise ValueError(
+                "Plotting is only supported for models with a single x axis"
+            )
 
         y_model_ch = y_model[ch, :]
         y_fit_ch = y_fit[ch, :]
         y_heuristic_ch = y_heuristic[ch, :]
 
-        if fit.model.get_num_y_channels() == 1:
+        if fit.model.get_num_y_axes() == 1:
             ax = np.expand_dims(ax, axis=0)
 
         ax[ch, 0].set_title(fit.model.__class__.__name__)
-        ax[ch, 0].plot(fit.x, y_model_ch, "-o", label="model")
-        ax[ch, 0].plot(fit.x, y_fit_ch, "-.o", label="fit")
+        ax[ch, 0].plot(x, y_model_ch, "-o", label="model")
+        ax[ch, 0].plot(x, y_fit_ch, "-.o", label="fit")
         ax[ch, 0].plot(
-            fit.x,
+            x,
             y_heuristic_ch,
             "--o",
             label="heuristic",
         )
         ax[ch, 0].set(
-            xlabel="x", ylabel="y" if fit.model.get_num_y_channels() == 1 else f"y_{ch}"
+            xlabel="x", ylabel="y" if fit.model.get_num_y_axes() == 1 else f"y_{ch}"
         )
         ax[ch, 0].grid()
         ax[ch, 0].legend()
