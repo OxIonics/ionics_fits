@@ -1,21 +1,16 @@
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
 from ..utils import param_like
 from ... import Model
-from ...utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
+from ...common import TX, TY
 
 
 class RepeatedModel(Model):
     """Model formed by repeating a `Model` one more times.
 
-    The `RepeatedModel` has multiple y-channels, corresponding to the repetitions of
+    The `RepeatedModel` has multiple y-axes, corresponding to the repetitions of
     the repeated model.
 
     Repeated models allow multiple datasets to be analysed simultaneously. This is
@@ -33,11 +28,11 @@ class RepeatedModel(Model):
     ):
         """
         :param model: The repeated model, the implementation of `model` will be used to
-          generate data for all y channels. This model is considered owned by the
+          generate data for all y axes. This model is considered owned by the
           RepeatedModel and should not be used / modified elsewhere.
         :param common_params: optional list of names of model parameters, whose value is
-          common to all y channels. All other model parameters are allowed to vary
-          independently between the y channels
+          common to all y axes. All other model parameters are allowed to vary
+          independently between the y axes
         :param num_repetitions: the number of times the model is repeated
         :param aggregate_results: determines whether derived results are aggregated or
           not (see below). The default behaviour is to not aggregate results. This is
@@ -77,6 +72,11 @@ class RepeatedModel(Model):
                 "Common parameters must be a subset of the model's parameters"
             )
 
+        # make model scale functions use correct y-axis dimension
+        def wrapped_scale_func(model_idx, scale_func, x_scales, y_scales):
+            y_scales_model = [y_scales[model_idx]]
+            return scale_func(x_scales, y_scales_model)
+
         independent_params = set(model_params) - common_params
         params = {param: model.parameters[param] for param in common_params}
         for param in independent_params:
@@ -96,21 +96,23 @@ class RepeatedModel(Model):
             parameters=params, internal_parameters=self.model.internal_parameters
         )
 
-    def get_num_y_channels(self) -> int:
-        return self.num_repetitions * self.model.get_num_y_channels()
+    def get_num_x_axes(self) -> int:
+        return self.model.get_num_x_axes()
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return self.model.can_rescale()
+    def get_num_y_axes(self) -> int:
+        return self.num_repetitions * self.model.get_num_y_axes()
 
-    def func(
-        self,
-        x: Array[("num_samples",), np.float64],
-        param_values: Dict[str, float],
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        x_scales, y_scales = self.model.can_rescale()
+        return x_scales, y_scales * self.num_repetitions
+
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
+        x = np.atleast_2d(x)
         values = {param: param_values[param] for param in self.common_params}
 
-        dim = self.model.get_num_y_channels()
-        ys = np.zeros((self.get_num_y_channels(), len(x)))
+        dim = self.model.get_num_y_axes()
+        num_samples = x.shape[1]
+        ys = np.zeros((self.get_num_y_axes(), num_samples))
         for idx in range(self.num_repetitions):
             values.update(
                 {
@@ -124,12 +126,8 @@ class RepeatedModel(Model):
 
         return ys
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
-    ):
-        dim = self.model.get_num_y_channels()
+    def estimate_parameters(self, x: TX, y: TY):
+        dim = self.model.get_num_y_axes()
 
         common_heuristics = {
             param: np.zeros(self.num_repetitions + 1) for param in self.common_params
@@ -183,15 +181,15 @@ class RepeatedModel(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         derived_params = {}
         derived_uncertainties = {}
 
-        dim = self.model.get_num_y_channels()
+        dim = self.model.get_num_y_axes()
 
         # {param_name: [derived_values_from_each_repetition]}
         derived_params_reps = None
