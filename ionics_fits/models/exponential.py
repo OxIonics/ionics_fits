@@ -1,11 +1,9 @@
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple
 import numpy as np
 
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-if TYPE_CHECKING:
-    num_samples = float
+from .. import Model, ModelParameter
+from ..common import TX, TY
+from ..utils import scale_x, scale_y
 
 
 class Exponential(Model):
@@ -23,37 +21,37 @@ class Exponential(Model):
       - x_1_e: x-axis value for 1/e decay including dead time (`x_1_e = x_dead + tau`)
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [True]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
+        x: TX,
         x_dead: ModelParameter(
             lower_bound=0,
             fixed_to=0,
-            scale_func=common.scale_x,
+            scale_func=scale_x(),
         ),
-        y0: ModelParameter(scale_func=common.scale_y),
-        y_inf: ModelParameter(scale_func=common.scale_y),
-        tau: ModelParameter(lower_bound=0, scale_func=common.scale_x),
-    ) -> Array[("num_samples",), np.float64]:
+        y0: ModelParameter(scale_func=scale_y()),
+        y_inf: ModelParameter(scale_func=scale_y()),
+        tau: ModelParameter(lower_bound=0, scale_func=scale_x()),
+    ) -> TY:
         y = y0 + (y_inf - y0) * (1 - np.exp(-(x - x_dead) / tau))
         y = np.where(x >= x_dead, y, y0)
         return y
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
         # Ensure that y is a 1D array
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         # Exponentials are generally pretty easy to fit so we keep the estimator simple
@@ -64,8 +62,8 @@ class Exponential(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:

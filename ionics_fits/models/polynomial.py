@@ -1,14 +1,20 @@
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple
 
 import numpy as np
 
 from . import heuristics
 from .containers import MappedModel
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-if TYPE_CHECKING:
-    num_samples = float
+from .. import Model, ModelParameter
+from ..common import TX, TY
+from ..utils import (
+    scale_invariant,
+    scale_power,
+    scale_undefined,
+    scale_x,
+    scale_y,
+    TX_SCALE,
+    TY_SCALE,
+)
 
 
 class Power(Model):
@@ -37,43 +43,44 @@ class Power(Model):
         None
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        rescale_x = False if self.parameters["n"].fixed_to is None else True
-        return rescale_x, True
+    def get_num_y_axes(self) -> int:
+        return 1
 
-    def rescale(self, x_scale: float, y_scale: float):
-        def scale_func(x_scale, y_scale) -> float:
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        rescale_x = False if self.parameters["n"].fixed_to is None else True
+        return [rescale_x], [True]
+
+    def rescale(self, x_scales: TX_SCALE, y_scales: TY_SCALE):
+        def scale_func(x_scales, y_scales) -> float:
             # NB the common scale functions do not support float powers
-            if x_scale == 1.0:
+            x_scale = float(x_scales)
+            y_scale = float(y_scales)
+            if x_scales == 1.0:
                 return y_scale
             return y_scale / np.float_power(x_scale, self.parameters["n"].fixed_to)
 
         self.parameters["a"].scale_func = scale_func
-        super().rescale(x_scale=x_scale, y_scale=y_scale)
+        super().rescale(x_scales=x_scales, y_scales=y_scales)
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        a: ModelParameter(fixed_to=1, scale_func=common.scale_undefined),
-        x0: ModelParameter(fixed_to=0, scale_func=common.scale_x),
-        y0: ModelParameter(scale_func=common.scale_y),
-        n: ModelParameter(scale_func=common.scale_invariant),
-    ) -> Array[("num_samples",), np.float64]:
-        assert all(x - x0 >= 0), "`x - x0` must be > 0"
+        x: TX,
+        a: ModelParameter(fixed_to=1, scale_func=scale_undefined),
+        x0: ModelParameter(fixed_to=0, scale_func=scale_x()),
+        y0: ModelParameter(scale_func=scale_y()),
+        n: ModelParameter(scale_func=scale_invariant),
+    ) -> TY:
+        assert np.all(x - x0 >= 0), "`x - x0` must be > 0"
         return a * np.float_power(x - x0, n) + y0
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         unknowns = {
@@ -192,13 +199,13 @@ class Power(Model):
 def poly_fit_parameter(n):
     return ModelParameter(
         fixed_to=None,
-        scale_func=common.scale_power(x_power=-n, y_power=1),
+        scale_func=scale_power(x_power=-n, y_power=1),
     )
 
 
 def _generate_poly_parameters(poly_degree):
     params = {f"a_{n}": poly_fit_parameter(n) for n in range(poly_degree + 1)}
-    params.update({"x0": ModelParameter(fixed_to=0, scale_func=common.scale_x)})
+    params.update({"x0": ModelParameter(fixed_to=0, scale_func=scale_x())})
     return params
 
 
@@ -226,31 +233,28 @@ class Polynomial(Model):
         self.poly_degree = poly_degree
         super().__init__(parameters=_generate_poly_parameters(poly_degree))
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        rescale_x = True if self.parameters["x0"].fixed_to == 0.0 else False
-        return rescale_x, True
+    def get_num_y_axes(self) -> int:
+        return 1
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
-    ) -> Array[("num_samples",), np.float64]:
-        x0 = params["x0"]
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        rescale_x = True if self.parameters["x0"].fixed_to == 0.0 else False
+        return [rescale_x], [True]
+
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
+        x0 = param_values["x0"]
         p = np.array(
-            [params[f"a_{n}"] for n in range(self.poly_degree, -1, -1)],
+            [param_values[f"a_{n}"] for n in range(self.poly_degree, -1, -1)],
             dtype=np.float64,
         )
 
         y = np.polyval(p, x - x0)
         return y
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         self.parameters["x0"].heuristic = 0.0
@@ -314,11 +318,7 @@ class Parabola(MappedModel):
             {"a_1": 0},
         )
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
         """
         If `x0` is floated, we map the Polynomial `a_1` coefficient onto a value for
         `x0` according to:

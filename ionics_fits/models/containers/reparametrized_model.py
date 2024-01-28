@@ -1,14 +1,7 @@
-from typing import Dict, List, Tuple, TYPE_CHECKING
-
-import numpy as np
+from typing import Dict, List, Tuple
 
 from ... import Model, ModelParameter
-from ...utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
+from ...common import TX, TY
 
 
 class ReparametrizedModel(Model):
@@ -122,17 +115,16 @@ class ReparametrizedModel(Model):
         """
         raise NotImplementedError
 
-    def get_num_y_channels(self) -> int:
-        return self.model.get_num_y_channels()
+    def get_num_x_axes(self) -> int:
+        return self.model.get_num_x_axes()
 
-    def can_rescale(self) -> Tuple[bool, bool]:
+    def get_num_y_axes(self) -> int:
+        return self.model.get_num_y_axes()
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return self.model.can_rescale()
 
-    def func(
-        self,
-        x: Array[("num_samples",), np.float64],
-        param_values: Dict[str, float],
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         model_values = self.bound_param_values(param_values)
         model_values.update(
             {
@@ -142,11 +134,7 @@ class ReparametrizedModel(Model):
         )
         return self.model.func(x, model_values)
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TX):
         self.model.estimate_parameters(x=x, y=y)
         model_heuristics = {
             param_name: param_data.get_initial_value()
@@ -162,8 +150,8 @@ class ReparametrizedModel(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:

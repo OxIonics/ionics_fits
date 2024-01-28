@@ -1,14 +1,7 @@
-from typing import Dict, Optional, Tuple, TYPE_CHECKING
-
-import numpy as np
+from typing import Dict, List, Optional, Tuple
 
 from ... import Model
-from ...utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
+from ...common import TX, TY
 
 
 class MappedModel(Model):
@@ -89,15 +82,16 @@ class MappedModel(Model):
             internal_parameters=internal_parameters,
         )
 
-    def get_num_y_channels(self) -> int:
-        return self.model.get_num_y_channels()
+    def get_num_x_axes(self) -> int:
+        return self.model.get_num_x_axes()
 
-    def can_rescale(self) -> Tuple[bool, bool]:
+    def get_num_y_axes(self) -> int:
+        return self.model.get_num_y_axes()
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return self.model.can_rescale()
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_samples", "num_y_channels"), np.float64]:
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         new_params = {
             old_name: param_values[new_name]
             for new_name, old_name in self.param_mapping.items()
@@ -110,11 +104,7 @@ class MappedModel(Model):
         )
         return self.model.func(x, new_params)
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
         self.model.estimate_parameters(x, y)
 
         for param_name, param_data in self.parameters.items():
@@ -124,8 +114,8 @@ class MappedModel(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:

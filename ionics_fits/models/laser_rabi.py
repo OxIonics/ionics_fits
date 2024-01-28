@@ -12,12 +12,11 @@ from .quantum_phys import (
 )
 from . import rabi
 from .utils import param_like
-from .. import common, ModelParameter
-from ..utils import Array
-
+from .. import ModelParameter
+from ..common import TX, TY
+from ..utils import scale_invariant, scale_y, scale_undefined
 
 if TYPE_CHECKING:
-    num_samples = float
     num_fock_states = float
 
 
@@ -135,30 +134,28 @@ def make_laser_flop(base_class, distribution_fun):
         # pytype: disable=invalid-annotation
         def _func(
             self,
-            x: Tuple[
-                Array[("num_samples",), np.float64], Array[("num_samples",), np.float64]
-            ],
+            x: Tuple[TX, TX],
             P_readout_e: ModelParameter(
                 lower_bound=0.0,
                 upper_bound=1.0,
-                scale_func=common.scale_y,
+                scale_func=scale_y(),
             ),
             P_readout_g: ModelParameter(
                 lower_bound=0.0,
                 upper_bound=1.0,
-                scale_func=common.scale_y,
+                scale_func=scale_y(),
             ),
-            eta: ModelParameter(lower_bound=0.0, scale_func=common.scale_invariant),
-            omega: ModelParameter(lower_bound=0.0, scale_func=common.scale_undefined),
+            eta: ModelParameter(lower_bound=0.0, scale_func=scale_invariant),
+            omega: ModelParameter(lower_bound=0.0, scale_func=scale_undefined),
             tau: ModelParameter(
-                lower_bound=0.0, fixed_to=np.inf, scale_func=common.scale_undefined
+                lower_bound=0.0, fixed_to=np.inf, scale_func=scale_undefined
             ),
             t_dead: ModelParameter(
-                lower_bound=0.0, fixed_to=0.0, scale_func=common.scale_undefined
+                lower_bound=0.0, fixed_to=0.0, scale_func=scale_undefined
             ),
-            w_0: ModelParameter(scale_func=common.scale_undefined),
+            w_0: ModelParameter(scale_func=scale_undefined),
             **kwargs,  # Fock state distribution function parameters
-        ) -> Array[("num_samples",), np.float64]:
+        ) -> TY:
             """
             Return measurement probability.
 
@@ -206,11 +203,7 @@ def make_laser_flop(base_class, distribution_fun):
 
         # pytype: enable=invalid-annotation
 
-        def estimate_parameters(
-            self,
-            x: Array[("num_samples",), np.float64],
-            y: Array[("num_samples",), np.float64],
-        ):
+        def estimate_parameters(self, x: TX, y: TY):
             # Pick sensible starting values which are usually good enough for the fit to
             # converge from.
             if (
@@ -255,8 +248,8 @@ def make_laser_flop(base_class, distribution_fun):
 
         def calculate_derived_params(
             self,
-            x: Array[("num_samples",), np.float64],
-            y: Array[("num_samples",), np.float64],
+            x: TX,
+            y: TY,
             fitted_params: Dict[str, float],
             fit_uncertainties: Dict[str, float],
         ) -> Tuple[Dict[str, float], Dict[str, float]]:
