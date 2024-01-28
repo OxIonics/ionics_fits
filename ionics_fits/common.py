@@ -7,80 +7,34 @@ import logging
 import numpy as np
 from typing import Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
-from .utils import Array, ArrayLike
+from .utils import Array, ArrayLike, scale_undefined, TSCALE_FUN, TX_SCALE, TY_SCALE
 
 
 if TYPE_CHECKING:
     num_samples = float
-    num_values = float
-    num_spectrum_pts = float
-    num_test_pts = float
-    num_y_channels = float
+    num_x_axes = float
+    num_y_axes = float
 
 
 logger = logging.getLogger(__name__)
 
 
-TX = ArrayLike[("num_samples",), np.float64]
-TY = Union[
-    Array[("num_y_channels", "num_samples"), np.float64],
-    Array[("num_samples"), np.float64],
+TX = Union[
+    float,
+    ArrayLike[("num_samples",), np.float64],
+    ArrayLike[
+        (
+            "num_x_axes",
+            "num_samples",
+        ),
+        np.float64,
+    ],
 ]
-
-
-def scale_invariant(x_scale: float, y_scale: float) -> float:
-    """Scale function for model parameters whose value is invariant under rescaling of
-    the x- and y-axes"""
-    return 1
-
-
-def scale_x(x_scale: float, y_scale: float) -> float:
-    """
-    Scale function for model parameters whose value scales linearly with the x-axis
-    """
-    return x_scale
-
-
-def scale_x_inv(x_scale: float, y_scale: float) -> float:
-    """
-    Scale function for model parameters whose value scales with 1/x_scale
-    """
-    return 1 / x_scale
-
-
-def scale_y(x_scale: float, y_scale: float) -> float:
-    """
-    Scale function for model parameters whose value scales linearly with the x-axis
-    """
-    return y_scale
-
-
-def scale_power(x_power: int, y_power: int) -> Callable[[float, float], float]:
-    """Returns a scale function for model parameters whose value scales as a power of
-    the x- and y-axes
-    """
-
-    def scale_func(x_scale: float, y_scale: float) -> float:
-        return (x_scale**x_power) * (y_scale**y_power)
-
-    return scale_func
-
-
-def scale_undefined(x_scale: float, y_scale: float) -> float:
-    """This is typically used when the appropriate scale factor to use must be
-    determined at runtime"""
-    raise RuntimeError(
-        "Attempt to rescale model parameter with undefined scale function"
-    )
-
-
-def scale_no_rescale(x_scale: float, y_scale: float) -> float:
-    """For model parameters which cannot be rescaled"""
-    if x_scale != 1.0 or y_scale != 1:
-        raise RuntimeError(
-            "Attempt to rescale model parameter which does not support rescaling"
-        )
-    return 1.0
+TY = Union[
+    float,
+    Array[("num_samples"), np.float64],
+    Array[("num_y_axes", "num_samples"), np.float64],
+]
 
 
 @dataclasses.dataclass
@@ -94,7 +48,7 @@ class ModelParameter:
             numerical stability by avoiding asking the optimizer to work with very large
             or very small values of `x` and `y`. The callable takes the x-axis and
             y-axis scale factors as arguments. A number of default scale functions are
-            provided for convenience.
+            provided for convenience in `fits.utils`.
         lower_bound: lower bound for the parameter. Fitted values are guaranteed to be
             greater than or equal to the lower bound. Parameter bounds may be used by
             fit heuristics to help find good starting points for the optimizer.
@@ -118,7 +72,7 @@ class ModelParameter:
             and should not be set by the user.
     """
 
-    scale_func: Callable[[float, float], float]
+    scale_func: TSCALE_FUN
     lower_bound: float = -np.inf
     upper_bound: float = np.inf
     fixed_to: Optional[float] = None
@@ -159,13 +113,13 @@ class ModelParameter:
             value *= scale_factor
         object.__setattr__(self, name, value)
 
-    def rescale(self, x_scale: float, y_scale: float):
+    def rescale(self, x_scales: TX_SCALE, y_scales: TY_SCALE):
         """Rescales the parameter metadata based on the specified x and y data scale
         factors.
         """
         if self.scale_factor is not None:
             raise RuntimeError("Attempt to rescale an already rescaled model parameter")
-        self.scale_factor = self.scale_func(x_scale, y_scale)
+        self.scale_factor = self.scale_func(x_scales, y_scales)
 
     def unscale(self):
         """Disables rescaling of the parameter metadata"""
@@ -277,29 +231,29 @@ class Model:
         args.update(kwargs)
         return self.func(x, args)
 
-    def can_rescale(self) -> Tuple[bool, bool]:
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         """
-        Returns a Tuple of bools specifying whether the model can be rescaled along
-        the x- and y-axes
+        Returns a Tuple of list of bools specifying whether the model can be rescaled
+        along each x- and y-axes dimension.
         """
         raise NotImplementedError
 
-    def rescale(self, x_scale: float, y_scale: float):
+    def rescale(self, x_scales: TX_SCALE, y_scales: TY_SCALE):
         """Rescales the model parameters based on the specified x and y data scale
         factors.
 
-        :param x_scale: x-axis scale factor
-        :param y_scale: y-axis scale factor
+        :param x_scales: array of x-axis scale factors
+        :param y_scales: array of y-axis scale factors
         """
         for param_name, param_data in self.parameters.items():
             if param_data.scale_func == scale_undefined:
                 raise RuntimeError(
                     f"Parameter {param_name} has an undefined scale function"
                 )
-            param_data.rescale(x_scale, y_scale)
+            param_data.rescale(x_scales, y_scales)
 
         for param_data in self.internal_parameters:
-            param_data.rescale(x_scale, y_scale)
+            param_data.rescale(x_scales, y_scales)
 
     def unscale(self):
         """Disables rescaling of the model parameters."""
@@ -307,8 +261,12 @@ class Model:
         for param_data in parameters:
             param_data.unscale()
 
-    def get_num_y_channels(self) -> int:
-        """Returns the number of y-axis dimensions ("channels") the model has."""
+    def get_num_x_axes(self) -> int:
+        """Returns the number of x-axis dimensions the model has."""
+        raise NotImplementedError
+
+    def get_num_y_axes(self) -> int:
+        """Returns the number of y-axis dimensions the model has."""
         raise NotImplementedError
 
     def clear_heuristics(self):
@@ -321,10 +279,6 @@ class Model:
             param_data.heuristic = None
         for param_data in self.internal_parameters:
             param_data = None
-
-    def get_num_x_axes(self) -> int:
-        """Returns the number of x-axis dimensions the model has."""
-        raise NotImplementedError
 
     def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         """Evaluates the model at a given set of x-axis points and with a given set of
@@ -340,12 +294,10 @@ class Model:
         :param param_values: dictionary of parameter values
         :returns: array of model values
         """
+        x = np.atleast_2d(x)
         return self._func(x, **param_values)
 
-    def _func(
-        self,
-        x: TX,
-    ) -> TY:
+    def _func(self, x: TX) -> TY:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
@@ -366,23 +318,19 @@ class Model:
         """
         raise NotImplementedError
 
-    def estimate_parameters(
-        self,
-        x: TX,
-        y: TY,
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
         """Set heuristic values for model parameters.
 
         Typically called during `Fitter.fit`. This method may make use of information
         supplied by the user for some parameters (via the `fixed_to` or
         `user_estimate` attributes) to find initial guesses for other parameters.
 
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If the model allows rescaling then rescaled
-        units will be used everywhere (`x` and `y` as well as parameter values).
+        The datasets must be sorted along the x-axis dimensions and must not contain any
+        infinite or nan values. If the model allows rescaling then rescaled units will
+        be used everywhere (`x` and `y` as well as parameter values).
 
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
+        :param x: x-axis data
+        :param y: y-axis data
         """
         raise NotImplementedError
 
@@ -419,11 +367,12 @@ class Fitter:
     results as attributes.
 
     Attributes:
-        x: 1D ndarray of shape (num_samples,) containing x-axis values of valid points.
-        y: 2D ndarray of shape (num_y_channels, num_samples) containing y-axis values
-            of valid points.
-        sigma: 2D ndarray of shape (num_y_channels, num_samples) containing y-axis
-            standard errors where available.
+        x: x-axis data. The input data is sorted along the x-axis dimensions and
+            filtered to contain only the "valid" point where x and y are finite.
+        y: y-axis data. The input data is sorted along the x-axis dimensions x and
+            filtered to contain only the "valid" point where x and y are finite.
+        sigma: standard errors for each point. This is stored as an array with the same
+            shape as `y`.
         values: dictionary mapping model parameter names to their fitted values
         uncertainties: dictionary mapping model parameter names to their fit
             uncertainties. For sufficiently large datasets, well-formed problems and
@@ -439,8 +388,8 @@ class Fitter:
             used to seed the fit.
         model: the fit model
         free_parameters: list of names of the model parameters floated during the fit
-        x_scale: the applied x-axis scale factor
-        y_scale: the applied y-axis scale factor
+        x_scales: the applied x-axis scale factors
+        y_scales: the applied y-axis scale factors
     """
 
     x: TX
@@ -453,19 +402,16 @@ class Fitter:
     initial_values: Dict[str, float]
     model: Model
     free_parameters: List[str]
-    x_scale: float
-    y_scale: float
+    x_scales: TX_SCALE
+    y_scales: TY_SCALE
 
-    def __init__(
-        self,
-        x: TX,
-        y: TY,
-        model: Model,
-    ):
+    def __init__(self, x: TX, y: TY, model: Model):
         """Fits a model to a dataset and stores the results.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data. For models with more than one x-axis dimension, `x`
+            should be in the form `(num_x_axes, num_samples)`.
+        :param y: y-axis data.For models with more than one y-axis dimension, `y`
+            should be in the form `(num_y_axes, num_samples)`.
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
             fitting to change the fit behaviour from the model class' defaults. The
@@ -473,27 +419,33 @@ class Fitter:
         """
         self.model = copy.deepcopy(model)
 
-        self.x = np.array(x, dtype=np.float64, copy=True)
+        self.x = np.atleast_2d(np.array(x, dtype=np.float64, copy=True))
         self.y = np.atleast_2d(np.array(y, dtype=np.float64, copy=True))
 
         self.sigma = self.calc_sigma()
         self.sigma = np.atleast_2d(self.sigma) if self.sigma is not None else None
 
-        if self.x.ndim != 1:
-            raise ValueError("x-axis data must be a 1D array.")
+        if self.x.ndim != 2:
+            raise ValueError("x-axis data must be a 1D or 2D array.")
 
         if self.y.ndim != 2:
             raise ValueError("y-axis data must be a 1D or 2D array.")
 
-        if self.x.shape[0] != self.y.shape[1]:
+        if self.x.shape[1] != self.y.shape[1]:
             raise ValueError(
-                "Number of x-axis and y-axis samples must match "
-                f"(got {self.x.shape} and {self.y.shape})."
+                "Number of samples in the x and y datasets must match "
+                f"(got {self.x.shape[1]} along x and {self.y.shape[1]} along y)."
             )
 
-        if self.y.shape[0] != self.model.get_num_y_channels():
+        if self.x.shape[0] != self.model.get_num_x_axes():
             raise ValueError(
-                f"Expected {self.model.get_num_y_channels()} y channels, "
+                f"Expected {self.model.get_num_x_axes()} x axes, "
+                f"got {self.x.shape[0]}."
+            )
+
+        if self.y.shape[0] != self.model.get_num_y_axes():
+            raise ValueError(
+                f"Expected {self.model.get_num_y_axes()} y axes, "
                 f"got {self.y.shape[0]}."
             )
 
@@ -503,18 +455,18 @@ class Fitter:
                 f"{self.y.shape})."
             )
 
-        valid_x = np.isfinite(self.x)
+        valid_x = np.all(np.isfinite(self.x), axis=0)
         valid_y = np.all(np.isfinite(self.y), axis=0)
-        valid_pts = np.logical_and(valid_x, valid_y).squeeze()
+        valid_pts = np.logical_and(valid_x, valid_y)
+        assert valid_pts.ndim == 1
 
-        (inds,) = np.where(valid_pts)
-        sorted_inds = inds[np.argsort(self.x[valid_pts])]
+        (valid_inds,) = np.where(valid_pts)
+        sorted_inds = valid_inds[np.lexsort(np.flipud(self.x[:, valid_inds]))]
 
-        self.x = self.x[sorted_inds]
+        self.x = self.x[:, sorted_inds]
         self.y = self.y[:, sorted_inds]
 
         if self.sigma is not None:
-
             self.sigma = self.sigma[:, sorted_inds]
             if np.any(self.sigma == 0) or not np.all(np.isfinite(self.sigma)):
                 raise RuntimeError(
@@ -523,22 +475,43 @@ class Fitter:
 
         # Rescale coordinates to improve numerics (optimizers need to do things like
         # calculate numerical derivatives which is easiest if x and y are O(1)).
-        #
-        # Currently we use a single scale factor for all y channels. This may change in
-        # future
-        rescale_x, rescale_y = self.model.can_rescale()
-        self.x_scale = np.max(np.abs(self.x)) if rescale_x else 1.0
-        self.y_scale = np.max(np.abs(self.y)) if rescale_y else 1.0
+        rescale_xs, rescale_ys = self.model.can_rescale()
+
+        if len(rescale_xs) != self.model.get_num_x_axes():
+            raise ValueError(
+                "Unexpected number of x-axis results returned from model.can_rescale"
+            )
+
+        if len(rescale_ys) != self.model.get_num_y_axes():
+            raise ValueError(
+                "Unexpected number of y-axis results returned from model.can_rescale"
+            )
+
+        self.x_scales = np.array(
+            [
+                max(np.abs(self.x[idx, :])) if rescale else 1.0
+                for idx, rescale in enumerate(rescale_xs)
+            ]
+        )
+        self.y_scales = np.array(
+            [
+                max(np.abs(self.y[idx, :])) if rescale else 1.0
+                for idx, rescale in enumerate(rescale_ys)
+            ]
+        )
 
         # Corner-case if a y-channel has values that are all 0
-        if self.y_scale == 0 or not np.isfinite(self.y_scale):
-            self.y_scale = 1
-            rescale_y = False
+        self.y_scales = np.array(
+            [
+                y_scale if (y_scale != 0 and np.isfinite(y_scale)) else 1.0
+                for y_scale in self.y_scales
+            ]
+        )
 
-        self.model.rescale(self.x_scale, self.y_scale)
+        self.model.rescale(self.x_scales, self.y_scales)
 
-        x_scaled = self.x / self.x_scale
-        y_scaled = self.y / self.y_scale
+        x_scaled = self.x / self.x_scales[:, None]
+        y_scaled = self.y / self.y_scales[:, None]
 
         self.model.estimate_parameters(x_scaled, y_scaled)
 
@@ -563,17 +536,14 @@ class Fitter:
         if self.free_parameters == []:
             raise ValueError("Attempt to fit with no free parameters.")
 
-        def free_func(
-            x: Array[("num_samples",), np.float64], *free_param_values: float
-        ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+        def free_func(x: TX, *free_param_values: float) -> TY:
             """Call the model function with the values of the free parameters."""
             params = {
                 param: value
                 for param, value in zip(self.free_parameters, list(free_param_values))
             }
             params.update(self.fixed_parameters)
-            y = self.model.func(x, params)
-            return y
+            return self.model.func(x, params)
 
         fitted_params, uncertainties = self._fit(
             x_scaled, y_scaled, self.model.parameters, free_func
