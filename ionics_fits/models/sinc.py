@@ -1,14 +1,12 @@
-from typing import Tuple, TYPE_CHECKING
+from typing import List, Tuple
 import numpy as np
 
 from . import heuristics
 from .rectangle import Rectangle
 from .triangle import Triangle
-from .. import common, Model, ModelParameter, NormalFitter
-from ..utils import Array
-
-if TYPE_CHECKING:
-    num_samples = float
+from .. import Model, ModelParameter, NormalFitter
+from ..common import TX, TY
+from ..utils import scale_x, scale_x_inv, scale_y
 
 
 class Sinc(Model):
@@ -25,32 +23,31 @@ class Sinc(Model):
       None
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [True]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=common.scale_x),
-        y0: ModelParameter(scale_func=common.scale_y),
-        a: ModelParameter(scale_func=common.scale_y),
-        w: ModelParameter(lower_bound=0, scale_func=common.scale_x_inv),
-    ) -> Array[("num_samples",), np.float64]:
+        x: TX,
+        x0: ModelParameter(scale_func=scale_x()),
+        y0: ModelParameter(scale_func=scale_y()),
+        a: ModelParameter(scale_func=scale_y()),
+        w: ModelParameter(lower_bound=0, scale_func=scale_x_inv()),
+    ) -> TY:
         x = w * (x - x0) / np.pi  # np.sinc(x) = sin(pi*x) / (pi*x)
         y = a * np.sinc(x) + y0
         return y
 
     # pytype: enable=invalid-annotation
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
@@ -99,33 +96,31 @@ class Sinc2(Model):
       None
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [True]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=common.scale_x),
-        y0: ModelParameter(scale_func=common.scale_y),
-        a: ModelParameter(scale_func=common.scale_y),
-        w: ModelParameter(lower_bound=0, scale_func=common.scale_x_inv),
-    ) -> Array[("num_samples",), np.float64]:
+        x: TX,
+        x0: ModelParameter(scale_func=scale_x()),
+        y0: ModelParameter(scale_func=scale_y()),
+        a: ModelParameter(scale_func=scale_y()),
+        w: ModelParameter(lower_bound=0, scale_func=scale_x_inv()),
+    ) -> TY:
         x = w * (x - x0) / np.pi  # np.sinc(x) = sin(pi*x) / (pi*x)
         y = a * (np.sinc(x) ** 2) + y0
         return y
 
     # pytype: enable=invalid-annotation
-
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         y0 = self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
