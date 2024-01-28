@@ -3,21 +3,21 @@ import numpy as np
 from scipy import fft, signal
 
 from .. import Model
+from ..common import TX, TY
 from ..utils import Array, ArrayLike
 
 
 if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
     num_values = float
+    num_samples = float
     num_spectrum_pts = float
     num_spectrum_samples = float
 
 
 def param_min_sqrs(
     model: Model,
-    x: Array[("num_samples",), np.float64],
-    y: Array[("num_y_channels", "num_samples"), np.float64],
+    x: TX,
+    y: TY,
     scanned_param: str,
     scanned_param_values: ArrayLike["num_values", np.float64],
     defaults: Optional[Dict[str, float]] = None,
@@ -72,10 +72,7 @@ def param_min_sqrs(
     return float(scanned_param_values[opt]), float(costs[opt])
 
 
-def get_sym_x(
-    x: Array[("num_samples",), np.float64],
-    y: Array[("num_y_channels", "num_samples"), np.float64],
-) -> float:
+def get_sym_x(x: TX, y: TY) -> float:
     """Returns `x_0` such that y(x-x_0) is maximally symmetric."""
     y = np.atleast_2d(y)
     x_span = x.ptp()
@@ -115,9 +112,9 @@ def get_sym_x(
 
 
 def find_x_offset_fft(
-    x: Array[("num_samples",), np.float64],
-    omega: Array[("num_spectrum_pts",), np.float64],
-    spectrum: Array[("num_spectrum_pts",), np.float64],
+    x: TX,
+    omega: ArrayLike[("num_spectrum_pts",), np.float64],
+    spectrum: ArrayLike[("num_spectrum_pts",), np.float64],
     omega_cut_off: float,
 ) -> float:
     """Finds the x-axis offset of a dataset from the phase of an FFT.
@@ -152,12 +149,12 @@ def find_x_offset_fft(
 
 def find_x_offset_sym_peak_fft(
     model: Model,
-    x: Array[("num_samples",), np.float64],
-    y: Array[("num_samples",), np.float64],
-    omega: Array[("num_spectrum_pts",), np.float64],
-    spectrum: Array[("num_spectrum_pts",), np.float64],
+    x: TX,
+    y: TY,
+    omega: ArrayLike[("num_spectrum_pts",), np.float64],
+    spectrum: ArrayLike[("num_spectrum_pts",), np.float64],
     omega_cut_off: float,
-    test_pts: Optional[Array[("num_values",), np.float64]] = None,
+    test_pts: Optional[ArrayLike[("num_values",), np.float64]] = None,
     x_offset_param_name: str = "x0",
     y_offset_param_name: str = "y0",
     defaults: Optional[Dict[str, float]] = None,
@@ -228,8 +225,8 @@ def find_x_offset_sym_peak_fft(
 
 
 def get_spectrum(
-    x: Array[("num_samples",), np.float64],
-    y: Array[("num_samples",), np.float64],
+    x: TX,
+    y: TY,
     trim_dc: bool = False,
 ) -> Tuple[
     Array[("num_spectrum_samples",), np.float64],
@@ -248,13 +245,16 @@ def get_spectrum(
     :param trim_dc: if `True` we do not return the DC component.
     :returns: tuple of (angular freq, fft)
     """
-    if x.ndim != 1:
-        raise ValueError("x-axis data must be a 1D array.")
-    if y.ndim != 1:
-        raise ValueError("y-axis data must be a 1D array.")
+    y = y.squeeze()
+    x = x.squeeze()
 
-    dx = x.ptp() / x.size
+    if x.ndim != 1 or y.ndim != 1:
+        raise ValueError(
+            "get_pgram only supports datasets with a single x-axis / y-axis dimension."
+        )
+
     n = x.size
+    dx = x.ptp() / n
     omega = np.fft.fftfreq(n, dx) * (2 * np.pi)
     y_f = fft.rfft(y) * dx
 
@@ -285,19 +285,21 @@ def get_pgram(
         data from a single channel only.
     :returns: tuple with the frequency axis (angular units) and the periodogram
     """
-    if y.ndim != 1 and y.shape[1] > 1:
+    y = y.squeeze()
+    x = x.squeeze()
+
+    if x.ndim != 1 or y.ndim != 1:
         raise ValueError(
-            f"{y.shape[1]} y channels were provided to a method which takes 1"
+            "get_pgram only supports datasets with a single x-axis / y-axis dimension."
         )
 
     dx = np.min(np.diff(x))
-    duration = x.ptp()
-    n = int(duration / dx)
-    df = 1 / (n * dx)
+    n = int(x.ptp() / dx)
+    f_sample = 1 / dx
+    f_max = (0.5 - 1 / n) * f_sample
+    df = f_sample / n
 
-    f_nyquist = 0.5 / dx
-
-    omega_list = 2 * np.pi * np.linspace(df, f_nyquist, n)
+    omega_list = 2 * np.pi * np.linspace(df, f_max, n)
     pgram = signal.lombscargle(x, y, omega_list, precenter=True)
     pgram = np.sqrt(np.abs(pgram) * 4 / len(y))
 
@@ -306,8 +308,8 @@ def get_pgram(
 
 def find_x_offset_sampling(
     model: Model,
-    x: Array[("num_samples",), np.float64],
-    y: Array[("num_samples", "num_y_channels"), np.float64],
+    x: TX,
+    y: TY,
     width: float,
     x_offset_param_name: str = "x0",
 ) -> float:
