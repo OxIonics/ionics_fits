@@ -10,10 +10,8 @@ from .utils import Array
 
 if TYPE_CHECKING:
     num_samples = float
-    num_values = float
-    num_y_channels = float
     num_samples_flattened = float
-
+    num_x_axes = float
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +67,7 @@ class NormalFitter(Fitter):
         `Fitter` implementations must override this method to provide a fit with
         appropriate statistics.
 
-        :param x: rescaled x-axis data, must be a 1D array
+        :param x: rescaled x-axis data
         :param y: rescaled y-axis data
         :param parameters: dictionary of rescaled model parameters
         :param free_func: convenience wrapper for the model function, taking only values
@@ -78,7 +76,7 @@ class NormalFitter(Fitter):
         :returns: tuple of dictionaries mapping model parameter names to their fitted
             values and uncertainties.
         """
-        sigma = None if self.sigma is None else self.sigma / self.y_scale
+        sigma = None if self.sigma is None else self.sigma / self.y_scales[:, None]
 
         free_parameters = [
             param_name
@@ -102,18 +100,24 @@ class NormalFitter(Fitter):
         )
 
         def fit_func(
-            _: Array[("num_samples_flattened",), np.float64], *free_param_values: float
+            _: Array[
+                (
+                    "num_x_axes",
+                    "num_samples_flattened",
+                ),
+                np.float64,
+            ],
+            *free_param_values: float,
         ) -> Array[("num_samples_flattened",), np.float64]:
             """Call the model function with the values of the free parameters."""
             return np.ravel(free_func(x, *free_param_values))
 
-        x_flat = np.ravel(np.tile(x, (y.ndim, 1)))
         y_flat = np.ravel(y)
         sigma_flat = None if sigma is None else np.ravel(sigma)
 
         p, p_cov = optimize.curve_fit(
             f=fit_func,
-            xdata=x_flat,
+            xdata=y_flat,  # not used during the fit
             ydata=y_flat,
             p0=p0,
             sigma=sigma_flat,
@@ -159,7 +163,7 @@ class NormalFitter(Fitter):
             raise ValueError(
                 "Cannot calculate chi squared for fit with "
                 f"{len(self.free_parameters)} floated parameters and only "
-                f"{len(x)} data points."
+                f"{y.size} data points."
             )
 
         y_fit = self.model.func(x, self.values)
