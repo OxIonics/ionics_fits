@@ -1,14 +1,10 @@
-from typing import Tuple, TYPE_CHECKING
+from typing import List, Tuple
 import numpy as np
 
 from . import heuristics, Triangle
-from .. import common, Model, ModelParameter, NormalFitter
-from ..utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
+from .. import Model, ModelParameter, NormalFitter
+from ..common import TX, TY
+from ..utils import scale_no_rescale
 
 
 class ConeSlice(Model):
@@ -33,30 +29,30 @@ class ConeSlice(Model):
     fit.
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return False, False
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [False], [False]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=common.scale_no_rescale),
-        z0: ModelParameter(scale_func=common.scale_no_rescale, fixed_to=0),
-        k: ModelParameter(scale_func=common.scale_no_rescale),
-        alpha: ModelParameter(lower_bound=0, scale_func=common.scale_no_rescale),
-    ) -> Array[("num_samples",), np.float64]:
+        x: TX,
+        x0: ModelParameter(scale_func=scale_no_rescale),
+        z0: ModelParameter(scale_func=scale_no_rescale, fixed_to=0),
+        k: ModelParameter(scale_func=scale_no_rescale),
+        alpha: ModelParameter(lower_bound=0, scale_func=scale_no_rescale),
+    ) -> TY:
         return np.sign(k) * np.sqrt((k * (x - x0)) ** 2 + alpha**2) + z0
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
+        x = x.squeeze()
         y = y.squeeze()
 
         fit = NormalFitter(x=x, y=y, model=Triangle())

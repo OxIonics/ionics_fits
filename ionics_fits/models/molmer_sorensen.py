@@ -1,15 +1,11 @@
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple
 
 import numpy as np
 
 from . import heuristics
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
+from .. import Model, ModelParameter
+from ..common import TX, TY
+from ..utils import scale_invariant, scale_undefined, scale_x, scale_x_inv
 
 
 class MolmerSorensen(Model):
@@ -73,24 +69,25 @@ class MolmerSorensen(Model):
         self.start_excited = start_excited
         self.walsh_idx = walsh_idx
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
+        return 1
+
+    def get_num_y_axes(self) -> int:
         return [1, 3][self.num_qubits - 1]
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, False
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [False] * self.get_num_y_axes()
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Tuple[
-            Array[("num_samples",), np.float64], Array[("num_samples",), np.float64]
-        ],
-        omega: ModelParameter(lower_bound=0.0, scale_func=common.scale_undefined),
-        w_0: ModelParameter(scale_func=common.scale_undefined),
+        x: TX,
+        omega: ModelParameter(lower_bound=0.0, scale_func=scale_undefined),
+        w_0: ModelParameter(scale_func=scale_undefined),
         n_bar: ModelParameter(
-            lower_bound=0.0, fixed_to=0.0, scale_func=common.scale_invariant
+            lower_bound=0.0, fixed_to=0.0, scale_func=scale_invariant
         ),
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    ) -> TY:
 
         t_pulse = x[0]
         delta = x[1] - w_0
@@ -187,8 +184,8 @@ class MolmerSorensen(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
@@ -221,14 +218,12 @@ class MolmerSorensenTime(MolmerSorensen):
             num_qubits=num_qubits, start_excited=start_excited, walsh_idx=walsh_idx
         )
 
-        self.parameters["delta"] = ModelParameter(scale_func=common.scale_x_inv)
+        self.parameters["delta"] = ModelParameter(scale_func=scale_x_inv())
         del self.parameters["w_0"]
 
-        self.parameters["omega"].scale_func = common.scale_x_inv
+        self.parameters["omega"].scale_func = scale_x_inv()
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         """
         Return populations as function of pulse duration for fixed detuning.
 
@@ -239,11 +234,9 @@ class MolmerSorensenTime(MolmerSorensen):
         param_values["w_0"] = 0.0
         return self._func((x, delta), **param_values)  # pytype: disable=wrong-arg-types
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
+
         self.parameters["n_bar"].heuristic = 0.0
         if (
             not self.parameters["delta"].has_user_initial_value()
@@ -298,15 +291,13 @@ class MolmerSorensenFreq(MolmerSorensen):
         )
 
         self.parameters["t_pulse"] = ModelParameter(
-            lower_bound=0.0, scale_func=common.scale_x_inv
+            lower_bound=0.0, scale_func=scale_x_inv()
         )
 
-        self.parameters["omega"].scale_func = common.scale_x
-        self.parameters["w_0"].scale_func = common.scale_x
+        self.parameters["omega"].scale_func = scale_x()
+        self.parameters["w_0"].scale_func = scale_x()
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         """
         Return populations as function of detuning for fixed duration.
 
@@ -318,11 +309,8 @@ class MolmerSorensenFreq(MolmerSorensen):
             (t_pulse, x), **param_values
         )  # pytype: disable=wrong-arg-types
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         self.parameters["n_bar"].heuristic = 0.0
 
         # estimate the centre frequency by looking for the symmetry point.
@@ -402,8 +390,8 @@ class MolmerSorensenFreq(MolmerSorensen):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:

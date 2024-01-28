@@ -1,14 +1,7 @@
-from typing import Dict, Tuple, TYPE_CHECKING
-
-import numpy as np
+from typing import Dict, List, Tuple
 
 from ... import Model, common
-from ...utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
+from ...common import TX, TY
 
 
 class ScaledModel(Model):
@@ -35,25 +28,22 @@ class ScaledModel(Model):
             internal_parameters=self.model.internal_parameters,
         )
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_samples", "num_y_channels"), np.float64]:
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         return self.model.func(x * self.x_scale + self.x_offset, param_values)
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples", "num_y_channels"), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
         self.model.estimate_parameters(x * self.x_scale + self.x_offset, y)
         for param_name, param_data in self.model.parameters.items():
             self.parameters[param_name].heuristic = param_data.get_initial_value()
 
-    def can_rescale(self) -> Tuple[bool, bool]:
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return self.model.can_rescale()
 
-    def get_num_y_channels(self) -> int:
-        return self.model.get_num_y_channels()
+    def get_num_x_axes(self) -> int:
+        return self.model.get_num_x_axes()
+
+    def get_num_y_axes(self) -> int:
+        return self.model.get_num_y_axes()
 
     def calculate_derived_params(
         self,

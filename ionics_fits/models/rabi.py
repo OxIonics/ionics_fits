@@ -1,17 +1,14 @@
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple
 
 import numpy as np
 
 from . import heuristics
 from .sinc import Sinc2
 from .sinusoid import Sinusoid
-from .. import common, Model, ModelParameter, NormalFitter
+from .. import Model, ModelParameter, NormalFitter
 from .heuristics import get_spectrum
-from ..utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
+from ..common import TX, TY
+from ..utils import scale_undefined, scale_x, scale_x_inv, scale_y
 
 
 class RabiFlop(Model):
@@ -64,11 +61,14 @@ class RabiFlop(Model):
         super().__init__()
         self.start_excited = start_excited
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, False
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [False]
 
     # pytype: disable=invalid-annotation
     def _func(
@@ -77,28 +77,26 @@ class RabiFlop(Model):
         # This is not the standard type for `x`; we rely on the implementation of `func`
         # to change the type of `x` for us (see the RabiFlopFreq / RabiFlopTime
         # implementations)
-        x: Tuple[
-            Array[("num_samples",), np.float64], Array[("num_samples",), np.float64]
-        ],
+        x: TX,
         P_readout_e: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            scale_func=common.scale_y,
+            scale_func=scale_y(),
         ),
         P_readout_g: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            scale_func=common.scale_y,
+            scale_func=scale_y(),
         ),
-        omega: ModelParameter(lower_bound=0.0, scale_func=common.scale_undefined),
+        omega: ModelParameter(lower_bound=0.0, scale_func=scale_undefined),
         tau: ModelParameter(
-            lower_bound=0.0, fixed_to=np.inf, scale_func=common.scale_undefined
+            lower_bound=0.0, fixed_to=np.inf, scale_func=scale_undefined
         ),
         t_dead: ModelParameter(
-            lower_bound=0.0, fixed_to=0.0, scale_func=common.scale_undefined
+            lower_bound=0.0, fixed_to=0.0, scale_func=scale_undefined
         ),
-        w_0: ModelParameter(scale_func=common.scale_undefined),
-    ) -> Array[("num_samples",), np.float64]:
+        w_0: ModelParameter(scale_func=scale_undefined),
+    ) -> TY:
         """:param x: tuple of (t_pulse, w)"""
         t = np.clip(x[0] - t_dead, a_min=0.0, a_max=None)
         delta = x[1] - w_0
@@ -117,8 +115,8 @@ class RabiFlop(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
@@ -155,30 +153,24 @@ class RabiFlopFreq(RabiFlop):
         super().__init__(start_excited)
 
         self.parameters["t_pulse"] = ModelParameter(
-            lower_bound=0.0, scale_func=common.scale_x_inv
+            lower_bound=0.0, scale_func=scale_x_inv()
         )
 
-        self.parameters["omega"].scale_func = common.scale_x
-        self.parameters["w_0"].scale_func = common.scale_x
+        self.parameters["omega"].scale_func = scale_x()
+        self.parameters["w_0"].scale_func = scale_x()
 
-        self.parameters["tau"].scale_func = common.scale_x_inv
-        self.parameters["t_dead"].scale_func = common.scale_x_inv
+        self.parameters["tau"].scale_func = scale_x_inv()
+        self.parameters["t_dead"].scale_func = scale_x_inv()
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_samples",), np.float64]:
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         param_values = param_values.copy()
         t_pulse = param_values.pop("t_pulse")
         return self._func(
             (t_pulse, x), **param_values
         )  # pytype: disable=wrong-arg-types
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         self.parameters["t_dead"].heuristic = 0.0
@@ -267,28 +259,22 @@ class RabiFlopTime(RabiFlop):
     def __init__(self, start_excited: bool):
         super().__init__(start_excited)
 
-        self.parameters["delta"] = ModelParameter(scale_func=common.scale_x_inv)
+        self.parameters["delta"] = ModelParameter(scale_func=scale_x_inv())
         del self.parameters["w_0"]
 
-        self.parameters["omega"].scale_func = common.scale_x_inv
+        self.parameters["omega"].scale_func = scale_x_inv()
 
-        self.parameters["tau"].scale_func = common.scale_x
-        self.parameters["t_dead"].scale_func = common.scale_x
+        self.parameters["tau"].scale_func = scale_x()
+        self.parameters["t_dead"].scale_func = scale_x()
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_samples",), np.float64]:
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         param_values = param_values.copy()
         delta = param_values.pop("delta")
         param_values["w_0"] = 0.0
         return self._func((x, delta), **param_values)  # pytype: disable=wrong-arg-types
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         self.parameters["t_dead"].heuristic = 0.0
@@ -315,6 +301,7 @@ class RabiFlopTime(RabiFlop):
             )
 
         fit = NormalFitter(x, y, model)
+
         W = fit.values["omega"]
         self.parameters["omega"].heuristic = np.sqrt(2 * fit.values["a"]) * W
         omega = self.parameters["omega"].get_initial_value()

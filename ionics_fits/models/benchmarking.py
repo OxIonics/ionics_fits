@@ -1,18 +1,9 @@
-from typing import Dict, Tuple, TYPE_CHECKING
-
+from typing import Dict, List, Tuple
 import numpy as np
 
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-if TYPE_CHECKING:
-    num_samples = float
-
-
-def _p_scale_func(x_scale: float, y_scale: float) -> float:
-    if x_scale != 1.0:
-        raise RuntimeError("Benchmarking model cannot be rescaled along x")
-    return 1
+from .. import Model, ModelParameter
+from ..common import TX, TY
+from ..utils import scale_no_rescale
 
 
 class Benchmarking(Model):
@@ -41,40 +32,40 @@ class Benchmarking(Model):
         self.num_qubits = num_qubits
         self.alpha = 2**num_qubits / (2**num_qubits - 1)
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return False, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [False], [False]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        p: ModelParameter(lower_bound=0.0, upper_bound=1.0, scale_func=_p_scale_func),
+        x: TX,
+        p: ModelParameter(
+            lower_bound=0.0, upper_bound=1.0, scale_func=scale_no_rescale
+        ),
         y0: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            scale_func=common.scale_y,
+            scale_func=scale_no_rescale,
         ),
         y_inf: ModelParameter(
             # fixed_to set to `1 / 2**num_qubits` in the constructor
             lower_bound=0,
             upper_bound=1,
-            scale_func=common.scale_y,
+            scale_func=scale_no_rescale,
         ),
-    ) -> Array[("num_samples",), np.float64]:
+    ) -> TY:
         y = (y0 - y_inf) * p**x + y_inf
         return y
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
         y = np.squeeze(y)
 
         self.parameters["p"].heuristic = 1.0
@@ -83,8 +74,8 @@ class Benchmarking(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
