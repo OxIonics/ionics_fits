@@ -3,6 +3,7 @@ from . import containers
 from .containers import (
     AggregateModel,
     MappedModel,
+    Model2D,
     ReparametrizedModel,
     RepeatedModel,
     ScaledModel,
@@ -32,3 +33,4 @@ from .sinusoid import SineMinMax, Sinusoid
 from .triangle import Triangle
 
 from .cone import ConeSlice  # Relies on the triangle fit for parameter estimation
+from .multi_x import Cone2D, Gaussian2D, Parabola2D

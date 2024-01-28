@@ -1,7 +1,10 @@
 from typing import TYPE_CHECKING
 
-from .common import Model2D
-from .. import models
+from .containers import MappedModel, Model2D
+from .cone import ConeSlice
+from .gaussian import Gaussian
+from .polynomial import Parabola
+from .triangle import Triangle
 
 
 if TYPE_CHECKING:
@@ -39,13 +42,13 @@ class Gaussian2D(Model2D):
         # TODO: once we have proper support for 2D models, we should provide
         # non-empty model names and Wrap the 2D model rather than wrapping the 1D
         # models
-        inner_model = models.containers.MappedModel(
-            model=models.Gaussian(),
+        inner_model = MappedModel(
+            model=Gaussian(),
             param_mapping={"a_x": "a", "x0_x": "x0", "sigma_x": "sigma", "z0": "y0"},
             derived_result_mapping={"FWHMH_x": "FWHMH", "w0_x": "w0", None: "peak"},
         )
-        outer_model = models.containers.MappedModel(
-            model=models.Gaussian(),
+        outer_model = MappedModel(
+            model=Gaussian(),
             param_mapping={
                 "a": "a",
                 "x0_y": "x0",
@@ -82,12 +85,12 @@ class Parabola2D(Model2D):
         # TODO: once we have proper support for 2D models, we should provide
         # non-empty model names and Wrap the 2D model rather than wrapping the 1D
         # models
-        inner_model = models.containers.MappedModel(
-            model=models.Parabola(),
+        inner_model = MappedModel(
+            model=Parabola(),
             param_mapping={"x0": "x0", "y0_x": "y0", "k_x": "k"},
         )
-        outer_model = models.containers.MappedModel(
-            model=models.Parabola(),
+        outer_model = MappedModel(
+            model=Parabola(),
             param_mapping={"y0": "x0", "z0": "y0", "k_y": "k"},
         )
 
@@ -116,14 +119,14 @@ class Cone2D(Model2D):
         # TODO: once we have proper support for 2D models, we should provide
         # non-empty model names and Wrap the 2D model rather than wrapping the 1D
         # models
-        inner_model = models.containers.MappedModel(
-            model=models.ConeSlice(),
+        inner_model = MappedModel(
+            model=ConeSlice(),
             param_mapping={"alpha": "alpha", "y0": "z0", "x0_x": "x0", "k_x": "k"},
         )
 
-        triangle = models.Triangle()
+        triangle = Triangle()
         triangle.parameters["y0"].fixed_to = 0
-        outer_model = models.containers.MappedModel(
+        outer_model = MappedModel(
             model=triangle,
             param_mapping={"x0_y": "x0", "k_y": "k"},
             fixed_params={
