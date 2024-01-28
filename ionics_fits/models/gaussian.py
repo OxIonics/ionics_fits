@@ -1,15 +1,12 @@
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple
 import numpy as np
 from scipy.optimize import curve_fit
 
 from . import heuristics
 from .heuristics import get_spectrum
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
+from .. import Model, ModelParameter
+from ..common import TX, TY
+from ..utils import scale_power, scale_x, scale_y
 
 
 class Gaussian(Model):
@@ -30,21 +27,24 @@ class Gaussian(Model):
       - w0: full width at 1/e max height. For Gaussian beams this is the beam waist
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [True]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=common.scale_x),
-        y0: ModelParameter(scale_func=common.scale_y),
-        a: ModelParameter(scale_func=common.scale_power(x_power=1, y_power=1)),
-        sigma: ModelParameter(lower_bound=0, scale_func=common.scale_x),
-    ) -> Array[("num_samples",), np.float64]:
+        x: TX,
+        x0: ModelParameter(scale_x()),
+        y0: ModelParameter(scale_y()),
+        a: ModelParameter(scale_func=scale_power(x_power=1, y_power=1)),
+        sigma: ModelParameter(lower_bound=0, scale_func=scale_x()),
+    ) -> TY:
         y = (
             a / (sigma * np.sqrt(2 * np.pi)) * np.exp(-0.5 * ((x - x0) / sigma) ** 2)
             + y0
@@ -53,12 +53,8 @@ class Gaussian(Model):
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TX):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         basic_heuristics = self._estimate_parameters_basic(x=x, y=y)
@@ -79,11 +75,7 @@ class Gaussian(Model):
         for param_name, heuristic in best.items():
             self.parameters[param_name].heuristic = heuristic
 
-    def _estimate_parameters_basic(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
+    def _estimate_parameters_basic(self, x: TX, y: TY) -> Dict[str, float]:
         # fallback heuristics (e.g. don't fail even if we have a dataset that's too
         # small for the better heuristics)
         x0 = self.parameters["x0"].get_initial_value(np.mean(x))
@@ -97,11 +89,7 @@ class Gaussian(Model):
 
         return {"a": a, "sigma": sigma, "y0": y0, "x0": x0}
 
-    def _estimate_params_peak(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ) -> Dict[str, float]:
+    def _estimate_params_peak(self, x: TX, y: TY) -> Dict[str, float]:
         x0 = heuristics.get_sym_x(x=x, y=y)
         x0_ind = np.argmin(np.abs(x - x0))
         x0 = self.parameters["x0"].get_initial_value(x0)
@@ -121,11 +109,7 @@ class Gaussian(Model):
 
         return {"a": a, "sigma": sigma, "y0": y0, "x0": x0}
 
-    def _estimate_params_fft(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ) -> Dict[str, float]:
+    def _estimate_params_fft(self, x: TX, y: TY) -> Dict[str, float]:
         # Gaussian Fourier Transform:
         #   F[A * exp(-(x/w)^2)](k) = A * sqrt(pi) * w * exp(-(pi*k*w)^2)
         #
@@ -172,8 +156,8 @@ class Gaussian(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:

@@ -1,15 +1,11 @@
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from functools import partial
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
 from ..utils import param_like
 from ... import Model, ModelParameter
-from ...utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
+from ...common import TX, TY
 
 
 class AggregateModel(Model):
@@ -18,8 +14,9 @@ class AggregateModel(Model):
     When aggregating a number of identical models, use a :class RepeatedModel: instead.
 
     Aggregate models have a number of uses. For example:
-      - joint fits to multiple data sets (pass the datasets in as y channels and use
-        "common" parameters for any parameters which are fit jointly to all y channels).
+      - joint fits to multiple data sets (pass the datasets in as y axes and use
+        "common" parameters for any parameters which are fit jointly to all y axis
+        dimensions).
       - fit multiple datasets simultaneously. This is useful, for example in automated
       tooling such as `ndscan`'s `OnlineAnalysis`.
     """
@@ -63,11 +60,30 @@ class AggregateModel(Model):
           The new model parameters inherit their metadata (limits etc.) from the
           template parameters, which are (deep) copied and are not modified.
 
-        At present this class only supports models with a single y channel. This is just
-        because no one got around to implementing it yet rather than any fundamental
-        difficulty.
+        At present this class only supports models with a single y-axis dimension. This
+        is just because no one got around to implementing it yet rather than any
+        fundamental difficulty.
         """
         self.models = models
+
+        axes = [model.get_num_x_axes() for model in self.models.values()]
+        self.num_x_axes = axes[0]
+        if axes.count(self.num_x_axes) != len(axes):
+            raise ValueError("All models must have the same number of x-axes")
+
+        # make model scale functions use correct y-axis dimension
+        def wrapped_scale_func(model_idx, scale_func, x_scales, y_scales):
+            y_scales_model = [y_scales[model_idx]]
+            return scale_func(x_scales, y_scales_model)
+
+        for idx, model in enumerate(self.models.values()):
+            model_params = list(model.parameters.values()) + model.internal_parameters
+            for parameter in model_params:
+                wrapped_param_scale_func = partial(
+                    wrapped_scale_func, idx, parameter.scale_func
+                )
+                parameter.scale_func = wrapped_param_scale_func
+
         common_params = common_params or {}
 
         # aggregate internal parameters from all models
@@ -118,10 +134,10 @@ class AggregateModel(Model):
         # aggregate non-common parameters from all models
         parameters: Dict[str, ModelParameter] = {}
         for model_name, model in self.models.items():
-            if model.get_num_y_channels() != 1:
+            if model.get_num_y_axes() != 1:
                 raise ValueError(
-                    "AggregateModel currently only supports models with a single y "
-                    "channel"
+                    "AggregateModel currently only supports models with a single y-axis"
+                    " dimension."
                 )
             parameters.update(
                 {
@@ -142,21 +158,28 @@ class AggregateModel(Model):
 
         super().__init__(parameters=parameters, internal_parameters=internal_parameters)
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
+        return self.num_x_axes
+
+    def get_num_y_axes(self) -> int:
         return len(self.models)
 
     def can_rescale(self) -> Tuple[bool, bool]:
-        rescale_x, rescale_y = zip(
+        rescale_xs, rescale_ys = zip(
             *[model.can_rescale() for model in self.models.values()]
         )
-        return all(rescale_x), all(rescale_y)
+        rescale_xs = np.array(rescale_xs)
+        rescale_ys = np.array(rescale_ys)
 
-    def func(
-        self,
-        x: Array[("num_samples",), np.float64],
-        param_values: Dict[str, float],
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
-        ys = np.zeros((self.get_num_y_channels(), len(x)), dtype=np.float64)
+        rescale_x = list(np.all(rescale_xs, axis=0))
+        rescale_ys = list(np.squeeze(rescale_ys))
+
+        return rescale_x, rescale_ys
+
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
+        x = np.atleast_2d(x)
+        num_samples = x.shape[1]
+        ys = np.zeros((self.get_num_y_axes(), num_samples), dtype=np.float64)
         for idx, (model_name, model) in enumerate(self.models.items()):
             model_common_params = self.model_common_params[model_name]
             model_params = {
@@ -177,11 +200,7 @@ class AggregateModel(Model):
 
         return ys
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
         for idx, (model_name, model) in enumerate(self.models.items()):
             # replace bound model parameters with new ones based on our template
             # NB we don't do this in __init__ because we want to capture subsequent
@@ -203,8 +222,8 @@ class AggregateModel(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:

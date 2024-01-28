@@ -1,14 +1,11 @@
 import numpy as np
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple
 
 from . import heuristics, ReparametrizedModel
-from .. import common, Model, ModelParameter
-from ..utils import Array
+from .. import Model, ModelParameter
+from ..utils import scale_x, scale_x_inv, scale_invariant, scale_y
+from ..common import TX, TY
 from . import utils
-
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
 
 
 class Sinusoid(Model):
@@ -41,43 +38,42 @@ class Sinusoid(Model):
     fixed at 0 and phi0 is floated.
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [True]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        a: ModelParameter(lower_bound=0, scale_func=common.scale_y),
-        omega: ModelParameter(lower_bound=0, scale_func=common.scale_x_inv),
+        x: TX,
+        a: ModelParameter(lower_bound=0, scale_func=scale_y()),
+        omega: ModelParameter(lower_bound=0, scale_func=scale_x_inv()),
         phi: utils.PeriodicModelParameter(
             period=2 * np.pi,
             offset=-np.pi,
-            scale_func=common.scale_invariant,
+            scale_func=scale_invariant,
         ),
-        y0: ModelParameter(scale_func=common.scale_y),
-        x0: ModelParameter(fixed_to=0, scale_func=common.scale_x),
+        y0: ModelParameter(scale_func=scale_y()),
+        x0: ModelParameter(fixed_to=0, scale_func=scale_x()),
         tau: ModelParameter(
             lower_bound=0,
             fixed_to=np.inf,
-            scale_func=common.scale_x,
+            scale_func=scale_x(),
         ),
-    ) -> Array[("num_samples",), np.float64]:
+    ) -> TY:
         Gamma = np.exp(-x / tau)
         y = Gamma * a * np.sin(omega * (x - x0) + phi) + y0
         return y
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         # We don't have good heuristics for these parameters
@@ -115,8 +111,8 @@ class Sinusoid(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
@@ -158,8 +154,8 @@ class SineMinMax(ReparametrizedModel):
         super().__init__(
             model=Sinusoid(),
             new_params={
-                "min": ModelParameter(scale_func=common.scale_y),
-                "max": ModelParameter(scale_func=common.scale_y),
+                "min": ModelParameter(scale_func=scale_y()),
+                "max": ModelParameter(scale_func=scale_y()),
             },
             bound_params=["a", "y0"],
         )
