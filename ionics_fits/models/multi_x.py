@@ -1,4 +1,4 @@
-from .containers import MappedModel, Model2D
+from .transformations import MappedModel, Model2D
 from .cone import ConeSlice
 from .gaussian import Gaussian
 from .polynomial import Parabola

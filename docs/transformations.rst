@@ -1,9 +1,9 @@
-.. _containers:
-Container models
-=================
+.. _transformations:
+Model Transformations
+=====================
 
 Suppose you want to fit multiple independent models simultaneously and do some
-post-processing on the results? Use an :class:`ionics_fits.models.containers.AggregateModel`.
+post-processing on the results? Use an :class:`ionics_fits.models.transformations.AggregateModel`.
 
 .. code-block:: python
    :linenos:

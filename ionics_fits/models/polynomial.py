@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 from . import heuristics
-from .containers import MappedModel
+from .transformations import MappedModel
 from .. import Model, ModelParameter
 from ..common import TX, TY
 from ..utils import (

@@ -45,10 +45,10 @@ Cone
 .. automodule:: ionics_fits.models.cone
     :members:
 
-Containers
+Transformations
 ++++++++++++++++++++++++++++++++++++++++
 
-.. automodule:: ionics_fits.models.containers
+.. automodule:: ionics_fits.models.transformations
     :members:
 
 Exponential

@@ -1,6 +1,6 @@
 from . import utils
-from . import containers
-from .containers import (
+from . import transformations
+from .transformations import (
     AggregateModel,
     MappedModel,
     Model2D,

@@ -272,7 +272,7 @@ class Model:
     def clear_heuristics(self):
         """Clear the heuristics for all model parameters.
 
-        This is mainly used in container-type models, where the parameter estimator
+        This is mainly used in transformation-type models, where the parameter estimator
         my be run multiple times for the same model instance.
         """
         for param_data in self.parameters.values():

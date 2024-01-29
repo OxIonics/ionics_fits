@@ -20,6 +20,7 @@ Fitting to datasets with an arbitrary number x-axis dimensions is now supported!
 * **Breaking change**: models must now provide a `get_num_x_axes` method
 * **Breaking change**: we now use lists of x and y axis scale factors for the various
   dimensions instead of a single boolean to cover all dimensions in each axis
+* **Breaking change**: "containers" have been renamed "transformations"
 
 ## 1.3.0.5
 
