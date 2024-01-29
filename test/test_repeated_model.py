@@ -86,7 +86,7 @@ def test_repeated_model_derived_params(plot_failures):
 
     x = np.linspace(-5, 5)
     params = {"x0": 0, "y0": 0, "a": 1, "sigma": 1}
-    y = np.tile(base_model(x, **params).squeeze(), (num_repetitions, 1))
+    y = np.tile(np.squeeze(base_model(x, **params)), (num_repetitions, 1))
 
     # Case 1: don't aggregate results
     repeated_model = fits.models.RepeatedModel(

@@ -187,8 +187,10 @@ def find_x_offset_sym_peak_fft(
     :returns: an estimate of the x-axis offset
     """
     defaults = defaults or {}
+    x = np.array(x)
+    y = np.array(y)
 
-    if y.ndim != 1:
+    if y.squeeze().ndim != 1:
         raise ValueError(
             f"{y.shape[0]} y-channels were provided to a method which takes 1."
         )
@@ -245,8 +247,8 @@ def get_spectrum(
     :param trim_dc: if `True` we do not return the DC component.
     :returns: tuple of (angular freq, fft)
     """
-    y = y.squeeze()
-    x = x.squeeze()
+    x = np.squeeze(x)
+    y = np.squeeze(y)
 
     if x.ndim != 1 or y.ndim != 1:
         raise ValueError(
@@ -285,8 +287,8 @@ def get_pgram(
         data from a single channel only.
     :returns: tuple with the frequency axis (angular units) and the periodogram
     """
-    y = y.squeeze()
-    x = x.squeeze()
+    x = np.squeeze(x)
+    y = np.squeeze(y)
 
     if x.ndim != 1 or y.ndim != 1:
         raise ValueError(

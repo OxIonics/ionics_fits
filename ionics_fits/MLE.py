@@ -119,9 +119,6 @@ class MLEFitter(Fitter):
             param: parameters[param].get_initial_value() for param in free_parameters
         }
 
-        assert x.dtype == np.float64
-        assert y.dtype == np.float64
-
         logger.debug(
             f"Starting {self.TYPE} fitting with initial parameters: "
             f"{pprint.pformat(p0_dict)}"

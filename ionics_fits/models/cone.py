@@ -52,8 +52,8 @@ class ConeSlice(Model):
     # pytype: enable=invalid-annotation
 
     def estimate_parameters(self, x: TX, y: TY):
-        x = x.squeeze()
-        y = y.squeeze()
+        x = np.squeeze(x)
+        y = np.squeeze(y)
 
         fit = NormalFitter(x=x, y=y, model=Triangle())
         self.parameters["x0"].heuristic = fit.values["x0"]
