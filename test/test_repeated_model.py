@@ -37,7 +37,7 @@ class QuadrupleRabiFreq(fits.models.RepeatedModel):
 
 
 def test_repeated_model(plot_failures):
-    """Test for models.containers.RepeatedModel"""
+    """Test for models.transformations.RepeatedModel"""
     w = np.linspace(-10, 10, 200)
     params = {
         "w_0_0_0": [-3.0],

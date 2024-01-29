@@ -181,7 +181,7 @@ The library is designed to be extensible and ergonomic to user. For example do y
 * Want to tweak the parameter estimator for a model? Create a new model class that
 inherits from the original model and modify away.
 * Fit a dataset in Hertz, while the model uses radians / s? Use the
-:class:`ionics_fits.models.containers.ScaledModel` helper.
+:class:`ionics_fits.models.transformations.ScaledModel` helper.
 
 If you're struggling to do what you want, it's probably a bug in the library so please
 report it.
@@ -247,7 +247,7 @@ Contents
    :maxdepth: 2
 
    utils.rst
-   containers.rst
+   transformations.rst
    multi_x.rst
    validators.rst
    api.rst

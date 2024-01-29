@@ -5,7 +5,7 @@ Fitting to multi-dimensional data
 `ionics-fits` is optimised for working with datasets with a single x-axis dimension,
 however it does fully support datasets with multi-dimensional y-axis data.
 
-:ref:`container` models can be used to extend the y-axis dimensionality of existing
+:ref:`transformation` models can be used to extend the y-axis dimensionality of existing
 models in various ways.
 
 Working with models with higher x-axis dimensionality presents a number of interesting
