@@ -19,10 +19,10 @@ class MolmerSorensen(Model):
     and either |g> or |e> - different initial states for each qubit or initial
     states which are superpositions of spin eigenstates are are not supported.
 
-    For single-qubit interactions, the model has one y channel, giving the
+    For single-qubit interactions, the model has one y-axis dimension, giving the
     excited-state population at the end of the interaction.
 
-    For two-qubit interactions, the model has three y channels - P_gg, P_1e,
+    For two-qubit interactions, the model has three y-axis dimensions - P_gg, P_1e,
     P_ee - giving the probabilities of 0, 1 or 2 ions being in the excited state
     at the end of the interaction duration.
 

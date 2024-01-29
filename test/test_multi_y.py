@@ -1,14 +1,8 @@
-""" Tests for fitting models with multiple y channels """
-from typing import TYPE_CHECKING
+""" Tests for fitting models with multiple y-axis dimensions """
 import numpy as np
 
 import ionics_fits as fits
 from . import common
-
-
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
 
 
 class DoubleRabiFreq(fits.models.RepeatedModel):
@@ -28,7 +22,7 @@ class DoubleRabiFreq(fits.models.RepeatedModel):
 
 
 def test_multi_y(plot_failures):
-    """Test fitting to a model with multiple y channels"""
+    """Test fitting to a model with multiple y-axis dimensions"""
     w = np.linspace(-10, 10, 200)
     params = {
         "w_0_0": [-3.0],
