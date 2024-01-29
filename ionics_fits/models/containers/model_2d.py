@@ -45,7 +45,7 @@ class Model2D(Model):
             (they are not copied). They should not be referenced externally.
         :param result_params: tuple of names of "result parameters" of the first model,
             whose value is found by evaluating the second model. The order of parameter
-            names in this tuple must match the order of result channels for the second
+            names in this tuple must match the order of y-axis dimensions for the second
             model.
         :param model_names: optional tuple of names for the two models. These are used
             when generating names for fit results and derived parameters. Empty strings

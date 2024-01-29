@@ -500,7 +500,7 @@ class Fitter:
             ]
         )
 
-        # Corner-case if a y-channel has values that are all 0
+        # Corner-case if a y-axis dimension has values that are all 0
         self.y_scales = np.array(
             [
                 y_scale if (y_scale != 0 and np.isfinite(y_scale)) else 1.0

@@ -120,17 +120,18 @@ def find_x_offset_fft(
     """Finds the x-axis offset of a dataset from the phase of an FFT.
 
     This function uses the FFT shift theorem to extract the offset from the phase
-    slope of an FFT. At present it only supports models with a single y channel.
+    slope of an FFT. At present it only supports models with a single y-axis dimension.
 
     :param omega: FFT frequency axis
-    :param spectrum: complex FFT data. For models with multiple y channels, this
-      should contain data from a single channel only.
+    :param spectrum: complex FFT data.
     :param omega_cut_off: highest value of omega to use in offset estimation
 
     :returns: an estimate of the x-axis offset
     """
     if spectrum.ndim != 1:
-        raise ValueError(f"Function only takes 1 y channel, not {spectrum.shape[1]}")
+        raise ValueError(
+            f"Function only takes 1 y-axis dimension, not {spectrum.shape[1]}"
+        )
 
     keep = omega < omega_cut_off
     if np.sum(keep) < 2:
@@ -172,11 +173,9 @@ def find_x_offset_sym_peak_fft(
 
     :param model: the fit model
     :param x: x-axis data
-    :param y: y-axis data. For models with multiple y channels, this should contain
-        data from a single channel only.
+    :param y: y-axis data
     :param omega: FFT frequency axis
-    :param spectrum: complex FFT data. For models with multiple y channels, this
-      should contain data from a single channel only.
+    :param spectrum: complex FFT data
     :param omega_cut_off: highest value of omega to use in offset estimation
     :param test_pts: optional array of x-axis points to test
     :param x_offset_param_name: name of the x-axis offset model parameter
@@ -192,7 +191,7 @@ def find_x_offset_sym_peak_fft(
 
     if y.squeeze().ndim != 1:
         raise ValueError(
-            f"{y.shape[0]} y-channels were provided to a method which takes 1."
+            f"{y.shape[0]} y-axis dimensions were provided to a method which takes 1."
         )
 
     x0_candidates = np.array([])
@@ -283,8 +282,7 @@ def get_pgram(
     sinusoids at different frequencies).
 
     :param x: x-axis data
-    :param y: y-axis data. For models with multiple y channels, this should contain
-        data from a single channel only.
+    :param y: y-axis data
     :returns: tuple with the frequency axis (angular units) and the periodogram
     """
     x = np.squeeze(x)

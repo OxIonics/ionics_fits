@@ -1,16 +1,8 @@
-from typing import TYPE_CHECKING
-
 from .containers import MappedModel, Model2D
 from .cone import ConeSlice
 from .gaussian import Gaussian
 from .polynomial import Parabola
 from .triangle import Triangle
-
-
-if TYPE_CHECKING:
-    num_samples_ax_0 = float
-    num_samples_ax_1 = float
-    num_y_channels = float
 
 
 class Gaussian2D(Model2D):

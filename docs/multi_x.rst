@@ -3,8 +3,7 @@ Fitting to multi-dimensional data
 =================================
 
 `ionics-fits` is optimised for working with datasets with a single x-axis dimension,
-however it does fully support datasets with multi-dimensional y-axis data. Each y-axis
-is referred to as a "y channel".
+however it does fully support datasets with multi-dimensional y-axis data.
 
 :ref:`container` models can be used to extend the y-axis dimensionality of existing
 models in various ways.

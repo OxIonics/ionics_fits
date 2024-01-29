@@ -8,7 +8,6 @@ from ..common import Model, ModelParameter
 
 if TYPE_CHECKING:
     num_samples = float
-    num_y_channels = float
     num_spectrum_samples = float
 
 TModel = TypeVar("TModel", bound=Type[Model])
