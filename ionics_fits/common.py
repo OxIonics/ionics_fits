@@ -614,8 +614,8 @@ class Fitter:
         :returns: tuple of x-axis values used and corresponding y-axis values
             of the fitted model
         """
-        x_fit = x_fit if x_fit is not None else self.x
-        y_fit = self.model.func(x_fit, self.values)
+        x_fit = np.atleast_2d(x_fit if x_fit is not None else self.x)
+        y_fit = np.atleast_2d(self.model.func(x_fit, self.values))
 
         if transpose_and_squeeze:
             return x_fit, y_fit.T.squeeze()

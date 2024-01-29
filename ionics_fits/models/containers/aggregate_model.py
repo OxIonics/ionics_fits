@@ -164,7 +164,7 @@ class AggregateModel(Model):
     def get_num_y_axes(self) -> int:
         return len(self.models)
 
-    def can_rescale(self) -> Tuple[bool, bool]:
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         rescale_xs, rescale_ys = zip(
             *[model.can_rescale() for model in self.models.values()]
         )

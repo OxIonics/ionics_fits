@@ -91,9 +91,6 @@ class NormalFitter(Fitter):
             param: parameters[param].get_initial_value() for param in free_parameters
         }
 
-        assert x.dtype == np.float64
-        assert y.dtype == np.float64
-
         logger.debug(
             "Starting least-squares fitting with initial parameters: "
             f"{pprint.pformat(p0_dict)}"
@@ -152,6 +149,10 @@ class NormalFitter(Fitter):
         a value close to 0 indicates super-statistical deviations of the dataset from
         the fitted model.
         """
+        x = np.atleast_2d(x)
+        y = np.atleast_2d(y)
+        sigma = np.atleast_2d(sigma)
+
         if sigma.shape != y.shape:
             raise ValueError(
                 f"Mismatch between shapes of sigma ({sigma.shape}) and y ({y.shape})"
