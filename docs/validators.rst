@@ -1,4 +1,5 @@
 .. _validators:
+
 Fit Validators
 =================
 
@@ -11,7 +12,7 @@ fringe contrast must lie within certain bounds).
 
 First, any prior knowledge about the system should be incorporated by specifying fixed
 parameter values and parameter bounds. After that, the fit is validated using a
-[`FitValidator`](../master/ionics_fits/validators.py). Validators provide a flexible
+[``FitValidator``](../master/ionics_fits/validators.py). Validators provide a flexible
 and extensible framework for using statistical tests to validate fits.
 
 Todo: add a note about chi2 / n sigma validators.

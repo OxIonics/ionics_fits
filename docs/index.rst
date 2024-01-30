@@ -32,18 +32,17 @@ or add to your poetry project with
 Basic Usage
 ~~~~~~~~~~~
 
-There are three main types of object in `ionics_fits`: :class:`ModelParameter`,
-:class:`Model` and :class:`Fitter`.
+There are three main types of object in `ionics_fits`: :class:`ionics_fits.common.ModelParameter`, :class:`ionics_fits.common.Model` and :class:`ionics_fits.common.Fitter`.
 
-A :class:`Model` represents a fit function and the other information we need to fit it
+A :class:`ionics_fits.common.Model` represents a fit function and the other information we need to fit it
 robustly, such as a dictionary of its parameters and heuristics used to find a good
-starting point for the fitter. :class:`Model` are agnostic about the statistics of the
+starting point for the fitter. :class:`ionics_fits.common.Model` are agnostic about the statistics of the
 datasets they are used to fit.
 
-A :class:`ModelParameter` represents a parameter of the model, along with metadata such
+A :class:`ionics_fits.common.ModelParameter` represents a parameter of the model, along with metadata such
 as the limits the parameter is allowed to vary over.
 
-:class:`Fitter` perform maximum-likelihood parameter estimation to fit datasets to
+:class:`ionics_fits.common.Fitter` perform maximum-likelihood parameter estimation to fit datasets to
 models. A number of fitters are provided to handle common statistical distributions,
 such as normal and binomial distrubutions.
 
@@ -64,7 +63,7 @@ Let's start with a simple example to see how this works:
    fit = fits.NormalFitter(x, y, model=fits.models.Line())
    print(f"Fitted: y = {fit.values['a']:.3f} * x + {fit.values['y0']:.3f}")
 
-This fits a test dataset to a line model. Here we've used a :class:`NormalFitter`
+This fits a test dataset to a line model. Here we've used a :class:`ionics_fits.normal.NormalFitter`
 which performs maximum-likelihood parameter estimation, assuming normal statistics.
 This is the go-to fitter that's suitable in most cases.
 
@@ -175,13 +174,13 @@ Extensibility
 
 The library is designed to be extensible and ergonomic to user. For example do you:
 * Want to use different statistics? Easy, just provide a new class that inherits from
-:class:`MLEFitter`.
+:class:`ionics_fits.MLE.MLEFitter`.
 * Want to do some custom post-fit processing? Override the
-:meth:`calculate_derived_parameters` method.
+:meth:`ionics_fits.common.Model.calculate_derived_params` method.
 * Want to tweak the parameter estimator for a model? Create a new model class that
 inherits from the original model and modify away.
 * Fit a dataset in Hertz, while the model uses radians / s? Use the
-:class:`ionics_fits.models.transformations.ScaledModel` helper.
+:class:`ionics_fits.models.transformations.scaled_model.ScaledModel` helper.
 
 If you're struggling to do what you want, it's probably a bug in the library so please
 report it.
@@ -248,7 +247,6 @@ Contents
 
    utils.rst
    transformations.rst
-   multi_x.rst
    validators.rst
    api.rst
    changes.md
