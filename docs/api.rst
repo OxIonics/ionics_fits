@@ -7,6 +7,12 @@ Common
 ~~~~~~
 .. automodule:: ionics_fits.common
     :members:
+    :special-members: __call__
+    :private-members: _func
+
+Utils
+~~~~~
+
 .. automodule:: ionics_fits.utils
     :members:
 
@@ -27,6 +33,8 @@ Validators
 
 Models
 ~~~~~~~~~~~~
+.. automodule:: ionics_fits.models
+
 
 Benchmarking
 ++++++++++++++++++++++++++++++++++++++++
@@ -130,6 +138,7 @@ Utils
 
 Transformations
 ~~~~~~~~~~~~~~~
+.. automodule:: ionics_fits.models.transformations
 
 Aggregate Model
 ++++++++++++++++++++++++++++++++++++++++
