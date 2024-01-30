@@ -8,22 +8,22 @@ from ..utils import scale_invariant, scale_undefined, scale_x, scale_x_inv
 
 
 class MolmerSorensen(Model):
-    """Base class for Mølmer–Sørensen interactions.
+    r"""Base class for Mølmer–Sørensen interactions.
 
     This model calculates the time-dependent populations for one or two qubits
     coupled to a single motional mode undergoing a Mølmer–Sørensen type
     interaction.
 
     It requires that the initial spin states of all qubits are the same
-    and either ``|g> or |e>`` - different initial states for each qubit or initial
+    and either ``|g>`` or ``|e>`` - different initial states for each qubit or initial
     states which are superpositions of spin eigenstates are are not supported.
 
     For single-qubit interactions, the model has one y-axis dimension, giving the
     excited-state population at the end of the interaction.
 
-    For two-qubit interactions, the model has three y-axis dimensions - P_gg, P_1e,
-    P_ee - giving the probabilities of 0, 1 or 2 ions being in the excited state
-    at the end of the interaction duration.
+    For two-qubit interactions, the model has three y-axis dimensions - ``P_gg``\ ,
+    ``P_1e``\ , ``P_ee`` - giving the probabilities of 0, 1 or 2 ions being in the
+    excited state at the end of the interaction duration.
 
     Modulation of the sign of the spin-dependent force according to a Walsh
     function is supported.
@@ -34,9 +34,9 @@ class MolmerSorensen(Model):
     instead.
 
     Independent variables:
-        - t_pulse: total interaction duration.
-        - w: detuning of red/blue sideband tones relative to reference frequency
-            `w_0`. The interaction detuning is given by `delta = w - w_0`.
+        * t_pulse: total interaction duration.
+        * w: detuning of red/blue sideband tones relative to reference frequency
+            ``w_0``. The interaction detuning is given by ``delta = w - w_0``.
 
     Model parameters:
         - omega: sideband Rabi frequency
@@ -51,11 +51,11 @@ class MolmerSorensen(Model):
     """
 
     def __init__(self, num_qubits: int, start_excited: bool, walsh_idx: int):
-        """
+        r"""
         :param num_qubits: number of qubits (must be 1 or 2)
         :param walsh_idx: Index of Walsh function
-        :param start_excited: If True, all qubits start in |e>, otherwise they
-            start in |g>
+        :param start_excited: If True, all qubits start in ``|e>``\ , otherwise they
+            start in ``|g>``.
         """
         super().__init__()
 
@@ -201,7 +201,7 @@ class MolmerSorensen(Model):
 
 
 class MolmerSorensenTime(MolmerSorensen):
-    """
+    r"""
     Fit model for Mølmer–Sørensen pulse duration scans.
 
     This model calculates the populations for Mølmer–Sørensen interactions
@@ -209,7 +209,7 @@ class MolmerSorensenTime(MolmerSorensen):
     is varied.
 
     Since the detuning is not scanned as an independent variable, we replace
-    `w_0` with a new model parameter `delta`, defined by `delta = |w - w_0|`.
+    ``w_0`` with a new model parameter ``delta``\ , defined by ``delta = |w - w_0|``.
     """
 
     def __init__(self, num_qubits: int, start_excited: bool, walsh_idx: int):
@@ -275,11 +275,11 @@ class MolmerSorensenFreq(MolmerSorensen):
 
     This model calculates the populations for Mølmer–Sørensen interactions
     when the gate duration is kept fixed and only the interaction detuning is
-    varied. The pulse duration is specified using a new `t_pulse` model
+    varied. The pulse duration is specified using a new ``t_pulse`` model
     parameter.
 
     Derived parameters:
-        - f_loop_{n}: frequency offset of nth loop closure (Hz) for n = [1, 5]
+        - f_loop_{n}: frequency offset of nth loop closure (Hz) for ``n = [1, 5]``
 
     """
 

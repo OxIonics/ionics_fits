@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 class LaserFlop(RabiFlop):
-    """Base class for damped Rabi flopping with finite Lamb-Dicke parameter.
+    r"""Base class for damped Rabi flopping with finite Lamb-Dicke parameter.
 
     This model calculates measurement outcomes for systems containing two internal
     states and moving in a 1D harmonic potential that undergo damped Rabi oscillations,
@@ -34,8 +34,8 @@ class LaserFlop(RabiFlop):
 
     This class does not support fitting directly; use one of the subclasses instead.
     Subclasses must inherit from this class and a suitable Rabi flopping subclass such
-    as :class:`ionics_fits.models.rabi.RabiFlopFreq` or
-    `ionics_fits.models.rabi.RabiFlopTime`.
+    as :class:`~ionics_fits.models.rabi.RabiFlopFreq` or
+    :class:`~ionics_fits.models.rabi.RabiFlopTime`.
 
     The model requires that the internal part of the system starts out entirely in one
     of the ground or excited states, specified using ``__init__``
@@ -45,9 +45,9 @@ class LaserFlop(RabiFlop):
 
     Independent variables:
         - t_pulse: duration of driving pulse including dead time. The duration of
-            the interaction is given by t = max(0, t_pulse - t_dead).
-        - w: frequency of driving pulse relative to the reference frequency `w_0`,
-            given by `delta = w - w_0`
+            the interaction is given by ``t = max(0, t_pulse - t_dead)``.
+        - w: frequency of driving pulse relative to the reference frequency ``w_0``\ ,
+            given by ``delta = w - w_0``
 
     Model parameters:
         - P_readout_e: excited state readout level
@@ -65,7 +65,7 @@ class LaserFlop(RabiFlop):
 
     All frequencies are in angular units.
 
-    See also :class:`ionics_fits.models.rabi.RabiFlop`.
+    See also :class:`~ionics_fits.models.rabi.RabiFlop`.
     """
 
     def __init__(
@@ -75,12 +75,13 @@ class LaserFlop(RabiFlop):
         sideband_index: int,
         n_max: int = 30,
     ):
-        """
+        r"""
         :param distribution_fun: function returning an array of Fock state occupation
           probabilities. The distribution function's first argument should be the
           maximum Fock state to include in the simulation (the returned array has
-          ``n_max + 1 elements). Subsequent arguments should be :class ModelParameter:s
-          used to parametrise the distribution.
+          ``n_max + 1`` elements). Subsequent arguments should be
+          :class::~ionics_fits.common.ModelParameter`\ s used to parametrise the
+          distribution.
         :param start_excited: if True the qubit starts in the excited state
         :param sideband_index: change in motional state due to a pi-pulse starting
           from the spin ground-state.

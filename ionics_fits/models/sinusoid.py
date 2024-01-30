@@ -9,9 +9,10 @@ from . import utils
 
 
 class Sinusoid(Model):
-    """Generalised sinusoid fit according to:
-    y = Gamma * a * sin[omega * (x - x0) + phi] + y0
-    where Gamma = exp(-x / tau).
+    """Generalised sinusoid fit according to::
+
+        y = Gamma * a * sin[omega * (x - x0) + phi] + y0
+        Gamma = exp(-x / tau).
 
     Fit parameters (all floated by default unless stated otherwise):
       - a: initial (x = 0) amplitude of the sinusoid
@@ -67,8 +68,7 @@ class Sinusoid(Model):
         ),
     ) -> TY:
         Gamma = np.exp(-x / tau)
-        y = Gamma * a * np.sin(omega * (x - x0) + phi) + y0
-        return y
+        return Gamma * a * np.sin(omega * (x - x0) + phi) + y0
 
     # pytype: enable=invalid-annotation
 
@@ -143,6 +143,9 @@ class Sinusoid(Model):
 
 class SineMinMax(ReparametrizedModel):
     """Sinusoid parametrised by minimum / maximum values instead of offset / amplitude.
+
+
+            y = Gamma * a * sin[omega * (x - x0) + phi] + y0
 
     This class is equivalent to :class Sinusoid: except that the `a` and `y0` parameters
     are replaced with new `min` and `max` parameters defined by::
