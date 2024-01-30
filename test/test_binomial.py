@@ -69,7 +69,7 @@ def test_binomial_synthetic(plot_failures):
     model.parameters["x0"].lower_bound = 0
     model.parameters["x0"].upper_bound = 1
 
-    y_model = model.func(x, params)
+    y_model = np.atleast_2d(model.func(x, params))
 
     a_fit = np.zeros(num_datasets)
     a_err = np.zeros_like(a_fit)
