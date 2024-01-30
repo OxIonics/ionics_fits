@@ -61,7 +61,7 @@ class LaserFlop(RabiFlop):
     The model additionally gains any parameters associated with the specified Fock
     state distribution function.
 
-    Derived parameters are inherited from :class:`ionics_fits.models.rabia.RabiFlop`.
+    Derived parameters are inherited from :class:`ionics_fits.models.rabi.RabiFlop`.
 
     All frequencies are in angular units.
 
