@@ -194,6 +194,9 @@ class Model:
     Models may be used either as part of a fit (see :class:`~ionics_fits.common.Fitter`)
     or as a standalone function (see :meth:`__call__`).
 
+    Class Attributes
+    ================
+
     Attributes:
         parameters: dictionary mapping parameter names to
             :class:`~ionics_fits.common.ModelParameter` s. The parameters may be
@@ -213,6 +216,9 @@ class Model:
         internal_parameters: Optional[List[ModelParameter]] = None,
     ):
         r"""
+        Contructor Arguments
+        ====================
+
         :param parameters: optional dictionary mapping parameter names to
             :class:`~ionics_fits.common.ModelParameter`\ s. This should be ``None``
             (default) if the model has a static set of parameters, in which case the
@@ -242,11 +248,13 @@ class Model:
             self.parameters = parameters
         self.internal_parameters = internal_parameters or []
 
-    def __call__(self, x: TX, **kwargs: float) -> TY:
+    def __call__(self, x: TX, transpose_and_squeeze=False, **kwargs: float) -> TY:
         r"""Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the results.
 
-        Example::
+        Example:
+
+        .. testcode::
 
             import numpy as np
             from matplotlib import pyplot as plt
@@ -254,12 +262,15 @@ class Model:
 
             model = Sinusoid()
             x = np.linspace(0, 1)
-            y = model(x, a=1, omega=2*np.pi, phi=0, y0=0)
-            plt.plot(x, y.squeeze())
+            y = model(x, True, a=1, omega=2*np.pi, phi=0, y0=0)
+            plt.plot(x, y)
 
         :param x: x-axis data. For models with more than one x-axis, the data should
             be shaped ``(num_x_axes, num_samples)``. For models with a single x-axis
             dimension, a 1D array may be used instead.
+        :param transpose_and_squeeze: if True, the results arrays are transposed and
+            squeezed proior to being returned. This is intended to be used for plotting,
+            since matplotlib requires different y-series to be stored as columns.
         :param \**kwargs: values for model parameters. All model parameters
             which are not :attr:`~ionics_fits.common.ModelParameter.fixed_to` a value
             must be specified. Any parameters which are not specified default to their
@@ -272,7 +283,12 @@ class Model:
             if param_data.fixed_to is not None
         }
         args.update(kwargs)
-        return self.func(x, args)
+        y = self.func(x, args)
+
+        if transpose_and_squeeze:
+            y = y.T.squeeze()  # pytype: disable=attribute-error
+
+        return y
 
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         """
@@ -331,7 +347,8 @@ class Model:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
-        To use the model as a function outside of a fit, :meth __call__: generally
+        To use the model as a function outside of a fit,
+        :meth:`~ionics_fits.common.Model.__call__` generally
         provides a more convenient interface.
 
         Overload this to provide a model function with a dynamic set of parameters,
@@ -421,24 +438,194 @@ class Model:
 
 
 class Fitter:
-    """Base class for fitters.
+    r"""Base class for fitters.
 
     Fitters perform maximum likelihood parameter estimation on a dataset under the
     assumption of a certain model and statistics (normal, binomial, etc) and store the
     results as attributes.
 
+    For details about the various fitter subclasses provided by ``ionics_fits``\ , see
+    :ref:`fitters`.
+
+    Usage
+    =====
+
+    Basic usage::
+
+        import numpy as np
+        from matplotlib import pyplot as plt
+
+        from ionics_fits.models.polynomial import Line
+        from ionics_fits.normal import NormalFitter
+
+        a = 3.2
+        y0 = -9
+
+        x = np.linspace(-10, 10)
+        y = a * x + y0
+
+        fit = NormalFitter(x, y, model=Line())
+        print(f"Fitted: y = {fit.values['a']:.3f} * x + {fit.values['y0']:.3f}")
+
+        plt.plot(x, y)
+        plt.plot(*fit.evaluate())
+        plt.show()
+
+    The fit may be configured by modifying the :class:`~ionics_fits.common.Model`\ 's
+    :attr:`~ionics_fits.common.Model.parameters` dictionary. This allows one to:
+
+      * set upper and lower bounds for each parameter
+      * control which parameters are fixed / floated
+      * provide user estimates to be used instead of the
+        :class:`~ionics_fits.common.Model`\ 's heuristics
+
+    As an example, let's fit a sinusoid, whose frequency is already known:
+
+    .. testcode::
+
+        import numpy as np
+        from matplotlib import pyplot as plt
+
+        from ionics_fits.models.sinusoid import Sinusoid
+        from ionics_fits.normal import NormalFitter
+
+        omega = 2 * np.pi
+        model = Sinusoid()
+        model.parameters["omega"].fixed_to = omega
+
+        params = {
+            "a": 2,
+            "omega": omega,
+            "phi": 0.5 * np.pi,
+            "y0": 0,
+            "x0": 0,
+            "tau": np.inf,
+        }
+
+        x = np.linspace(-3, 3, 100)
+        y = model(x, True, **params)
+
+        fit = NormalFitter(x, y, model=model)
+        print(f"Amplitude: dataset = {params['a']:.3f}, fit = {fit.values['a']:.3f}")
+        print(f"Phase: dataset = {params['phi']:.3f}, fit = {fit.values['phi']:.3f}")
+
+        plt.plot(*fit.evaluate(None, True), '-.o', label="fit")
+        plt.plot(x, y, label="data")
+        plt.grid()
+        plt.legend()
+        plt.show()
+
+    ``ionics_fits`` supports fitting datasets with arbitrary x-axis and y-axis
+    dimensions. The :py:mod:`~ionics_fits.models.transformations` module provides a
+    number of classes which allow higher-dimensional models to be constructed from
+    lower-dimension models.
+
+    Example of fitting a dataset with a 2D x-axis:
+
+    .. testcode::
+
+        import numpy as np
+        from matplotlib import pyplot as plt
+
+        from ionics_fits.models.multi_x import Gaussian2D
+        from ionics_fits.normal import NormalFitter
+
+        omega = 2 * np.pi  # we know the frequency
+        model = Gaussian2D()
+
+        params = {
+            "x0_x": 0,
+            "x0_y": 3,
+            "sigma_x": 2,
+            "sigma_y": 3,
+            "z0": 0,
+            "a": 9,
+        }
+
+        x_0_ax = np.linspace(-3, 3, 50)
+        x_1_ax = np.linspace(-10, 10, 100)
+        x_0_mesh, x_1_mesh = np.meshgrid(x_0_ax, x_1_ax)
+        x_shape = x_0_mesh.shape
+
+        x = np.vstack((x_0_mesh.ravel(), x_1_mesh.ravel()))
+        y = model(x, **params)
+
+        fit = NormalFitter(x, y, model=model)
+
+        _, y_fit = fit.evaluate(x)
+        y_fit = y_fit.reshape(x_shape)
+
+        _, axs = plt.subplots(2, 1)
+        axs[0].pcolormesh(x_0_mesh, x_1_mesh, y.reshape(x_shape))
+        axs[1].pcolormesh(x_0_mesh, x_1_mesh, y_fit)
+        axs[0].title.set_text("Model")
+        axs[1].title.set_text("Fit")
+        axs[0].grid()
+        axs[1].grid()
+        plt.show()
+
+
+    As an example of fitting a dataset with a 2D y-axis, here's how to fit Rabi flopping
+    on a pair of qubits. We'll assume all parameters are the same for the two qubits,
+    other than the Rabi frequencies:
+
+    .. testcode::
+
+        import pprint
+        import numpy as np
+        from matplotlib import pyplot as plt
+
+        from ionics_fits.models.rabi import RabiFlopTime
+        from ionics_fits.models.transformations.repeated_model import RepeatedModel
+        from ionics_fits.normal import NormalFitter
+
+        params = {
+            "omega_0": 2 * np.pi * 1,
+            "omega_1": 2 * np.pi * 2,
+            "delta": 0,
+            "P_readout_e": 1,
+            "P_readout_g": 0
+        }
+
+        rabi_model = RabiFlopTime(start_excited=False)
+        model = RepeatedModel(
+            model=rabi_model,
+            num_repetitions=2,
+            common_params=[
+                param_name for param_name in rabi_model.parameters.keys()
+                if param_name != "omega"
+            ]
+        )
+
+        t = np.linspace(0, 3, 100)
+        y = model(t, **params)
+
+        fit = NormalFitter(t, y, model)
+
+        pprint.pprint(fit.values)
+
+        plt.plot(t, y.T, ".")
+        plt.legend(("qubit 0", "qubit 1"))
+        plt.gca().set_prop_cycle(None)
+        plt.plot(*fit.evaluate(None, True))
+        plt.grid()
+        plt.show()
+
+    Class Attributes
+    ================
+
     Attributes:
         x: x-axis data. The input data is sorted along the x-axis dimensions and
-            filtered to contain only the "valid" point where x and y are finite.
+            filtered to contain only the "valid" points where x and y are finite.
         y: y-axis data. The input data is sorted along the x-axis dimensions x and
-            filtered to contain only the "valid" point where x and y are finite.
+            filtered to contain only the "valid" points where x and y are finite.
         sigma: standard errors for each point. This is stored as an array with the same
             shape as `y`.
         values: dictionary mapping model parameter names to their fitted values
         uncertainties: dictionary mapping model parameter names to their fit
             uncertainties. For sufficiently large datasets, well-formed problems and
             ignoring covariances these are the 1-sigma confidence intervals (roughly:
-            there is a 1/3 chance that the real parameter values differ from their
+            there is a 1/3 chance that the true parameter values differ from their
             fitted values by more than this much)
         derived_values: dictionary mapping names of derived parameters (parameters which
             are not part of the fit, but are calculated by the model from the fitted
@@ -469,10 +656,10 @@ class Fitter:
     def __init__(self, x: TX, y: TY, model: Model):
         """Fits a model to a dataset and stores the results.
 
-        :param x: x-axis data. For models with more than one x-axis dimension, `x`
-            should be in the form `(num_x_axes, num_samples)`.
-        :param y: y-axis data.For models with more than one y-axis dimension, `y`
-            should be in the form `(num_y_axes, num_samples)`.
+        :param x: x-axis data. For models with more than one x-axis dimension, ``x``
+            should be in the form ``(num_x_axes, num_samples)``.
+        :param y: y-axis data.For models with more than one y-axis dimension, ``y``
+            should be in the form ``(num_y_axes, num_samples)``.
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
             fitting to change the fit behaviour from the model class' defaults. The
@@ -660,26 +847,25 @@ class Fitter:
 
     def evaluate(
         self,
-        transpose_and_squeeze=False,
         x_fit: Optional[TX] = None,
+        transpose_and_squeeze=False,
     ) -> Tuple[TX, TY]:
-        """Evaluates the model function using the fitted parameter set.
+        r"""Evaluates the model function using the fitted parameter set.
 
-        :param transpose_and_squeeze: if True, array `y_fit` is transposed
-            and squeezed before being returned. This is intended to be used
-            for plotting, since matplotlib requires different y-series to be
-            stored as columns.
-        :param x_fit: optional x-axis points to evaluate the model at. If
-            `None`, we use the values stored as attribute `x` of the fitter.
+        :param x_fit: optional x-axis points to evaluate the model at. If ``None``\ , we
+            use the stored value of :attr:`x`.
+        :param transpose_and_squeeze: if ``True``, the results arrays are transposed and
+            squeezed proior to being returned. This is intended to be used for plotting,
+            since matplotlib requires different y-series to be stored as columns.
 
-        :returns: tuple of x-axis values used and corresponding y-axis values
-            of the fitted model
+        :returns: tuple of x-axis values used and corresponding y-axis found by
+            evaluating the model.
         """
         x_fit = np.atleast_2d(x_fit if x_fit is not None else self.x)
         y_fit = np.atleast_2d(self.model.func(x_fit, self.values))
 
         if transpose_and_squeeze:
-            return x_fit, y_fit.T.squeeze()
+            return x_fit.T.squeeze(), y_fit.T.squeeze()
         return x_fit, y_fit
 
     def residuals(self) -> TY:
@@ -687,5 +873,8 @@ class Fitter:
         return self.y - self.evaluate()[1]
 
     def calc_sigma(self) -> Optional[TY]:
-        """Return an array of standard error values for each y-axis data point."""
+        """Returns an array of standard error values for each y-axis data point
+
+        Subclasses must override this.
+        """
         raise NotImplementedError
