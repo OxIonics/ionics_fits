@@ -44,5 +44,5 @@ fmt = "black ."
 flake = "flake8 ."
 fuzz = "python -m test.fuzz"
 types = { script = "run_pytype:main" }
-docs = { cwd = "./docs", cmd = "make html" }
+docs = { cwd = "./docs", cmd = "make html doctest" }
 docs-clean = { cwd = "./docs", cmd = "make clean" }
