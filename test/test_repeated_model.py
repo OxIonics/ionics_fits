@@ -61,7 +61,7 @@ def test_repeated_model(plot_failures):
     model.parameters["P_readout_g"].fixed_to = params["P_readout_g"]
     model.parameters["t_pulse"].fixed_to = params["t_pulse"]
 
-    y = model.func(w, params)
+    y = np.atleast_2d(model.func(w, params))
 
     if y.shape != (4, len(w)):
         raise ValueError("Incorrect y-shape for repeated model.")
