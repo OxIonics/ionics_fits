@@ -29,3 +29,4 @@ html_css_files = [
 ]
 
 nitpick_ignore = [("py:class", "numpy.ndarray")]
+autoclass_content = "both"
