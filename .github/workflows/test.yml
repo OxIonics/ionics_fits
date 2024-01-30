@@ -29,5 +29,8 @@ jobs:
       - name: Run tests
         run: poe test
 
+      - name: Check doc build
+        run: poe docs
+
       - name: Check type annotations
         run: poe types
