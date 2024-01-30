@@ -11,26 +11,28 @@ class Model2D(Model):
 
     All y-axis data is generated from the output of the first model; the output from
     the second model provides the values of certain "result" parameters used by the
-    first model. In other words:
-      ```
+    first model. In other words::
+
       model_0 = models[0] = f(x_axis_0)
       model_1 = models[1] = g(x_axis_1)
       y(x_0, x_1) = model_0(x_0 | result_params = model_1(x_1))
-      ```
+
 
     NB the 2D models generated using this class are separable into functions of the two
     x-axes. As a result, it can only generate axis-aligned models. TODO: provide a
     :class RotatedModel: transformation to allow non axis-aligned functions to be
     represented.
 
-    Model parameters and results:
-    - All parameters from the two models - apart from the first model's *result
+    Model parameters and results
+
+    * All parameters from the two models - apart from the first model's *result
       parameters* - are parameters of the 2D model.
-    - All derived results from the two models are included in the :class Model2D:'s
+    * All derived results from the two models are included in the :class:`Model2D` 's
       derived results.
-    - A parameter/derived result named `param` from a model named `model` is
-      exposed as a parameter / result of the :class Model2D: named `param_model`.
-    - A :class WrappedModel: can be used to provide custom naming schemes
+    * A parameter/derived result named ``param`` from a model named ``model`` is
+      exposed as a parameter / result of the :class Model2D: named ``param_model``.
+    * A :class:`ionics_fits.models.transformations.mapped_model.MappedModel` can be
+      used to provide custom naming schemes
     """
 
     def __init__(

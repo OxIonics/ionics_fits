@@ -1,10 +1,10 @@
 import numpy as np
 from typing import Dict, List, Tuple
 
-from . import heuristics, ReparametrizedModel
-from .. import Model, ModelParameter
+from . import heuristics
+from ..common import Model, ModelParameter, TX, TY
+from .transformations.reparametrized_model import ReparametrizedModel
 from ..utils import scale_x, scale_x_inv, scale_invariant, scale_y
-from ..common import TX, TY
 from . import utils
 
 
@@ -145,9 +145,11 @@ class SineMinMax(ReparametrizedModel):
     """Sinusoid parametrised by minimum / maximum values instead of offset / amplitude.
 
     This class is equivalent to :class Sinusoid: except that the `a` and `y0` parameters
-    are replaced with new `min` and `max` parameters defined by:
-      - `min = y0 - a`
-      - `max = y0 + a`
+    are replaced with new `min` and `max` parameters defined by::
+
+      min = y0 - a
+      max = y0 + a
+
     """
 
     def __init__(self):

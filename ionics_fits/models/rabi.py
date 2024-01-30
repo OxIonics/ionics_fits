@@ -5,9 +5,9 @@ import numpy as np
 from . import heuristics
 from .sinc import Sinc2
 from .sinusoid import Sinusoid
-from .. import Model, ModelParameter, NormalFitter
 from .heuristics import get_spectrum
-from ..common import TX, TY
+from ..common import Model, ModelParameter, TX, TY
+from ..normal import NormalFitter
 from ..utils import scale_undefined, scale_x, scale_x_inv, scale_y
 
 
@@ -15,31 +15,35 @@ class RabiFlop(Model):
     """Base class for damped Rabi flopping.
 
     This model calculates measurement outcomes for two-state systems undergoing damped
-    Rabi oscillations, defined by:
-        `P = P_readout_g + (P_readout_e - P_readout_g) * P_e`
-    where `P_e` is the (time-dependent) population in the excited state and
-    `P_readout_g` and `P_readout_e` are the readout levels (measurement outcomes
+    Rabi oscillations, defined by::
+
+        P = P_readout_g + (P_readout_e - P_readout_g) * P_e
+
+    where ``P_e`` is the (time-dependent) population in the excited state and
+    ``P_readout_g`` and ``P_readout_e`` are the readout levels (measurement outcomes
     when the qubit is in one state).
 
     This class does not support fitting directly; use one of the subclasses instead.
 
     The model requires that the system starts out entirely in one of the ground or
-    excited states, specified using :meth:`__init__`'s :param:`start_excited` parameter.
+    excited states, specified using ``__init__``'s ``start_excited`` parameter.
 
-    The probability of transition from one state to the other is calculated as
-        `P_trans = 1 / 2 * omega^2 / W^2 * [1 - exp(-t / tau) * cos(W * t)]`
+    The probability of transition from one state to the other is calculated as::
+
+        P_trans = 1 / 2 * omega^2 / W^2 * [1 - exp(-t / tau) * cos(W * t)]
+
     where
-        - t is the duration of interaction between qubit and driving field
-        - W = sqrt(omega^2 + delta^2)
-        - delta is the detuning of the driving field from resonance
-        - omega is the Rabi frequency
-        - tau is the decay time constant.
+        * t is the duration of interaction between qubit and driving field
+        * W = sqrt(omega^2 + delta^2)
+        * delta is the detuning of the driving field from resonance
+        * omega is the Rabi frequency
+        * tau is the decay time constant.
 
     Independent variables:
-        - t_pulse: duration of driving pulse including dead time. The duration of the
-            interaction is given by t = max(0, t_pulse - t_dead).
-        - w: frequency of driving pulse relative to the reference frequency `w_0`, given
-            by `delta = w - w_0`
+        * t_pulse: duration of driving pulse including dead time. The duration of the
+          interaction is given by t = max(0, t_pulse - t_dead).
+        * w: frequency of driving pulse relative to the reference frequency ``w_0``,
+          given by ``delta = w - w_0``
 
     Model parameters:
         - P_readout_e: excited state readout level

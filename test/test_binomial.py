@@ -2,15 +2,18 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy import stats
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.binomial import BinomialFitter
+from ionics_fits.models.gaussian import Gaussian
+from ionics_fits.models.sinusoid import Sinusoid, SineMinMax
+from ionics_fits.normal import NormalFitter
+from .common import check_single_param_set, Config
 
 
 def test_binomial(plot_failures):
     """Basic test of binomial fitting"""
     num_trials = 1000
     x = np.linspace(-3, 3, 200) * 2 * np.pi
-    model = fits.models.Sinusoid()
+    model = Sinusoid()
     params = {
         "a": 0.5,
         "omega": 1,
@@ -22,12 +25,12 @@ def test_binomial(plot_failures):
     model.parameters["a"].fixed_to = params["a"]
     model.parameters["y0"].fixed_to = params["y0"]
 
-    common.check_single_param_set(
+    check_single_param_set(
         x=x,
         model=model,
         test_params=params,
-        config=common.TestConfig(plot_failures=plot_failures),
-        fitter_cls=fits.BinomialFitter,
+        config=Config(plot_failures=plot_failures),
+        fitter_cls=BinomialFitter,
         fitter_args={"num_trials": num_trials},
     )
 
@@ -41,7 +44,7 @@ def test_binomial_synthetic(plot_failures):
     num_datasets = 1000
 
     x = np.linspace(-1, 1, 200) * 2 * np.pi
-    model = fits.models.SineMinMax()
+    model = SineMinMax()
     params = {
         "min": 0.005,
         "max": 0.995,
@@ -75,7 +78,7 @@ def test_binomial_synthetic(plot_failures):
         y = stats.binom.rvs(n=num_trials, p=y_model, size=y_model.size)
         y = y / num_trials
 
-        fit = fits.BinomialFitter(x=x, y=y, num_trials=num_trials, model=model)
+        fit = BinomialFitter(x=x, y=y, num_trials=num_trials, model=model)
 
         a_fit[sample] = fit.derived_values["a"]
         a_err[sample] = fit.derived_uncertainties["a"]
@@ -105,8 +108,8 @@ def test_binomial_synthetic(plot_failures):
         plt.axvline(x=(a_fit_mean + a_std_err) / 0.5, color="blue", linestyle="--")
         plt.axvline(x=(a_fit_mean - a_std_err) / 0.5, color="blue", linestyle="--")
 
-        hist_model = fits.models.Gaussian()
-        hist_fit = fits.NormalFitter(x=a_bin_centres, y=a_hist, model=hist_model)
+        hist_model = Gaussian()
+        hist_fit = NormalFitter(x=a_bin_centres, y=a_hist, model=hist_model)
         norm_x, norm_y = hist_fit.evaluate()
         plt.plot(norm_x / 0.5, norm_y)
 

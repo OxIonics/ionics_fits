@@ -4,8 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from ..utils import param_like
-from ... import Model, ModelParameter
-from ...common import TX, TY
+from ...common import Model, ModelParameter, TX, TY
 
 
 class AggregateModel(Model):
@@ -13,11 +12,12 @@ class AggregateModel(Model):
 
     When aggregating a number of identical models, use a :class RepeatedModel: instead.
 
-    Aggregate models have a number of uses. For example:
-      - joint fits to multiple data sets (pass the datasets in as y axes and use
-        "common" parameters for any parameters which are fit jointly to all y axis
-        dimensions).
-      - fit multiple datasets simultaneously. This is useful, for example in automated
+    Aggregate models have a number of uses. For example
+
+    * joint fits to multiple data sets (pass the datasets in as y axes and use
+      "common" parameters for any parameters which are fit jointly to all y axis
+      dimensions).
+    * fit multiple datasets simultaneously. This is useful, for example in automated
       tooling such as `ndscan`'s `OnlineAnalysis`.
     """
 

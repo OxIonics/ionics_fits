@@ -3,8 +3,7 @@ import numpy as np
 
 from . import heuristics
 from .heuristics import get_spectrum
-from .. import Model, ModelParameter
-from ..common import TX, TY
+from ..common import Model, ModelParameter, TX, TY
 from ..utils import scale_x, scale_y
 
 

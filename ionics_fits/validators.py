@@ -2,27 +2,26 @@ from typing import Tuple
 import numpy as np
 
 
-import ionics_fits as fits
+from .common import Fitter
 
 
 class FitValidator:
     """Base class for fit validators"""
 
-    def window_fun(self, fit_results: fits.Fitter):
+    def window_fun(self, fit_results: Fitter):
         """Returns a boolean array of x-axis points which should be included in
         fit validation. This implementation includes all x-axis data points;
         override to only include a subset.
         """
         return np.full(fit_results.x.shape, True)
 
-    def validate(self, fit_results: fits.Fitter) -> Tuple[bool, float]:
-        """Returns a Tuple of:
-
-         bool: `True` if the fit was successful otherwise `False`.
-         float: significance from the applied test as a number between 0.0 (
-           complete failure) and 1.0 (perfect fit).
+    def validate(self, fit_results: Fitter) -> Tuple[bool, float]:
+        """Validates the fit.
 
         Subclasses must override this method
+
+        :returns: tuple specifying whether the fit succeeded and the fit significance
+          as a number between 0 (complete failure) and 1 (perfect fit).
         """
         raise NotImplementedError
 
@@ -39,7 +38,7 @@ class NSigmaValidator(FitValidator):
         self.n_sigma = n_sigma
         self.significance_threshold = significance_threshold
 
-    def validate(self, fit_results: fits.Fitter) -> Tuple[bool, float]:
+    def validate(self, fit_results: Fitter) -> Tuple[bool, float]:
         if fit_results.sigma is None:
             raise ValueError(
                 "Cannot validate fit without standard errors for each point"

@@ -2,10 +2,9 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from .. import Model, ModelParameter
 from . import heuristics
 from .utils import PeriodicModelParameter
-from ..common import TX, TY
+from ..common import Model, ModelParameter, TX, TY
 from ..utils import scale_invariant, scale_x, scale_x_inv, scale_y
 
 

@@ -1,7 +1,7 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.ramsey import Ramsey
+from .common import check_multiple_param_sets, Config
 
 
 def test_ramsey_w0_phi_only(plot_failures: bool):
@@ -22,17 +22,15 @@ def test_ramsey_w0_phi_only(plot_failures: bool):
         "tau": np.inf,
     }
 
-    model = fits.models.Ramsey(start_excited=True)
+    model = Ramsey(start_excited=True)
     model.parameters["P_readout_e"].fixed_to = params["P_readout_e"]
     model.parameters["P_readout_g"].fixed_to = params["P_readout_g"]
     model.parameters["t"].fixed_to = params["t"]
     model.parameters["t_pi_2"].fixed_to = params["t_pi_2"]
 
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         w,
         model,
         params,
-        common.TestConfig(
-            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
-        ),
+        Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
     )

@@ -2,8 +2,12 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pprint
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.laser_rabi import LaserFlopTimeThermal
+from ionics_fits.models.multi_x import Cone2D, Gaussian2D, Parabola2D
+from ionics_fits.models.sinusoid import Sinusoid
+from ionics_fits.models.transformations.model_2d import Model2D
+from ionics_fits.normal import NormalFitter
+from .common import is_close, params_close
 
 
 def gaussian(x, y, a, x0_x, x0_y, sigma_x, sigma_y, z0):
@@ -29,7 +33,7 @@ def cone(x, y, x0_x, x0_y, k_x, k_y, y0):
 
 
 def check_param_values(x_mesh_0, x_mesh_1, test_params, fit, func, plot_failures):
-    if not common.params_close(test_params, fit.values, 1e-3):
+    if not params_close(test_params, fit.values, 1e-3):
         if plot_failures:
 
             fig, axs = plt.subplots(2, 1)
@@ -85,10 +89,10 @@ def test_call_2d(plot_failures):
 
     y = gaussian(x_0, x_1, **params)
 
-    model = fits.models.Gaussian2D()
+    model = Gaussian2D()
     y_model = model(x, **params)
 
-    assert common.is_close(y_model, y, tol=1e-9)
+    assert is_close(y_model, y, tol=1e-9)
 
 
 def test_estimate_params_2d(plot_failures):
@@ -111,14 +115,14 @@ def test_estimate_params_2d(plot_failures):
 
     y = np.atleast_2d(gaussian(x_0, x_1, **params))
 
-    model = fits.models.Gaussian2D()
+    model = Gaussian2D()
     model.estimate_parameters(x, y)
     estimates = {
         param_name: param_data.get_initial_value()
         for param_name, param_data in model.parameters.items()
     }
 
-    assert common.params_close(params, estimates, 0.2)
+    assert params_close(params, estimates, 0.2)
 
     derived_values, derived_uncertainties = model.calculate_derived_params(
         x=x,
@@ -158,7 +162,7 @@ def test_gaussian_2d(plot_failures):
 
     y = np.atleast_2d(gaussian(x_0, x_1, **params))
 
-    fit = fits.NormalFitter(x=x, y=y, model=fits.models.Gaussian2D())
+    fit = NormalFitter(x=x, y=y, model=Gaussian2D())
 
     assert set(fit.values.keys()) == set(params.keys())
     assert set(fit.uncertainties.keys()) == set(params.keys())
@@ -172,7 +176,7 @@ def test_gaussian_2d(plot_failures):
     )
 
     residuals = fit.residuals()
-    assert common.is_close(residuals, np.zeros_like(residuals), tol=1e-3)
+    assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
 
     check_param_values(x_0, x_1, params, fit, gaussian, plot_failures)
 
@@ -196,7 +200,7 @@ def test_parabola_2d(plot_failures):
 
     y = np.atleast_2d(parabola(x_0, x_1, **params))
 
-    fit = fits.NormalFitter(x=x, y=y, model=fits.models.Parabola2D())
+    fit = NormalFitter(x=x, y=y, model=Parabola2D())
 
     assert set(fit.values.keys()) == set(params.keys())
     assert set(fit.uncertainties.keys()) == set(params.keys())
@@ -205,7 +209,7 @@ def test_parabola_2d(plot_failures):
     assert set(fit.derived_values.keys()) == set([])
 
     residuals = fit.residuals()
-    assert common.is_close(residuals, np.zeros_like(residuals), tol=1e-3)
+    assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
 
     check_param_values(x_mesh_0, x_mesh_1, params, fit, parabola, plot_failures)
 
@@ -229,10 +233,10 @@ def test_cone_2d(plot_failures):
 
     y = np.atleast_2d(cone(x_0, x_1, **params))
 
-    fit = fits.NormalFitter(x=x, y=y, model=fits.models.Cone2D())
+    fit = NormalFitter(x=x, y=y, model=Cone2D())
 
     residuals = fit.residuals()
-    assert common.is_close(residuals, np.zeros_like(residuals), tol=1e-3)
+    assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
 
     check_param_values(x_mesh_0, x_mesh_1, params, fit, cone, plot_failures)
 
@@ -252,16 +256,14 @@ def test_laser_flop_2d(plot_failures):
     time_axis = np.linspace(0, 5 * (t_pi / eta), 75)
     time_mesh, angle_mesh = np.meshgrid(time_axis, angle_axis)
 
-    flop_model = fits.models.LaserFlopTimeThermal(
-        start_excited=False, sideband_index=+1, n_max=1
-    )
+    flop_model = LaserFlopTimeThermal(start_excited=False, sideband_index=+1, n_max=1)
     flop_model.parameters["n_bar"].fixed_to = 0
     flop_model.parameters["delta"].fixed_to = 0
     flop_model.parameters["omega"].fixed_to = omega
     flop_model.parameters["P_readout_e"].fixed_to = 1
     flop_model.parameters["P_readout_g"].fixed_to = 0
 
-    sinusoid_model = fits.models.Sinusoid()
+    sinusoid_model = Sinusoid()
     sinusoid_model.parameters["x0"].fixed_to = -np.pi / 2
 
     # Generate data to fit
@@ -270,7 +272,7 @@ def test_laser_flop_2d(plot_failures):
         eta_angle = float(sinusoid_model(x=angle, a=eta, omega=1, y0=0, phi=theta_0))
         y[idx, :] = flop_model(x=time_axis, eta=eta_angle)
 
-    model = fits.models.Model2D(
+    model = Model2D(
         models=(flop_model, sinusoid_model),
         result_params=("eta",),
     )
@@ -278,12 +280,12 @@ def test_laser_flop_2d(plot_failures):
     params = {"omega_x0": omega, "x0_x1": -np.pi / 2}
     x = np.vstack((time_mesh.flatten(), angle_mesh.flatten()))
 
-    fit = fits.NormalFitter(x=x, y=y.flatten(), model=model)
+    fit = NormalFitter(x=x, y=y.flatten(), model=model)
 
     def func(x, y, **kwargs):
         return model.__call__((x, y), **kwargs)
 
     residuals = fit.residuals()
-    assert common.is_close(residuals, np.zeros_like(residuals), tol=1e-3)
+    assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
 
     check_param_values(time_mesh, angle_mesh, params, fit, func, plot_failures)

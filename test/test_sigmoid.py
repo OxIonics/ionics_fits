@@ -1,7 +1,7 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.sigmoid import LogisticFunction
+from .common import check_multiple_param_sets, Config
 
 
 def test_logistic_function(plot_failures):
@@ -13,10 +13,10 @@ def test_logistic_function(plot_failures):
         "a": [-5, 5],
         "k": [1],
     }
-    model = fits.models.LogisticFunction()
-    common.check_multiple_param_sets(
+    model = LogisticFunction()
+    check_multiple_param_sets(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.1),
+        Config(plot_failures=plot_failures, heuristic_tol=0.1),
     )

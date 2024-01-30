@@ -1,16 +1,14 @@
 import copy
 import dataclasses
 import numpy as np
-from typing import Any, Dict, Optional, Type, TYPE_CHECKING, TypeVar
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
-from ..common import Model, ModelParameter
+from ..common import ModelParameter
 
 
 if TYPE_CHECKING:
     num_samples = float
     num_spectrum_samples = float
-
-TModel = TypeVar("TModel", bound=Type[Model])
 
 
 def param_like(

@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 
-from ... import Model
-from ...common import TX, TY
+from ...common import Model, TX, TY
 
 
 class MappedModel(Model):
