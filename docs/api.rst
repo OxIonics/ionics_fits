@@ -16,8 +16,11 @@ Utils
 .. automodule:: ionics_fits.utils
     :members:
 
+.. _fitters:
+
 Fitters
 ~~~~~~~
+
 .. automodule:: ionics_fits.normal
     :members:
 .. automodule:: ionics_fits.MLE
