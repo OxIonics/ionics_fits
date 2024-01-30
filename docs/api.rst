@@ -1,4 +1,5 @@
 .. _api:
+
 ionics-fits API
 =================
 
@@ -23,12 +24,6 @@ Validators
 .. automodule:: ionics_fits.validators
     :members:
 
-Multi X
-~~~~~~~
-.. automodule:: ionics_fits.multi_x.common
-    :members:
-.. automodule:: ionics_fits.multi_x.models
-    :members:
 
 Models
 ~~~~~~~~~~~~
@@ -43,12 +38,6 @@ Cone
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.cone
-    :members:
-
-Transformations
-++++++++++++++++++++++++++++++++++++++++
-
-.. automodule:: ionics_fits.models.transformations
     :members:
 
 Exponential
@@ -137,4 +126,37 @@ Utils
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.utils
+    :members:
+
+Transformations
+~~~~~~~~~~~~~~~
+
+Aggregate Model
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: ionics_fits.models.transformations.aggregate_model
+    :members:
+
+Mapped Model
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: ionics_fits.models.transformations.mapped_model
+    :members:
+
+Model2D
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: ionics_fits.models.transformations.model_2d
+    :members:
+
+Reparametrized Model
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: ionics_fits.models.transformations.reparametrized_model
+    :members:
+
+Scaled Model
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: ionics_fits.models.transformations.scaled_model
     :members:

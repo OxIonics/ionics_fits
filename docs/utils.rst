@@ -1,4 +1,4 @@
-.. _transformations:
+.. _utils:
 
 Helper utilities
 ================
