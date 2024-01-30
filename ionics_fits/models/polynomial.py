@@ -3,9 +3,8 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 from . import heuristics
-from .transformations import MappedModel
-from .. import Model, ModelParameter
-from ..common import TX, TY
+from .transformations.mapped_model import MappedModel
+from ..common import Model, ModelParameter, TX, TY
 from ..utils import (
     scale_invariant,
     scale_power,
@@ -320,18 +319,18 @@ class Parabola(MappedModel):
 
     def estimate_parameters(self, x: TX, y: TY):
         """
-        If `x0` is floated, we map the Polynomial `a_1` coefficient onto a value for
-        `x0` according to:
-        ```
-        y = a_0 + a_2 * x^2
-        x -> x - x0: y = a_0 + a_2 * (x - x0)^2
-        y = a_0 + a_2*x^2 + a_2 * x0^2 + 2*a_2*x*x0
-        y = (a_0 + a_2 * x0^2) + 2*a_2*x*x0 + a_2*x^2
+        If ``x0`` is floated, we map the Polynomial ``a_1`` coefficient onto a value for
+        ``x0`` according to::
 
-        a_0 -> a_0 + a_2 * x0^2
-        a_1 -> 2*a_2*x0 => x0 = a_1/(2*a_2)
-        a_2 -> a_2
-        ```
+            y = a_0 + a_2 * x^2
+            x -> x - x0: y = a_0 + a_2 * (x - x0)^2
+            y = a_0 + a_2*x^2 + a_2 * x0^2 + 2*a_2*x*x0
+            y = (a_0 + a_2 * x0^2) + 2*a_2*x*x0 + a_2*x^2
+
+            a_0 -> a_0 + a_2 * x0^2
+            a_1 -> 2*a_2*x0 => x0 = a_1/(2*a_2)
+            a_2 -> a_2
+
         """
         super().estimate_parameters(x, y)
 

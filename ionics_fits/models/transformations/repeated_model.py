@@ -3,8 +3,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from ..utils import param_like
-from ... import Model
-from ...common import TX, TY
+from ...common import Model, TX, TY
 
 
 class RepeatedModel(Model):

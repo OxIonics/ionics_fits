@@ -1,9 +1,10 @@
 from typing import List, Tuple
 import numpy as np
 
-from . import heuristics, Triangle
-from .. import Model, ModelParameter, NormalFitter
-from ..common import TX, TY
+from . import heuristics
+from .triangle import Triangle
+from ..common import Model, ModelParameter, TX, TY
+from ..normal import NormalFitter
 from ..utils import scale_no_rescale
 
 

@@ -1,7 +1,8 @@
-from .transformations import MappedModel, Model2D
 from .cone import ConeSlice
 from .gaussian import Gaussian
 from .polynomial import Parabola
+from .transformations.mapped_model import MappedModel
+from .transformations.model_2d import Model2D
 from .triangle import Triangle
 
 

@@ -1,13 +1,17 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from .common import check_multiple_param_sets, Config
+
+from ionics_fits.models.gaussian import Gaussian
+from ionics_fits.models.rabi import RabiFlopFreq
+from ionics_fits.models.transformations.repeated_model import RepeatedModel
+from ionics_fits.normal import NormalFitter
 
 
-class DoubleRabiFreq(fits.models.RepeatedModel):
+class DoubleRabiFreq(RepeatedModel):
     def __init__(self):
         super().__init__(
-            model=fits.models.RabiFlopFreq(start_excited=True),
+            model=RabiFlopFreq(start_excited=True),
             common_params=[
                 "P_readout_e",
                 "P_readout_g",
@@ -20,7 +24,7 @@ class DoubleRabiFreq(fits.models.RepeatedModel):
         )
 
 
-class QuadrupleRabiFreq(fits.models.RepeatedModel):
+class QuadrupleRabiFreq(RepeatedModel):
     def __init__(self):
         super().__init__(
             model=DoubleRabiFreq(),
@@ -37,7 +41,7 @@ class QuadrupleRabiFreq(fits.models.RepeatedModel):
 
 
 def test_repeated_model(plot_failures):
-    """Test for models.transformations.RepeatedModel"""
+    """Test for transformations.RepeatedModel"""
     w = np.linspace(-10, 10, 200)
     params = {
         "w_0_0_0": [-3.0],
@@ -62,19 +66,17 @@ def test_repeated_model(plot_failures):
     if y.shape != (4, len(w)):
         raise ValueError("Incorrect y-shape for repeated model.")
 
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         w,
         model,
         params,
-        common.TestConfig(
-            plot_failures=plot_failures, param_tol=None, residual_tol=1e-8
-        ),
+        Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-8),
     )
 
 
 def test_repeated_model_derived_params(plot_failures):
     """Test that RepeatedModel handles derived parameters correctly"""
-    base_model = fits.models.Gaussian()
+    base_model = Gaussian()
     num_repetitions = 5
 
     x = np.linspace(-5, 5)
@@ -82,7 +84,7 @@ def test_repeated_model_derived_params(plot_failures):
     y = np.tile(np.squeeze(base_model(x, **params)), (num_repetitions, 1))
 
     # Case 1: don't aggregate results
-    repeated_model = fits.models.RepeatedModel(
+    repeated_model = RepeatedModel(
         model=base_model,
         common_params=["x0", "y0", "a", "sigma"],
         num_repetitions=num_repetitions,
@@ -96,14 +98,14 @@ def test_repeated_model_derived_params(plot_failures):
         ]
         expected_derived_results += [f"{result}_mean", f"{result}_peak_peak"]
 
-    fit = fits.NormalFitter(x=x, y=y, model=repeated_model)
+    fit = NormalFitter(x=x, y=y, model=repeated_model)
 
     assert len(fit.derived_values.keys()) == len(set(fit.derived_values.keys()))
     assert len(expected_derived_results) == len(expected_derived_results)
     assert set(fit.derived_values.keys()) == set(expected_derived_results)
 
     # Case 2: aggregate results
-    repeated_model = fits.models.RepeatedModel(
+    repeated_model = RepeatedModel(
         model=base_model,
         common_params=["x0", "y0", "a", "sigma"],
         num_repetitions=num_repetitions,
@@ -112,7 +114,7 @@ def test_repeated_model_derived_params(plot_failures):
 
     model_derived_results = ["FWHMH", "w0", "peak"]
 
-    fit = fits.NormalFitter(x=x, y=y, model=repeated_model)
+    fit = NormalFitter(x=x, y=y, model=repeated_model)
 
     assert len(fit.derived_values.keys()) == len(set(fit.derived_values.keys()))
     assert len(model_derived_results) == len(model_derived_results)

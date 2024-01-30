@@ -1,7 +1,6 @@
 from typing import Dict, List, Tuple
 
-from ... import Model, common
-from ...common import TX, TY
+from ...common import Model, TX, TY
 
 
 class ScaledModel(Model):
@@ -47,8 +46,8 @@ class ScaledModel(Model):
 
     def calculate_derived_params(
         self,
-        x: common.TX,
-        y: common.TY,
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:

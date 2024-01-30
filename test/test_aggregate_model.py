@@ -2,17 +2,20 @@ from matplotlib import pyplot as plt
 
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.laser_rabi import LaserFlopTimeThermal
+from ionics_fits.models.polynomial import Line
+from ionics_fits.models.triangle import Triangle
+from ionics_fits.models.transformations.aggregate_model import AggregateModel
+from .common import check_multiple_param_sets, Config
 
 
 def test_aggregate_model_common_params(plot_failures):
     """Test for aggregate_model.AggregateModel with common parameters"""
 
-    rsb = fits.models.LaserFlopTimeThermal(start_excited=False, sideband_index=-1)
-    bsb = fits.models.LaserFlopTimeThermal(start_excited=False, sideband_index=+1)
+    rsb = LaserFlopTimeThermal(start_excited=False, sideband_index=-1)
+    bsb = LaserFlopTimeThermal(start_excited=False, sideband_index=+1)
 
-    model = fits.models.AggregateModel(
+    model = AggregateModel(
         models={"rsb": rsb, "bsb": bsb},
         common_params={
             param: (rsb.parameters[param], [("rsb", param), ("bsb", param)])
@@ -42,20 +45,20 @@ def test_aggregate_model_common_params(plot_failures):
     )
 
     params["n_bar"] = [0, 0.25, 1]
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         x=t,
         model=model,
         test_params=params,
-        config=common.TestConfig(plot_failures=plot_failures),
+        config=Config(plot_failures=plot_failures),
     )
 
 
 def test_aggregate_model_func(plot_failures):
     """Test that aggregate_model.AggregateModel.func returns the correct value"""
     x = np.linspace(-10, 10, 100)
-    line = fits.models.Line()
-    triangle = fits.models.Triangle()
-    model = fits.models.AggregateModel(models={"line": line, "triangle": triangle})
+    line = Line()
+    triangle = Triangle()
+    model = AggregateModel(models={"line": line, "triangle": triangle})
 
     params = {
         "y0_line": 3,
@@ -101,9 +104,9 @@ def test_aggregate_model_func(plot_failures):
 def test_aggregate_model(plot_failures):
     """Test for aggregate_model.AggregateModel"""
     x = np.linspace(0, 2, 100)
-    line = fits.models.Line()
-    triangle = fits.models.Triangle()
-    model = fits.models.AggregateModel(models={"line": line, "triangle": triangle})
+    line = Line()
+    triangle = Triangle()
+    model = AggregateModel(models={"line": line, "triangle": triangle})
 
     params = {
         "y0_line": [3],
@@ -116,9 +119,9 @@ def test_aggregate_model(plot_failures):
         "y_max_triangle": [+np.inf],
     }
 
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures),
+        Config(plot_failures=plot_failures),
     )

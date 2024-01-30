@@ -2,8 +2,7 @@ from typing import cast, Dict, Optional, Tuple, TYPE_CHECKING
 import numpy as np
 from scipy import fft, signal
 
-from .. import Model
-from ..common import TX, TY
+from ..common import Model, TX, TY
 from ..utils import Array, ArrayLike
 
 
@@ -30,10 +29,10 @@ def param_min_sqrs(
     :param scanned_param: name of parameter to optimize
     :param scanned_param_values: array of scanned parameter values to test
     :param defaults: optional dictionary of fallback values to use for non-scanned
-      parameters which don't have heuristics set yet
+       parameters which don't have heuristics set yet
 
     :returns: tuple with the value from :param scanned_param_values: which results
-    in lowest residuals and the root-sum-squared residuals for that value.
+      in lowest residuals and the root-sum-squared residuals for that value.
     """
     defaults = cast(dict, defaults or {})
     if not set(defaults.keys()).issubset(model.parameters.keys()):
@@ -165,11 +164,12 @@ def find_x_offset_sym_peak_fft(
 
     This heuristic draws candidate x-offset points from three sources and picks the
     best one (in the least-squares residuals sense). Sources:
-      - FFT shift theorem based on provided spectrum data
-      - Tests all points in the top quartile of deviation from the baseline
-      - Optionally, user-provided "test points", taken from another heuristic. This
-        allows the developer to combine the general-purpose heuristics here with
-        other heuristics which make use of more model-specific assumptions
+
+    * FFT shift theorem based on provided spectrum data
+    * Tests all points in the top quartile of deviation from the baseline
+    * Optionally, user-provided "test points", taken from another heuristic. This
+      allows the developer to combine the general-purpose heuristics here with
+      other heuristics which make use of more model-specific assumptions
 
     :param model: the fit model
     :param x: x-axis data

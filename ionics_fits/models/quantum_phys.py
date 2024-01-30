@@ -13,8 +13,11 @@ if TYPE_CHECKING:
 def thermal_state_probs(
     n_max: int, n_bar: ModelParameter(lower_bound=0, scale_func=scale_invariant)
 ) -> Array[("num_fock_states",), np.float64]:
-    """Returns an array of Fock state occupation probabilities for a thermal state of
-    mean occupancy :param n_bar:, truncated at a maximum Fock state of |n_max>
+    """Thermal state probability distribution.
+
+    :param n_max: the distribution is truncated at a maximum Fock state of ``|n_max>``
+    :param n_bar: the mean Fock state occupation
+    :returns: array of Fock state occupation probabilities
     """
     n = np.arange(n_max + 1, dtype=int)
     return ((n_bar / (n_bar + 1)) ** n) / (n_bar + 1)
@@ -26,15 +29,18 @@ def thermal_state_probs(
 def coherent_state_probs(
     n_max: int, alpha: ModelParameter(lower_bound=0, scale_func=scale_invariant)
 ) -> Array[("num_fock_states",), np.float64]:
-    """Returns an array of the Fock state occupation probabilities for a coherent
-    state described by :param alpha:, truncated at a maximum Fock state of |n_max>.
+    """Coherent state probability distribution.
 
-    A coherent state is defined as
-        |α> = exp(α a_dag - α* a) |0>,
-    where a_dag and a denote the harmonic-oscillator creation and annihilation
-    operators.
+    A coherent state is defined as::
 
+        |α> = exp(α a_dag - α* a) |0>
+
+    where ``a_dag`` and ``a`` denote the harmonic-oscillator creation and annihilation
+    operators. The mean Fock state occupancy is given by ``n_bar = |α|^2``
+
+    :param n_max: the distribution is truncated at a maximum Fock state of ``|n_max>``
     :param alpha: Complex displacement parameter
+    :returns: array of Fock state occupation probabilities
     """
     n = np.arange(n_max + 1, dtype=int)
     n_bar = np.abs(alpha) ** 2
@@ -57,17 +63,18 @@ def coherent_state_probs(
 def squeezed_state_probs(
     n_max: int, zeta: ModelParameter(lower_bound=0, scale_func=scale_invariant)
 ) -> Array[("num_fock_states",), np.float64]:
-    """
-    Return occupation probabilities of Fock states for pure squeezed state.
+    """Squeezed state probability distribution.
 
-    A pure squeezed state is defined as
+    A pure squeezed state is defined as::
+
         |ζ> = exp[1 / 2 *  (ζ* a^2 - ζ a_dag^2)] |0>,
-    where a_dag and a denote the harmonic-oscillator creation and annihilation
+
+    where ``a_dag`` and ``a`` denote the harmonic-oscillator creation and annihilation
     operators.
 
-    The occupation probabilities are truncated at the maximum Fock state |n_max>.
-
+    :param n_max: the distribution is truncated at a maximum Fock state of ``|n_max>``
     :param zeta: Complex squeezing parameter
+    :returns: array of Fock state occupation probabilities
     """
     n = np.arange(n_max + 1, dtype=int)
 

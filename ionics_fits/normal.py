@@ -4,8 +4,7 @@ import pprint
 from scipy import optimize, stats
 from typing import Callable, Dict, Optional, Tuple, TYPE_CHECKING
 
-from . import Fitter, Model, ModelParameter
-from .common import TX, TY
+from .common import Fitter, Model, ModelParameter, TX, TY
 from .utils import Array
 
 if TYPE_CHECKING:

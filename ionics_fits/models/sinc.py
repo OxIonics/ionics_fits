@@ -4,8 +4,8 @@ import numpy as np
 from . import heuristics
 from .rectangle import Rectangle
 from .triangle import Triangle
-from .. import Model, ModelParameter, NormalFitter
-from ..common import TX, TY
+from ..common import Model, ModelParameter, TX, TY
+from ..normal import NormalFitter
 from ..utils import scale_x, scale_x_inv, scale_y
 
 

@@ -1,8 +1,7 @@
 from typing import Dict, List, Tuple
 import numpy as np
 
-from .. import Model, ModelParameter
-from ..common import TX, TY
+from ..common import Model, ModelParameter, TX, TY
 from ..utils import scale_invariant, scale_power, scale_x, scale_y
 
 

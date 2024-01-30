@@ -6,8 +6,8 @@ from scipy import stats
 from statsmodels.stats import proportion
 
 
-from . import MLEFitter, Model
-from .common import TX, TY
+from .common import Model, TX, TY
+from .MLE import MLEFitter
 from .utils import Array
 
 if TYPE_CHECKING:

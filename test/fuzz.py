@@ -19,6 +19,9 @@ from . import (
     test_triangle,
 )
 
+from .common import Config
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -105,7 +108,7 @@ if __name__ == "__main__":
         target_fun = targets[target]
 
         try:
-            test_config = common.TestConfig(plot_failures=args.plot_failures)
+            test_config = Config(plot_failures=args.plot_failures)
             failures = target_fun(
                 num_trials=args.num_trials,
                 stop_at_failure=not args.continue_at_failure,

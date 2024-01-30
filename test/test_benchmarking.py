@@ -1,26 +1,26 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.benchmarking import Benchmarking
+from .common import check_multiple_param_sets, fuzz, Config
 
 
 def test_benchmarking(plot_failures):
     """Test for benchmarking.Benchmarking"""
     x = np.linspace(0, 1000, 300)
     params = {"p": [0.1, 0.3, 0.9], "y0": [0.9, 0.99], "y_inf": 1 / 2**2}
-    model = fits.models.Benchmarking(num_qubits=2)
-    common.check_multiple_param_sets(
+    model = Benchmarking(num_qubits=2)
+    check_multiple_param_sets(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures),
+        Config(plot_failures=plot_failures),
     )
 
 
 def fuzz_benchmarking(
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     x = np.linspace(0, 1000, 300)
     fuzzed_params = {
@@ -29,9 +29,9 @@ def fuzz_benchmarking(
     }
     static_params = {"y_inf": 1 / 2**2}
 
-    return common.fuzz(
+    return fuzz(
         x=x,
-        model=fits.models.Benchmarking(num_qubits=2),
+        model=Benchmarking(num_qubits=2),
         static_params=static_params,
         fuzzed_params=fuzzed_params,
         test_config=test_config,

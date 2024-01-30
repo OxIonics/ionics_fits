@@ -1,7 +1,8 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.gaussian import Gaussian
+from ionics_fits.normal import NormalFitter
+from .common import check_multiple_param_sets, fuzz, Config
 
 
 def test_gaussian(plot_failures):
@@ -13,12 +14,12 @@ def test_gaussian(plot_failures):
         "a": [-5, 5],
         "sigma": [0.1, 0.25, 1],
     }
-    model = fits.models.Gaussian()
-    common.check_multiple_param_sets(
+    model = Gaussian()
+    check_multiple_param_sets(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures, heuristic_tol=3e-2),
+        Config(plot_failures=plot_failures, heuristic_tol=3e-2),
     )
 
 
@@ -68,9 +69,9 @@ def test_152(plot_failures):
     y = y[inds]
     sigma = sigma[inds]
 
-    model = fits.models.Gaussian()
+    model = Gaussian()
     model.parameters["sigma"].lower_bound = 1e-9
-    fit = fits.NormalFitter(x=x, y=y, sigma=sigma, model=model)
+    fit = NormalFitter(x=x, y=y, sigma=sigma, model=model)
 
     assert np.abs(fit.initial_values["x0"] - 1800) < 10
     assert np.abs(1 - fit.initial_values["sigma"] / 43.5) < 0.25
@@ -81,7 +82,7 @@ def test_152(plot_failures):
 def fuzz_gaussian(
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     x = np.linspace(-10, 10, 500)
     fuzzed_params = {
@@ -91,9 +92,9 @@ def fuzz_gaussian(
         "sigma": (0.1, 0.25, 1),
     }
 
-    return common.fuzz(
+    return fuzz(
         x=x,
-        model=fits.models.Gaussian(),
+        model=Gaussian(),
         static_params={},
         fuzzed_params=fuzzed_params,
         test_config=test_config,

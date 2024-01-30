@@ -3,8 +3,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 from . import heuristics
-from .. import Model, ModelParameter
-from ..common import TX, TY
+from ..common import Model, ModelParameter, TX, TY
 from ..utils import scale_invariant, scale_undefined, scale_x, scale_x_inv
 
 
@@ -16,7 +15,7 @@ class MolmerSorensen(Model):
     interaction.
 
     It requires that the initial spin states of all qubits are the same
-    and either |g> or |e> - different initial states for each qubit or initial
+    and either ``|g> or |e>`` - different initial states for each qubit or initial
     states which are superpositions of spin eigenstates are are not supported.
 
     For single-qubit interactions, the model has one y-axis dimension, giving the
