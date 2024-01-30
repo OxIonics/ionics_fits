@@ -7,8 +7,8 @@ Common
 ~~~~~~
 .. automodule:: ionics_fits.common
     :members:
-    :special-members: __call__
-    :private-members: _func
+    :special-members: __call__, __init__
+    :private-members: _func, _fit
 
 Utils
 ~~~~~
@@ -23,46 +23,61 @@ Fitters
 
 .. automodule:: ionics_fits.normal
     :members:
+    :special-members: __init__
 .. automodule:: ionics_fits.MLE
     :members:
+    :special-members: __init__
 .. automodule:: ionics_fits.binomial
     :members:
+    :special-members: __init__
 
 Validators
 ~~~~~~~~~~
 .. automodule:: ionics_fits.validators
     :members:
+    :special-members: __init__
 
 
 Models
 ~~~~~~~~~~~~
 .. automodule:: ionics_fits.models
-
+    :members:
 
 Benchmarking
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.benchmarking
     :members:
+    :private-members: _func
+    :special-members: __init__
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
 
 Cone
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.cone
     :members:
+    :private-members: _func
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
 
 Exponential
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.exponential
     :members:
+    :private-members: _func
+    :special-members: __init__
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
 
 Gaussian
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.gaussian
     :members:
-
+    :private-members: _func
+    :special-members: __init__
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
+    
 .. _heuristics:
 
 Heuristics
@@ -85,10 +100,16 @@ Lorentzian
 .. automodule:: ionics_fits.models.lorentzian
     :members:
 
-Molmer-Sorensen
+Mølmer–Sørensen
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.molmer_sorensen
+    :members:
+
+Multi-X
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: ionics_fits.models.multi_x
     :members:
 
 Polynomial
@@ -109,10 +130,22 @@ Rabi
 .. automodule:: ionics_fits.models.rabi
     :members:
 
+Ramsey
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: ionics_fits.models.ramsey
+    :members:
+
 Rectangle
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.rectangle
+    :members:
+
+Sigmoid
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: ionics_fits.models.sigmoid
     :members:
 
 Sinc

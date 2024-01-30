@@ -20,7 +20,9 @@ class NormalFitter(Fitter):
 
     We use least-squares fitting as a maximum-likelihood parameter estimator for
     normally distributed data. For data that is close to normal this is usually
-    a pretty good approximation of a true MLE estimator. YMMV...
+    a pretty good approximation of a true MLE estimator.
+
+    See :class:`~ionics_fits.common.Fitter` for further details.
     """
 
     def __init__(
@@ -41,7 +43,7 @@ class NormalFitter(Fitter):
             fitting to change the fit behaviour from the model class' defaults. The
             model is (deep) copied and stored as an attribute.
         :param curve_fit_args: optional dictionary of keyword arguments to be passed
-            into scipy.curve_fit.
+            into ``scipy.curve_fit``.
         """
         if sigma is None:
             self.sigma = None
@@ -61,20 +63,6 @@ class NormalFitter(Fitter):
         parameters: Dict[str, ModelParameter],
         free_func: Callable[..., TY],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-        """Implementation of the parameter estimation.
-
-        `Fitter` implementations must override this method to provide a fit with
-        appropriate statistics.
-
-        :param x: rescaled x-axis data
-        :param y: rescaled y-axis data
-        :param parameters: dictionary of rescaled model parameters
-        :param free_func: convenience wrapper for the model function, taking only values
-            for the fit's free parameters
-
-        :returns: tuple of dictionaries mapping model parameter names to their fitted
-            values and uncertainties.
-        """
         sigma = None if self.sigma is None else self.sigma / self.y_scales[:, None]
 
         free_parameters = [
@@ -130,23 +118,23 @@ class NormalFitter(Fitter):
         return p, p_err
 
     def calc_sigma(self) -> Optional[TX]:
-        """Return an array of standard error values for each y-axis data point
+        """Returns an array of standard error values for each y-axis data point
         if available.
         """
         return self.sigma
 
     def chi_squared(self, x: TX, y: TY, sigma: TY) -> float:
-        """Returns the Chi-squared fit significance for the fit compared to a given
-        dataset as a number between 0 and 1.
+        """Returns the Chi-squared fit significance for the fitted model compared to a
+        given dataset as a number between 0 and 1.
 
         The significance gives the probability that fit residuals as large as the ones
         we observe could have arisen through chance given our assumed statistics and
         assuming that the fitted model perfectly represents the probability
         distribution.
 
-        A value of `1` indicates a perfect fit (all data points lie on the fitted curve)
-        a value close to 0 indicates super-statistical deviations of the dataset from
-        the fitted model.
+        A value of ``1`` indicates a perfect fit (all data points lie on the fitted
+        curve) a value close to ``0`` indicates super-statistical deviations of the
+        dataset from the fitted model.
         """
         x = np.atleast_2d(x)
         y = np.atleast_2d(y)

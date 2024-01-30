@@ -216,9 +216,6 @@ class Model:
         internal_parameters: Optional[List[ModelParameter]] = None,
     ):
         r"""
-        Contructor Arguments
-        ====================
-
         :param parameters: optional dictionary mapping parameter names to
             :class:`~ionics_fits.common.ModelParameter`\ s. This should be ``None``
             (default) if the model has a static set of parameters, in which case the
@@ -515,6 +512,11 @@ class Fitter:
         plt.legend()
         plt.show()
 
+    .. testoutput::
+
+        Amplitude: dataset = 2.000, fit = 2.000
+        Phase: dataset = 1.571, fit = 1.571
+
     ``ionics_fits`` supports fitting datasets with arbitrary x-axis and y-axis
     dimensions. The :py:mod:`~ionics_fits.models.transformations` module provides a
     number of classes which allow higher-dimensional models to be constructed from
@@ -564,7 +566,6 @@ class Fitter:
         axs[1].grid()
         plt.show()
 
-
     As an example of fitting a dataset with a 2D y-axis, here's how to fit Rabi flopping
     on a pair of qubits. We'll assume all parameters are the same for the two qubits,
     other than the Rabi frequencies:
@@ -610,6 +611,16 @@ class Fitter:
         plt.plot(*fit.evaluate(None, True))
         plt.grid()
         plt.show()
+
+    .. testoutput::
+
+        {'P_readout_e': 0.9999999999,
+         'P_readout_g': 1e-10,
+         'delta': 0.0,
+         'omega_0': 6.283185307179586,
+         'omega_1': 12.566370614362235,
+         't_dead': 0.0,
+         'tau': inf}
 
     Class Attributes
     ================
@@ -831,7 +842,7 @@ class Fitter:
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Implementation of the parameter estimation.
 
-        `Fitter` implementations must override this method to provide a fit with
+        ``Fitter`` implementations must override this method to provide a fit with
         appropriate statistics.
 
         :param x: rescaled x-axis data, must be a 1D array
@@ -855,7 +866,7 @@ class Fitter:
         :param x_fit: optional x-axis points to evaluate the model at. If ``None``\ , we
             use the stored value of :attr:`x`.
         :param transpose_and_squeeze: if ``True``, the results arrays are transposed and
-            squeezed proior to being returned. This is intended to be used for plotting,
+            squeezed prior to being returned. This is intended to be used for plotting,
             since matplotlib requires different y-series to be stored as columns.
 
         :returns: tuple of x-axis values used and corresponding y-axis found by

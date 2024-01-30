@@ -1,3 +1,4 @@
+""" Transformations which increase the x-axis dimensionality of other models """
 from .cone import ConeSlice
 from .gaussian import Gaussian
 from .polynomial import Parabola
@@ -7,12 +8,12 @@ from .triangle import Triangle
 
 
 class Gaussian2D(Model2D):
-    """2D Gaussian according to:
-    ```
-    z = (
-        a / ((sigma * sqrt(2*pi)) * (sigma * sqrt(2*pi)))
-        * exp(-0.5*((x-x0)/(sigma_x))^2 -0.5*((y-y0)/(sigma_y))^2) + z0
-    ```
+    """2D Gaussian according to::
+
+        z = (
+            a / ((sigma * sqrt(2*pi)) * (sigma * sqrt(2*pi)))
+            * exp(-0.5*((x-x0)/(sigma_x))^2 -0.5*((y-y0)/(sigma_y))^2) + z0
+
     Parameters are:
       - a
       - x0
@@ -59,10 +60,10 @@ class Gaussian2D(Model2D):
 
 
 class Parabola2D(Model2D):
-    """2D Parabola according to:
-    ```
-    z = k_x * (x - x0)^2 + k_y *(y - y0) + z0
-    ```
+    """2D Parabola according to::
+
+        z = k_x * (x - x0)^2 + k_y *(y - y0) + z0
+
 
     Parameters are:
       - x0
@@ -97,8 +98,10 @@ class Parabola2D(Model2D):
 class Cone2D(Model2D):
     """2D Cone Model.
 
-    Parameters are (x params inherit from :class :class ionics_fits.models.ConeSlide:
+    Parameters are (x params inherit from
+    :class:`ionics_fits.models.cone.ConeSlice`):
     while y params inherit from :class ionics_fits.models.Triangle:
+
       - x0_x
       - x0_y
       - k_x
