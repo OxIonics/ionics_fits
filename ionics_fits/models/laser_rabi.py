@@ -70,9 +70,7 @@ class LaserFlop(RabiFlop):
 
     def __init__(
         self,
-        distribution_fun: Callable[
-            [int, ModelParameter, ...], Array[("num_fock_states",), np.float64]
-        ],
+        distribution_fun: Callable[..., Array[("num_fock_states",), np.float64]],
         start_excited: bool,
         sideband_index: int,
         n_max: int = 30,
@@ -154,7 +152,8 @@ class LaserFlop(RabiFlop):
             lower_bound=0.0, fixed_to=0.0, scale_func=scale_undefined
         ),
         w_0: ModelParameter(scale_func=scale_undefined),
-        **kwargs,  # Fock state distribution function parameters
+        # Fock state distribution function parameters
+        **kwargs: ModelParameter,
     ) -> TY:
         """
         Return measurement probability.
