@@ -83,8 +83,8 @@ def test_call_2d(plot_failures):
     x_ax_0 = np.linspace(-20, 20, 30)
     x_ax_1 = np.linspace(-50, 50, 70)
     x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
-    x_0 = x_mesh_0.flatten()
-    x_1 = x_mesh_1.flatten()
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
     x = np.vstack((x_0, x_1))
 
     y = gaussian(x_0, x_1, **params)
@@ -109,8 +109,8 @@ def test_estimate_params_2d(plot_failures):
     x_ax_0 = np.linspace(-20, 20, 50)
     x_ax_1 = np.linspace(-4, 4, 50)
     x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
-    x_0 = x_mesh_0.flatten()
-    x_1 = x_mesh_1.flatten()
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
     x = np.vstack((x_0, x_1))
 
     y = np.atleast_2d(gaussian(x_0, x_1, **params))
@@ -156,8 +156,8 @@ def test_gaussian_2d(plot_failures):
     x_ax_0 = np.linspace(-20, 20, 30)
     x_ax_1 = np.linspace(-50, 50, 70)
     x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
-    x_0 = x_mesh_0.flatten()
-    x_1 = x_mesh_1.flatten()
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
     x = np.vstack((x_0, x_1))
 
     y = np.atleast_2d(gaussian(x_0, x_1, **params))
@@ -194,8 +194,8 @@ def test_parabola_2d(plot_failures):
     x_ax_0 = np.linspace(-20, 20, 30)
     x_ax_1 = np.linspace(-50, 50, 70)
     x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
-    x_0 = x_mesh_0.flatten()
-    x_1 = x_mesh_1.flatten()
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
     x = np.vstack((x_0, x_1))
 
     y = np.atleast_2d(parabola(x_0, x_1, **params))
@@ -227,8 +227,8 @@ def test_cone_2d(plot_failures):
     x_ax_0 = np.linspace(-40, 40, 30)
     x_ax_1 = np.linspace(-50, 50, 70)
     x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
-    x_0 = x_mesh_0.flatten()
-    x_1 = x_mesh_1.flatten()
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
     x = np.vstack((x_0, x_1))
 
     y = np.atleast_2d(cone(x_0, x_1, **params))
@@ -278,9 +278,9 @@ def test_laser_flop_2d(plot_failures):
     )
 
     params = {"omega_x0": omega, "x0_x1": -np.pi / 2}
-    x = np.vstack((time_mesh.flatten(), angle_mesh.flatten()))
+    x = np.vstack((time_mesh.ravel(), angle_mesh.ravel()))
 
-    fit = NormalFitter(x=x, y=y.flatten(), model=model)
+    fit = NormalFitter(x=x, y=y.ravel(), model=model)
 
     def func(x, y, **kwargs):
         return model.__call__((x, y), **kwargs)

@@ -6,24 +6,17 @@ from ..utils import scale_no_rescale
 
 
 class Benchmarking(Model):
-    """Benchmarking success probability decay model
+    """Benchmarking success probability decay model according to::
 
-    y = (y0 - y_inf)*p^x + y_inf
-    for sequence length x.
+        y = (y0 - y_inf)*p^x + y_inf
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - p: depolarisation parameter
-      - y0: SPAM fidelity estimate
-      - y_inf: depolarisation offset (y-axis asymptote) (fixed to 1/2^n by default)
+    where ``x`` is the sequence length (number of Clifford operations).
 
-    Derived parameters:
-      - e: error per Clifford = (1 - p) / alpha_n where alpha_n = 2^n / (2^n - 1)
-      - e_spam: estimated SPAM error = 1 - y0
+    See :meth:`_func` for parameter details.
     """
 
     def __init__(self, num_qubits):
-        """Init
-
+        """
         :param num_qubits: The number of qubits involved in the benchmarking sequence.
         """
         super().__init__()
@@ -59,6 +52,13 @@ class Benchmarking(Model):
             scale_func=scale_no_rescale,
         ),
     ) -> TY:
+        """Fit parameters
+
+        :param p: depolarisation parameter
+        :param y0: SPAM fidelity estimate
+        :param y_inf: depolarisation offset (y-axis asymptote) (fixed to ``1/2^n`` by
+          default)
+        """
         y = (y0 - y_inf) * p**x + y_inf
         return y
 
@@ -78,6 +78,12 @@ class Benchmarking(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """Derived parameters:
+
+        * ``e``: error per Clifford ``e = (1 - p) / alpha_n`` where
+          ``alpha_n = 2^n / (2^n - 1)``
+        * ``e_spam``: estimated SPAM error ``e_spam = 1 - y0``
+        """
         p = fitted_params["p"]
         y0 = fitted_params["y0"]
 

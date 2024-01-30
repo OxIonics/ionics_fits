@@ -1,3 +1,18 @@
+r""" Validators are used to check whether a fit has been successful or not.
+
+There are two aspects to fit validation:
+
+  1. Checking whether the fitted model matches the data.
+  2. Checking whether the fitted model describes a physically "reasonable" result (e.g.
+     does the fit tell us that the apparatus is misbehaving?)
+
+:class:`FitValidator`\ s are designed to deal with the first of these. The second should
+be handled by appropriately constraining the fit, such that the model parameters are
+only allowed to be varied within the space of "reasonable" value.
+
+
+"""
+
 from typing import Tuple
 import numpy as np
 
@@ -29,11 +44,16 @@ class FitValidator:
 class NSigmaValidator(FitValidator):
     def __init__(self, n_sigma: float = 3.0, significance_threshold: float = 0.75):
         """Fit validator which checks that at least
-        :param significance_threshold: of points lie within :param n_sigma:
+        ``significance_threshold`` of points lie within ``n_sigma``
         standard errors of the fitted value.
 
         This is a relatively forgiving (easy to configure in a way that gives
         minimal "good" fits which fail validation) general-purpose fit validator.
+
+        :param n_sigma: number of standard errors that points allowed to differ from the
+          model.
+        :param significance_threshold: fraction of points which must lie within
+          ``n_sigma`` of the model for the fit to be considered successful.
         """
         self.n_sigma = n_sigma
         self.significance_threshold = significance_threshold
@@ -58,7 +78,7 @@ class NSigmaValidator(FitValidator):
         _, y_fit = fit_results.evaluate(x_fit=x)
 
         errs = np.abs((y - y_fit) / sigma)
-        errs = np.sort(errs.flatten())
+        errs = np.sort(errs.ravel())
 
         good_points = errs < self.n_sigma
         good_fraction = sum(good_points) / len(good_points)

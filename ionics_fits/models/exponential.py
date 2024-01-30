@@ -6,18 +6,12 @@ from ..utils import scale_x, scale_y
 
 
 class Exponential(Model):
-    """Exponential function according to:
-    y(x < x_dead) = y0
-    y(x >= x_dead) = y0 + (y_inf-y0)*(1-exp(-(x-x_dead)/tau))
+    """Exponential function according to::
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - x_dead: x-axis "dead time" (fixed to 0 by default)
-      - y0: initial (x = x_dead) y-axis offset
-      - y_inf: y-axis asymptote (i.e. y(x - x_dead >> tau) => y_inf)
-      - tau: decay constant
+        y(x < x_dead) = y0
+        y(x >= x_dead) = y0 + (y_inf-y0)*(1-exp(-(x-x_dead)/tau))
 
-    Derived parameters:
-      - x_1_e: x-axis value for 1/e decay including dead time (`x_1_e = x_dead + tau`)
+    See :meth:`_func` for parameter details.
     """
 
     def get_num_x_axes(self) -> int:
@@ -42,6 +36,12 @@ class Exponential(Model):
         y_inf: ModelParameter(scale_func=scale_y()),
         tau: ModelParameter(lower_bound=0, scale_func=scale_x()),
     ) -> TY:
+        """
+        :param x_dead: x-axis "dead time" (fixed to ``0`` by default)
+        :param y0: initial (``x = x_dead``) y-axis offset
+        :param y_inf: y-axis asymptote (i.e. ``y(x - x_dead >> tau) => y_inf``)
+        :param tau: decay constant
+        """
         y = y0 + (y_inf - y0) * (1 - np.exp(-(x - x_dead) / tau))
         y = np.where(x >= x_dead, y, y0)
         return y
@@ -66,6 +66,13 @@ class Exponential(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        Derived parameters:
+
+            * ``x_1_e``: x-axis value for ``1/e`` decay including dead time
+              (``x_1_e = x_dead + tau``)
+
+        """
         derived_params = {"x_1_e": fitted_params["x_dead"] + fitted_params["tau"]}
         derived_uncertainties = {
             "x_1_e": np.sqrt(

@@ -18,8 +18,10 @@ logger = logging.getLogger(__name__)
 class MLEFitter(Fitter):
     """Base class for maximum Likelihood Parameter Estimation fitters.
 
-    Implementations should override the :meth log_liglihood: and
-    :meth calc_sigma: methods.
+    Implementations should override the :meth:`log_likelihood` and
+    :meth:`~ionics_fits.common.Fitter.calc_sigma` methods.
+
+    See :class:`~ionics_fits.common.Fitter` for further details.
     """
 
     TYPE: str = "MLE"
@@ -45,7 +47,7 @@ class MLEFitter(Fitter):
             parameter bounds are provided, they are used to scale the step size
             appropriately for each parameter.
         :param minimizer_args: optional dictionary of keyword arguments to be passed
-            into scipy.optimize.minimize.
+            into ``scipy.optimize.minimize``.
         """
         self.minimizer_args = {"options": {"maxls": 100}}
         if minimizer_args is not None:
@@ -68,7 +70,7 @@ class MLEFitter(Fitter):
 
         super().__init__(x=x, y=y, model=model)
 
-    def log_liklihood(
+    def log_likelihood(
         self,
         free_param_values: Array[("num_free_params",), np.float64],
         x: TX,
@@ -125,7 +127,7 @@ class MLEFitter(Fitter):
 
         # maxls setting helps with ABNORMAL_TERMINATION_IN_LNSRCH
         res = optimize.minimize(
-            fun=self.log_liklihood,
+            fun=self.log_likelihood,
             args=(x, y, free_func),
             x0=p0,
             bounds=zip(lower, upper),
@@ -179,8 +181,8 @@ class MLEFitter(Fitter):
 
             return _fun
 
-        def log_liklihood(free_param_values):
-            return self.log_liklihood(
+        def log_likelihood(free_param_values):
+            return self.log_likelihood(
                 free_param_values=free_param_values, x=x, y=y, free_func=free_func
             )
 
@@ -188,7 +190,7 @@ class MLEFitter(Fitter):
 
         for i_idx in range(num_free_params):
             for j_idx in range(num_free_params):
-                first_diff = diff(i_idx, log_liklihood)
+                first_diff = diff(i_idx, log_likelihood)
                 second_diff = diff(j_idx, first_diff)
                 hessian[i_idx, j_idx] = second_diff(res.x)
 

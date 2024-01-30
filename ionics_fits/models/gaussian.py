@@ -9,21 +9,11 @@ from ..utils import scale_power, scale_x, scale_y
 
 
 class Gaussian(Model):
-    """Gaussian model according to:
-    y = a / (sigma * sqrt(2*pi)) * exp(-0.5*((x-x0)/(sigma))^2) + y0
+    """Gaussian model according to::
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - x0: x-axis offset
-      - y0: y-axis offset
-      - a: y-axis scale factor. The Gaussian is normalized such that its integral is
-        equal to a.
-      - sigma: distribution half-width at 1/e of maximum height is 2*sigma (sigma is the
-        1/sqrt(e) radius).
+        y = a / (sigma * sqrt(2*pi)) * exp(-0.5*((x-x0)/(sigma))^2) + y0
 
-    Derived parameters:
-      - FWHMH: full width at half-maximum height
-      - peak: peak height above y0
-      - w0: full width at 1/e max height. For Gaussian beams this is the beam waist
+    See :meth:`_func` for parameter details.
     """
 
     def get_num_x_axes(self) -> int:
@@ -44,6 +34,14 @@ class Gaussian(Model):
         a: ModelParameter(scale_func=scale_power(x_power=1, y_power=1)),
         sigma: ModelParameter(lower_bound=0, scale_func=scale_x()),
     ) -> TY:
+        """
+        :param x0: x-axis offset
+        :param y0: y-axis offset
+        :param a: y-axis scale factor. The Gaussian is normalized such that its integral
+          is equal to ``a``.
+        :param sigma: distribution half-width at ``1/e`` of maximum height is
+          ``2*sigma`` (``sigma`` is the ``1/sqrt(e)`` radius).
+        """
         y = (
             a / (sigma * np.sqrt(2 * np.pi)) * np.exp(-0.5 * ((x - x0) / sigma) ** 2)
             + y0
@@ -160,6 +158,16 @@ class Gaussian(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        Derived parameters:
+
+        * ``FWHMH``: full width at half-maximum height
+        * ``peak``: peak height above ``y0``
+        * ``w0``: full width at ``1/e`` max height. For Gaussian beams this is the beam
+          waist
+
+        """
+
         sigma = fitted_params["sigma"]
         a = fitted_params["a"]
 

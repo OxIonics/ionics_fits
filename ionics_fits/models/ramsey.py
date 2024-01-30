@@ -9,32 +9,19 @@ from ..utils import scale_invariant, scale_x, scale_x_inv, scale_y
 
 
 class Ramsey(Model):
-    """Fit model for detuning scans of Ramsey experiments (for time scans, use the
+    r"""Fit model for detuning scans of Ramsey experiments (for time scans, use the
     Sinusoid model).
 
-    This model calculates the measurement outcomes for Ramsey experiments, defined by:
-        `P = P_readout_g + (P_readout_e - P_readout_g) * P_e`
-        where `P_e` is the (time-dependent) population in the excited state and
-    `P_readout_g` and `P_readout_e` are the readout levels (measurement outcomes
+    This model calculates the measurement outcomes for Ramsey experiments, defined by::
+
+        P = P_readout_g + (P_readout_e - P_readout_g) * P_e
+
+    where ``P_e`` is the (time-dependent) population in the excited state and
+    ``P_readout_g`` and ``P_readout_e`` are the readout levels (measurement outcomes
     when the qubit is in one state).
 
     The model requires that the system starts out entirely in one of the ground or
-    excited states, specified using :meth:`__init__`'s :param:`start_excited` parameter.
-
-    Model parameters:
-        - P_readout_e: excited state readout level
-        - P_readout_g: ground state readout level
-        - t: Ramsey delay
-        - t_pi_2: duration of the pi/2 pulses. The pi/2 pulses are assumed to be
-            ideal pi/2 pulses with a corresponding Rabi frequency of
-            `Omega = np.pi / (2 * t_pi_2)`
-        - w_0: resonance frequency offset, defined such that the Ramsey detuning is
-            given by `delta = x - w_0`
-        - phi: phase of the second pi/2 pulse relative to the first pi/2 pulse
-        - tau: decay time constant (fixed to infinity by default)
-
-    Derived parameters:
-        - f_0: resonance frequency offset in linear units, given by `w_0 / (2 * np.pi)`
+    excited states, specified using :meth:``__init__``\ 's ``start_excited`` parameter.
 
     All frequencies are in angular units.
     """
@@ -86,6 +73,18 @@ class Ramsey(Model):
             scale_func=scale_x_inv(),
         ),
     ):
+        """
+        :param P_readout_e: excited state readout level
+        :param P_readout_g: ground state readout level
+        :param t: Ramsey delay
+        :param t_pi_2: duration of the pi/2 pulses. The pi/2 pulses are assumed to be
+            ideal pi/2 pulses with a corresponding Rabi frequency of
+            ``Omega = np.pi / (2 * t_pi_2)``
+        :param w_0: resonance frequency offset, defined such that the Ramsey detuning is
+            given by ``delta = x - w_0``
+        :param phi: phase of the second pi/2 pulse relative to the first pi/2 pulse
+        :param tau: decay time constant (fixed to infinity by default)
+        """
         delta = x - w_0
         Omega = np.pi / (2 * t_pi_2)
 
@@ -149,6 +148,12 @@ class Ramsey(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        Derived parameters:
+
+        * ``f_0`: resonance frequency offset in linear units, given by
+          ``w_0 / (2 * np.pi)``
+        """
         derived_params = {}
         derived_uncertainties = {}
 
