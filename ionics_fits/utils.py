@@ -57,6 +57,7 @@ def scale_x(x_axis: int = 0) -> TSCALE_FUN:
     def fun(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
         return x_scales[x_axis]
 
+    fun.__name__ = "scale_x"
     return fun
 
 
@@ -71,6 +72,7 @@ def scale_x_inv(x_axis: int = 0) -> TSCALE_FUN:
     def fun(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
         return 1 / x_scales[x_axis]
 
+    fun.__name__ = "scale_x_inv"
     return fun
 
 
@@ -85,6 +87,7 @@ def scale_y(y_axis: int = 0) -> TSCALE_FUN:
     def fun(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
         return y_scales[y_axis]
 
+    fun.__name__ = "scale_y"
     return fun
 
 
@@ -108,6 +111,7 @@ def scale_power(
     def fun(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
         return (x_scales[x_axis] ** x_power) * (y_scales[y_axis] ** y_power)
 
+    fun.__name__ = "scale_power"
     return fun
 
 

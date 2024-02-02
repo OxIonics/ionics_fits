@@ -8,17 +8,11 @@ from ..utils import scale_x, scale_y
 
 
 class Lorentzian(Model):
-    """Lorentzian model according to:
-    y = a * fwhmh^2 / ((x - x0)^2 + fwhmh^2) + y0
+    """Lorentzian model according to::
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - x0: x-axis offset
-      - y0: y-axis offset
-      - a: peak value of the function above y0
-      - fwhmh: full width at half maximum height of the function
+        y = a * fwhmh^2 / ((x - x0)^2 + fwhmh^2) + y0
 
-    Derived parameters:
-        None
+    See :meth:`_func` for parameter details.
     """
 
     def get_num_x_axes(self) -> int:
@@ -39,6 +33,12 @@ class Lorentzian(Model):
         a: ModelParameter(scale_func=scale_y()),
         fwhmh: ModelParameter(lower_bound=0, scale_func=scale_x()),
     ) -> TY:
+        """
+        :param x0: x-axis offset
+        :param y0: y-axis offset
+        :param a: peak value of the function above ``y0``
+        :param fwhmh: full width at half maximum height of the function
+        """
         y = a * fwhmh**2 / ((x - x0) ** 2 + fwhmh**2) + y0
         return y
 

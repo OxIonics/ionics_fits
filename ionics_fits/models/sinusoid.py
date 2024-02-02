@@ -14,29 +14,12 @@ class Sinusoid(Model):
         y = Gamma * a * sin[omega * (x - x0) + phi] + y0
         Gamma = exp(-x / tau).
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - a: initial (x = 0) amplitude of the sinusoid
-      - omega: angular frequency
-      - phi: phase offset (radians)
-      - y0: y-axis offset
-      - x0: x-axis offset (fixed to 0 by default)
-      - tau: decay/growth constant (fixed to np.inf by default)
-
-    Derived parameters:
-      - f: frequency
-      - phi_cosine: cosine phase (phi + pi/2)
-      - contrast: peak-to-peak amplitude of the pure sinusoid
-      - min/max: min / max values of the pure sinusoid
-      - period: period of oscillation
-      - TODO: peak values of the damped sinusoid as well as `x` value that the peak
-          occurs at.
-
     All phases are in radians, frequencies are in angular units.
 
-    x0 and phi0 are equivalent parametrisations for the phase offset, but in some cases
-    it works out convenient to have access to both (e.g. one as a fixed offset, the
-    other floated). At most one of them should be floated at once. By default, x0 is
-    fixed at 0 and phi0 is floated.
+    ``x0`` and ``phi0`` are equivalent parametrisations for the phase offset, but in
+    some cases it works out convenient to have access to both (e.g. one as a fixed
+    offset, the other floated). At most one of them should be floated at once. By
+    default, ``x0`` is fixed at 0 and ``phi0`` is floated.
     """
 
     def get_num_x_axes(self) -> int:
@@ -67,6 +50,14 @@ class Sinusoid(Model):
             scale_func=scale_x(),
         ),
     ) -> TY:
+        """
+        :param a: initial (``x = 0``) amplitude of the sinusoid
+        :param omega: angular frequency
+        :param phi: phase offset
+        :param y0: y-axis offset
+        :param x0: x-axis offset
+        :param tau: decay/growth constant
+        """
         Gamma = np.exp(-x / tau)
         return Gamma * a * np.sin(omega * (x - x0) + phi) + y0
 
@@ -116,6 +107,16 @@ class Sinusoid(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        * ``f``: frequency
+        * ``phi_cosine``: cosine phase (``phi + pi/2``)
+        * ``contrast``: peak-to-peak amplitude of the pure sinusoid
+        * ``min``/``max``: min / max values of the pure sinusoid
+        * ``period``: period of oscillation
+
+        TODO: peak values of the damped sinusoid as well as ``x`` value that the peak
+        occurs at.
+        """
         derived_params = {}
         derived_params["f"] = fitted_params["omega"] / (2 * np.pi)
         derived_params["phi_cosine"] = fitted_params["phi"] + np.pi / 2
@@ -142,17 +143,17 @@ class Sinusoid(Model):
 
 
 class SineMinMax(ReparametrizedModel):
-    """Sinusoid parametrised by minimum / maximum values instead of offset / amplitude.
-
+    """Sinusoid parametrised by minimum / maximum values instead of offset / amplitude::
 
             y = Gamma * a * sin[omega * (x - x0) + phi] + y0
 
-    This class is equivalent to :class Sinusoid: except that the `a` and `y0` parameters
-    are replaced with new `min` and `max` parameters defined by::
+    This class is equivalent to :class:`Sinusoid` except that the ``a`` and ``y0``
+    parameters are replaced with new ``min`` and ``max`` parameters defined by::
 
       min = y0 - a
       max = y0 + a
 
+    See :class:`Sinusoid` for further details.
     """
 
     def __init__(self):

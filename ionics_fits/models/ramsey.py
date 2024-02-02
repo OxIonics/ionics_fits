@@ -21,7 +21,7 @@ class Ramsey(Model):
     when the qubit is in one state).
 
     The model requires that the system starts out entirely in one of the ground or
-    excited states, specified using :meth:``__init__``\ 's ``start_excited`` parameter.
+    excited states, specified using :meth:``__init__``\'s ``start_excited`` parameter.
 
     All frequencies are in angular units.
     """
@@ -151,7 +151,7 @@ class Ramsey(Model):
         """
         Derived parameters:
 
-        * ``f_0`: resonance frequency offset in linear units, given by
+        * ``f_0``: resonance frequency offset in linear units, given by
           ``w_0 / (2 * np.pi)``
         """
         derived_params = {}

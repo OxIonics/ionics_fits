@@ -83,8 +83,6 @@ Gaussian
 Heuristics
 ++++++++++++++++++++++++++++++++++++++++
 
-Tools for writing parameter estimators.
-
 .. automodule:: ionics_fits.models.heuristics
     :members:
 
@@ -93,18 +91,28 @@ Laser Rabi
 
 .. automodule:: ionics_fits.models.laser_rabi
     :members:
+    :private-members: _func
+    :special-members: __init__
+    :exclude-members: func, estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
+    
 
 Lorentzian
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.lorentzian
     :members:
+    :private-members: _func
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
+    
 
 Mølmer–Sørensen
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.molmer_sorensen
     :members:
+    :private-members: _func
+    :special-members: __init__
+    :exclude-members: func, estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
 
 Multi-X
 ++++++++++++++++++++++++++++++++++++++++
@@ -117,6 +125,14 @@ Polynomial
 
 .. automodule:: ionics_fits.models.polynomial
     :members:
+    :exclude-members: Power
+
+.. autoclass:: ionics_fits.models.polynomial.Power
+    :members:
+    :special-members: __init__
+    :private-members: _func
+    :exclude-members: estimate_parameters, optimal_n, rescale, func, get_num_x_axes, get_num_y_axes, can_rescale
+
 
 Quantum Physics
 ++++++++++++++++++++++++++++++++++++++++
@@ -129,48 +145,67 @@ Rabi
 
 .. automodule:: ionics_fits.models.rabi
     :members:
+    :private-members: _func
+    :special-members: __init__
+    :exclude-members: func, estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
 
 Ramsey
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.ramsey
     :members:
+    :private-members: _func
+    :exclude-members: func, estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
 
 Rectangle
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.rectangle
     :members:
+    :private-members: _func
+    :special-members: __init__
+    :exclude-members: func, estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
 
 Sigmoid
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.sigmoid
     :members:
+    :private-members: _func
+    :special-members: __init__
+    :exclude-members: func, estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
 
 Sinc
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.sinc
     :members:
+    :private-members: _func
+    :exclude-members: func, estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
 
 Sinusoid
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.sinusoid
     :members:
+    :private-members: _func
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale, bound_param_values, bound_param_uncertainties, new_param_values
 
 Triangle
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.triangle
     :members:
+    :private-members: _func
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
+
 
 Utils
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.utils
     :members:
+    :exclude-members: clip
 
 Transformations
 ~~~~~~~~~~~~~~~

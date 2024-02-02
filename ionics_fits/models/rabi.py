@@ -12,7 +12,7 @@ from ..utils import scale_undefined, scale_x, scale_x_inv, scale_y
 
 
 class RabiFlop(Model):
-    """Base class for damped Rabi flopping.
+    r"""Base class for damped Rabi flopping.
 
     This model calculates measurement outcomes for two-state systems undergoing damped
     Rabi oscillations, defined by::
@@ -26,42 +26,34 @@ class RabiFlop(Model):
     This class does not support fitting directly; use one of the subclasses instead.
 
     The model requires that the system starts out entirely in one of the ground or
-    excited states, specified using ``__init__``'s ``start_excited`` parameter.
+    excited states, specified using :meth:`__init__`\'s
+    ``start_excited`` parameter.
 
     The probability of transition from one state to the other is calculated as::
 
         P_trans = 1 / 2 * omega^2 / W^2 * [1 - exp(-t / tau) * cos(W * t)]
 
-    where
-        * t is the duration of interaction between qubit and driving field
-        * W = sqrt(omega^2 + delta^2)
-        * delta is the detuning of the driving field from resonance
-        * omega is the Rabi frequency
-        * tau is the decay time constant.
+    where:
+        * ``t`` is the duration of interaction between qubit and driving field
+        * ``W = sqrt(omega^2 + delta^2)``
+        * ``delta`` is the detuning of the driving field from resonance
+        * ``omega`` is the Rabi frequency
+        * ``tau`` is the decay time constant.
 
     Independent variables:
-        * t_pulse: duration of driving pulse including dead time. The duration of the
-          interaction is given by t = max(0, t_pulse - t_dead).
-        * w: frequency of driving pulse relative to the reference frequency ``w_0``,
+        * ``t_pulse``: duration of driving pulse including dead time. The duration of
+          the interaction is given by ``t = max(0, t_pulse - t_dead)``.
+        * ``w``: frequency of driving pulse relative to the reference frequency ``w_0``,
           given by ``delta = w - w_0``
-
-    Model parameters:
-        - P_readout_e: excited state readout level
-        - P_readout_g: ground state readout level
-        - omega: Rabi frequency
-        - tau: decay time constant (fixed to infinity by default)
-        - t_dead: dead time (fixed to 0 by default)
-        - w_0: resonance frequency offset
-
-    Derived parameters:
-        - t_pi: Pi-time, calculated as t_pi = pi / omega
-        - t_pi_2: Pi/2-time, calculated as t_pi_2 = t_pi / 2
-        - f_0: Offset of resonance from zero of frequency variable in linear units
 
     All frequencies are in angular units.
     """
 
     def __init__(self, start_excited: bool):
+        """
+        :param start_excited: if ``True`` the system is assumed to start in the excited
+            state, other wise it is assumed to start in the ground state.
+        """
         super().__init__()
         self.start_excited = start_excited
 
@@ -77,10 +69,6 @@ class RabiFlop(Model):
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        # Beware if you're sub-typing this!
-        # This is not the standard type for `x`; we rely on the implementation of `func`
-        # to change the type of `x` for us (see the RabiFlopFreq / RabiFlopTime
-        # implementations)
         x: TX,
         P_readout_e: ModelParameter(
             lower_bound=0.0,
@@ -101,7 +89,17 @@ class RabiFlop(Model):
         ),
         w_0: ModelParameter(scale_func=scale_undefined),
     ) -> TY:
-        """:param x: tuple of (t_pulse, w)"""
+        """Return measurement probability.
+
+        :param x: tuple of ``(t_pulse, w)``. Subclasses should override func to
+            map this onto the appropriate input data.
+        :param P_readout_e: excited state readout level
+        :param P_readout_g: ground state readout level
+        :param omega: Rabi frequency
+        :param tau: decay time constant (fixed to infinity by default)
+        :param t_dead: dead time (fixed to 0 by default)
+        :param w_0: resonance frequency offset
+        """
         t = np.clip(x[0] - t_dead, a_min=0.0, a_max=None)
         delta = x[1] - w_0
         W = np.sqrt(omega**2 + delta**2)
@@ -124,6 +122,13 @@ class RabiFlop(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        Derived parameters:
+            - ``t_pi``: Pi-time, calculated as ``t_pi = pi / omega``
+            - ``t_pi_2``: Pi/2-time, calculated as ``t_pi_2 = t_pi / 2``
+            - ``f_0``: Offset of resonance from zero of frequency variable in linear
+              units
+        """
         omega = fitted_params["omega"]
         t_pi = np.pi / omega
         t_pi_2 = t_pi / 2
@@ -150,7 +155,9 @@ class RabiFlopFreq(RabiFlop):
 
     This model calculates the measurement outcomes for damped Rabi flops when the
     pulse duration is kept fixed and only its frequency is varied. The pulse duration is
-    specified using a new `t_pulse` model parameter.
+    specified using a new ``t_pulse`` model parameter.
+
+    See also :class:`~ionics_fits.models.rabi.RabiFlop`.
     """
 
     def __init__(self, start_excited: bool):
@@ -256,8 +263,10 @@ class RabiFlopTime(RabiFlop):
     This model calculates the measurement outcome for damped Rabi flops when the
     frequency of the pulse is kept fixed and only its duration is varied.
 
-    Since the detuning is not scanned as an independent variable, we replace `w_0` with
-    a new model parameter `delta`, defined by: `delta = |w - w_0|`.
+    Since the detuning is not scanned as an independent variable, we replace ``w_0``
+    with a new model parameter ``delta``, defined by: ``delta = |w - w_0|``.
+
+    See also :class:`~ionics_fits.models.rabi.RabiFlop`.
     """
 
     def __init__(self, start_excited: bool):

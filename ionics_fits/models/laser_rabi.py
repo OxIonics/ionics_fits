@@ -33,35 +33,29 @@ class LaserFlop(RabiFlop):
     when the qubit is in one state).
 
     This class does not support fitting directly; use one of the subclasses instead.
-    Subclasses must inherit from this class and a suitable Rabi flopping subclass such
-    as :class:`~ionics_fits.models.rabi.RabiFlopFreq` or
+    Subclasses must inherit from this class and a suitable
+    :class:`~ionics_fits.models.rabi.RabiFlop` subclass, such as
+    :class:`~ionics_fits.models.rabi.RabiFlopFreq` or
     :class:`~ionics_fits.models.rabi.RabiFlopTime`.
 
-    The model requires that the internal part of the system starts out entirely in one
-    of the ground or excited states, specified using ``__init__``
+    The model requires that the spin state of the system starts out entirely in one
+    of the ground or excited states, specified using :meth:`__init__`\'s
     ``start_excited`` parameter. It further assumes that the motional part of the system
     starts out in a distribution over different Fock states, described by the specified
-    distribution function.
+    ``distribution_fun``.
 
     Independent variables:
-        - t_pulse: duration of driving pulse including dead time. The duration of
-            the interaction is given by ``t = max(0, t_pulse - t_dead)``.
-        - w: frequency of driving pulse relative to the reference frequency ``w_0``\ ,
-            given by ``delta = w - w_0``
 
-    Model parameters:
-        - P_readout_e: excited state readout level
-        - P_readout_g: ground state readout level
-        - eta: Lamb-Dicke parameter
-        - omega: carrier Rabi frequency
-        - tau: decay time constant (fixed to infinity by default)
-        - t_dead: dead time (fixed to 0 by default)
-        - w_0: resonance frequency offset
+        * ``t_pulse``: duration of driving pulse including dead time. The duration of
+          the interaction is given by ``t = max(0, t_pulse - t_dead)``.
+        * ``w``: frequency of driving pulse relative to the reference frequency
+          ``w_0``\, given by ``delta = w - w_0``
 
     The model additionally gains any parameters associated with the specified Fock
     state distribution function.
 
-    Derived parameters are inherited from :class:`ionics_fits.models.rabi.RabiFlop`.
+    Derived parameters are inherited from :class:`~ionics_fits.models.rabi.RabiFlop`\'s
+    :func:`~ionics_fits.models.rabi.RabiFlop.calculate_derived_params` method.
 
     All frequencies are in angular units.
 
@@ -80,9 +74,9 @@ class LaserFlop(RabiFlop):
           probabilities. The distribution function's first argument should be the
           maximum Fock state to include in the simulation (the returned array has
           ``n_max + 1`` elements). Subsequent arguments should be
-          :class::~ionics_fits.common.ModelParameter`\ s used to parametrise the
+          :class:`~ionics_fits.common.ModelParameter`\s used to parametrise the
           distribution.
-        :param start_excited: if True the qubit starts in the excited state
+        :param start_excited: if ``True`` the qubit starts in the excited state
         :param sideband_index: change in motional state due to a pi-pulse starting
           from the spin ground-state.
         :param n_max: maximum Fock state used in the simulation
@@ -156,12 +150,17 @@ class LaserFlop(RabiFlop):
         # Fock state distribution function parameters
         **kwargs: ModelParameter,
     ) -> TY:
-        """
-        Return measurement probability.
+        """Return measurement probability.
 
-        :param x: Tuple (t_pulse, w) of ndarrays containing pulse duration and
-            angular frequency of driving field. They must have shapes such
-            that they are broadcastable.
+        :param x: tuple of ``(t_pulse, w)``. Subclasses should override func to
+            map this onto the appropriate input data.
+        :param P_readout_e: excited state readout level
+        :param P_readout_g: ground state readout level
+        :param eta: Lamb-Dicke parameter
+        :param omega: carrier Rabi frequency
+        :param tau: decay time constant
+        :param t_dead: dead time
+        :param w_0: resonance frequency offset
         """
         # Rabi frequency as function of Fock state which the ion occupies
         # initially. If the ion starts in |g>, corresponds to coupling between
@@ -273,6 +272,9 @@ class LaserFlop(RabiFlop):
 
 
 class LaserFlopFreqCoherent(LaserFlop, RabiFlopFreq):
+    """Fit model for Rabi flopping pulse detuning scans when the motional degree of
+    freedom starts in a coherent state.
+    """
     def __init__(
         self,
         start_excited: bool,
@@ -288,6 +290,9 @@ class LaserFlopFreqCoherent(LaserFlop, RabiFlopFreq):
 
 
 class LaserFlopFreqThermal(LaserFlop, RabiFlopFreq):
+    """Fit model for Rabi flopping pulse detuning scans when the motional degree of
+    freedom starts in a thermal state.
+    """
     def __init__(
         self,
         start_excited: bool,
@@ -303,6 +308,9 @@ class LaserFlopFreqThermal(LaserFlop, RabiFlopFreq):
 
 
 class LaserFlopFreqSqueezed(LaserFlop, RabiFlopFreq):
+    """Fit model for Rabi flopping pulse detuning scans when the motional degree of
+    freedom starts in a squeezed state.
+    """
     def __init__(
         self,
         start_excited: bool,
@@ -318,6 +326,9 @@ class LaserFlopFreqSqueezed(LaserFlop, RabiFlopFreq):
 
 
 class LaserFlopTimeCoherent(LaserFlop, RabiFlopTime):
+    """Fit model for Rabi flopping pulse duration scans when the motional degree of
+    freedom starts in a coherent state.
+    """
     def __init__(
         self,
         start_excited: bool,
@@ -333,6 +344,9 @@ class LaserFlopTimeCoherent(LaserFlop, RabiFlopTime):
 
 
 class LaserFlopTimeThermal(LaserFlop, RabiFlopTime):
+    """Fit model for Rabi flopping pulse duration scans when the motional degree of
+    freedom starts in a thermal state.
+    """
     def __init__(
         self,
         start_excited: bool,
@@ -348,6 +362,9 @@ class LaserFlopTimeThermal(LaserFlop, RabiFlopTime):
 
 
 class LaserFlopTimeSqueezed(LaserFlop, RabiFlopTime):
+    """Fit model for Rabi flopping pulse duration scans when the motional degree of
+    freedom starts in a squeezed state.
+    """
     def __init__(
         self,
         start_excited: bool,

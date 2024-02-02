@@ -17,29 +17,21 @@ from ..utils import (
 
 
 class Power(Model):
-    """Single-power fit according to:
-    y = a*(x-x0)^n + y0
+    """Single-power fit according to::
 
-    `x - x0` must always be strictly greater than 0. This is because `n` can take
-    non-integral values (for integer coefficients use :class Polynomial: instead)
-    and this function's return is real-valued.
+        y = a*(x-x0)^n + y0
 
-    The fit will often struggle when both y0 and n are floated if the dataset doesn't
-    contain some asymptotic values where `y ~ y0`. The more you can help it out by
-    bounding parameters and providing initial guesses the better.
+    ``x - x0`` must always be strictly greater than ``0``. This is because ``n`` can
+    take non-integral values (for integer coefficients use
+    :class:`~ionics_fits.models.polynomial.Polynomial` instead) and this function's
+    return is real-valued.
 
-    The fit will generally struggle to converge if both `a` and `y0` are floated unless
-    it is given some guidance (e.g. initial values).
+    The fit will often struggle when both ``y0`` and ``n`` are floated if the dataset
+    doesn't contain some asymptotic values where ``y ~ y0``. The more you can help it
+    out by bounding parameters and providing initial guesses the better.
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - a: y-axis scale factor (fixed to 1 by default)
-      - x0: x-axis offset (fixed to 0 by default). This parameter is not expected to be
-        used often.
-      - y0: y-axis offset
-      - n: power
-
-    Derived parameters:
-        None
+    The fit will generally struggle to converge if both ``a`` and ``y0`` are floated
+    unless it is given some guidance (e.g. initial values).
     """
 
     def get_num_x_axes(self) -> int:
@@ -73,6 +65,12 @@ class Power(Model):
         y0: ModelParameter(scale_func=scale_y()),
         n: ModelParameter(scale_func=scale_invariant),
     ) -> TY:
+        """
+        * ``a``: y-axis scale factor
+        * ``x0``: x-axis offset
+        * ``y0``: y-axis offset
+        * ``n``: power
+        """
         assert np.all(x - x0 >= 0), "`x - x0` must be > 0"
         return a * np.float_power(x - x0, n) + y0
 
@@ -209,23 +207,19 @@ def _generate_poly_parameters(poly_degree):
 
 
 class Polynomial(Model):
-    """A polynomial fit model.
+    """Polynomial fit model according to::
 
-    Fits the function:
-    y = sum(a_n*(x-x0)^n) for n ={0...poly_degree}
+        y = sum(a_n*(x-x0)^n) for n ={0...poly_degree}
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - a_0 ... a_{poly_degree}: polynomial coefficients.
-      - x0: x-axis offset (fixed to 0 by default). Floating x0 as well as polynomial
-          coefficients results in an under-defined problem.
-
-    Derived parameters:
-        None
+    Model parameters:
+    
+    * ``a_0`` ... ``a_{poly_degree}``: polynomial coefficients
+    * ``x0``: x-axis offset (fixed to 0 by default). Floating ``x0`` as well as
+      polynomial coefficients results in an under-defined problem.
     """
 
     def __init__(self, poly_degree=10):
-        """Init
-
+        """
         :param poly_degree: The degree of the polynomial that we're fitting
            defaults to 10.
         """
@@ -275,15 +269,14 @@ class Polynomial(Model):
 
 
 class Line(MappedModel):
-    """Straight line fit according to:
-    `y = a * x + y0`
+    """Straight line fit according to::
+
+        y = a * x + y0
 
     Fit parameters (all floated by default unless stated otherwise):
-      - y0: y-axis intercept
-      - a: slope
-
-    Derived parameters:
-        None
+    
+    * ``y0``: y-axis intercept
+    * ``a``: slope
     """
 
     def __init__(self):
