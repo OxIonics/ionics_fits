@@ -326,7 +326,10 @@ class Model:
                 raise RuntimeError(
                     f"Parameter {param_name} has an undefined scale function"
                 )
-            param_data.rescale(x_scales, y_scales)
+            try:
+                param_data.rescale(x_scales, y_scales)
+            except Exception as e:
+                raise RuntimeError(f"Error rescaling parameter {param_name}") from e
 
         for param_data in self.internal_parameters:
             param_data.rescale(x_scales, y_scales)
@@ -553,11 +556,11 @@ class Fitter:
         model = Gaussian2D()
 
         params = {
-            "x0_x": 0,
-            "x0_y": 3,
-            "sigma_x": 2,
-            "sigma_y": 3,
-            "z0": 0,
+            "x0_x0": 0,
+            "x0_x1": 3,
+            "sigma_x0": 2,
+            "sigma_x1": 3,
+            "y0": 0,
             "a": 9,
         }
 

@@ -10,26 +10,26 @@ from ionics_fits.normal import NormalFitter
 from .common import is_close, params_close
 
 
-def gaussian(x, y, a, x0_x, x0_y, sigma_x, sigma_y, z0):
+def gaussian(x, y, a, x0_x0, x0_x1, sigma_x0, sigma_x1, y0):
 
-    A = a / (sigma_x * np.sqrt(2 * np.pi)) / (sigma_y * np.sqrt(2 * np.pi))
+    A = a / (sigma_x0 * np.sqrt(2 * np.pi)) / (sigma_x1 * np.sqrt(2 * np.pi))
 
     return (
         A
         * np.exp(
-            -(((x - x0_x) / (np.sqrt(2) * sigma_x)) ** 2)
-            - (((y - x0_y) / (np.sqrt(2) * sigma_y)) ** 2)
+            -(((x - x0_x0) / (np.sqrt(2) * sigma_x0)) ** 2)
+            - (((y - x0_x1) / (np.sqrt(2) * sigma_x1)) ** 2)
         )
-        + z0
+        + y0
     )
 
 
-def parabola(x, y, k_x, k_y, x0, y0, z0):
-    return k_x * (x - x0) ** 2 + k_y * (y - y0) ** 2 + z0
+def parabola(x, y, k_x0, k_x1, x0_x0, x0_x1, y0):
+    return k_x0 * (x - x0_x0) ** 2 + k_x1 * (y - x0_x1) ** 2 + y0
 
 
-def cone(x, y, x0_x, x0_y, k_x, k_y, y0):
-    return np.sqrt((k_x * (x - x0_x)) ** 2 + (k_y * (y - x0_y)) ** 2) + y0
+def cone(x, y, x0_x0, x0_x1, k_x0, k_x1, y0):
+    return np.sqrt((k_x0 * (x - x0_x0)) ** 2 + (k_x1 * (y - x0_x1)) ** 2) + y0
 
 
 def check_param_values(x_mesh_0, x_mesh_1, test_params, fit, func, plot_failures):
@@ -73,11 +73,11 @@ def test_call_2d(plot_failures):
     """Check that the 2D model call / func methods produce the correct output"""
     params = {
         "a": 5,
-        "x0_x": -2,
-        "x0_y": +0.5,
-        "sigma_x": 2,
-        "sigma_y": 5,
-        "z0": 1.5,
+        "x0_x0": -2,
+        "x0_x1": +0.5,
+        "sigma_x0": 2,
+        "sigma_x1": 5,
+        "y0": 1.5,
     }
 
     x_ax_0 = np.linspace(-20, 20, 30)
@@ -99,11 +99,11 @@ def test_estimate_params_2d(plot_failures):
     """Check that the 2D model parameter estimator produces the correct output"""
     params = {
         "a": 5,
-        "x0_x": -2,
-        "x0_y": +0.5,
-        "sigma_x": 2,
-        "sigma_y": 0.5,
-        "z0": 1.5,
+        "x0_x0": -2,
+        "x0_x1": +0.5,
+        "sigma_x0": 2,
+        "sigma_x1": 0.5,
+        "y0": 1.5,
     }
 
     x_ax_0 = np.linspace(-20, 20, 50)
@@ -132,13 +132,19 @@ def test_estimate_params_2d(plot_failures):
     )
 
     assert set(derived_values.keys()) == set(derived_uncertainties.keys())
-    assert set(derived_values.keys()) == {"FWHMH_x", "FWHMH_y", "w0_x", "w0_y", "peak"}
-    assert derived_values["FWHMH_x"] == 2.35482 * params["sigma_x"]
-    assert derived_values["w0_x"] == 4 * params["sigma_x"]
-    assert derived_values["FWHMH_y"] == 2.35482 * params["sigma_y"]
-    assert derived_values["w0_y"] == 4 * params["sigma_y"]
+    assert set(derived_values.keys()) == {
+        "FWHMH_x0",
+        "FWHMH_x1",
+        "w0_x0",
+        "w0_x1",
+        "peak",
+    }
+    assert derived_values["FWHMH_x0"] == 2.35482 * params["sigma_x0"]
+    assert derived_values["w0_x0"] == 4 * params["sigma_x0"]
+    assert derived_values["FWHMH_x1"] == 2.35482 * params["sigma_x1"]
+    assert derived_values["w0_x1"] == 4 * params["sigma_x1"]
     assert derived_values["peak"] == params["a"] / (
-        params["sigma_y"] * np.sqrt(2 * np.pi)
+        params["sigma_x1"] * np.sqrt(2 * np.pi)
     )
 
 
@@ -146,11 +152,11 @@ def test_gaussian_2d(plot_failures):
     """Test 2D Gaussian fitting"""
     params = {
         "a": 5,
-        "x0_x": -2,
-        "x0_y": +0.5,
-        "sigma_x": 2,
-        "sigma_y": 5,
-        "z0": 1.5,
+        "x0_x0": -2,
+        "x0_x1": +0.5,
+        "sigma_x0": 2,
+        "sigma_x1": 5,
+        "y0": 1.5,
     }
 
     x_ax_0 = np.linspace(-20, 20, 30)
@@ -164,18 +170,20 @@ def test_gaussian_2d(plot_failures):
 
     fit = NormalFitter(x=x, y=y, model=Gaussian2D())
 
+    pprint.pprint(fit.values)
     assert set(fit.values.keys()) == set(params.keys())
     assert set(fit.uncertainties.keys()) == set(params.keys())
     assert set(fit.initial_values.keys()) == set(params.keys())
     assert set(fit.free_parameters) == set(params.keys())
     assert set(fit.derived_values.keys()) == set(
-        ["FWHMH_x", "w0_x", "FWHMH_y", "peak", "w0_y"]
+        ["FWHMH_x0", "w0_x0", "FWHMH_x1", "peak", "w0_x1"]
     )
     assert set(fit.derived_uncertainties.keys()) == set(
-        ["FWHMH_x", "w0_x", "FWHMH_y", "peak", "w0_y"]
+        ["FWHMH_x0", "w0_x0", "FWHMH_x1", "peak", "w0_x1"]
     )
 
     residuals = fit.residuals()
+
     assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
 
     check_param_values(x_0, x_1, params, fit, gaussian, plot_failures)
@@ -184,11 +192,11 @@ def test_gaussian_2d(plot_failures):
 def test_parabola_2d(plot_failures):
     """Test 2D Parabola fitting"""
     params = {
-        "x0": -2,
-        "y0": +0.5,
-        "k_x": 2,
-        "k_y": 5,
-        "z0": 1.5,
+        "x0_x0": -2,
+        "x0_x1": +0.5,
+        "k_x0": 2,
+        "k_x1": 5,
+        "y0": 1.5,
     }
 
     x_ax_0 = np.linspace(-20, 20, 30)
@@ -217,10 +225,10 @@ def test_parabola_2d(plot_failures):
 def test_cone_2d(plot_failures):
     """Test 2D cone fitting"""
     params = {
-        "x0_x": -5,
-        "x0_y": +10,
-        "k_x": 2,
-        "k_y": 5,
+        "x0_x0": -5,
+        "x0_x1": +10,
+        "k_x0": 2,
+        "k_x1": 5,
         "y0": 0,
     }
 
@@ -234,7 +242,7 @@ def test_cone_2d(plot_failures):
     y = np.atleast_2d(cone(x_0, x_1, **params))
 
     fit = NormalFitter(x=x, y=y, model=Cone2D())
-
+    pprint.pprint(fit.values)
     residuals = fit.residuals()
     assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
 
@@ -289,3 +297,7 @@ def test_laser_flop_2d(plot_failures):
     assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
 
     check_param_values(time_mesh, angle_mesh, params, fit, func, plot_failures)
+
+def test_repeated_model_2d(plot_failures):
+    """Test an instance of a repeated model2d """
+    pass

@@ -14,143 +14,117 @@ from .triangle import Triangle
 from ..utils import TX_SCALE, TY_SCALE
 
 
-class Gaussian2D(Model2D):
+class Gaussian2D(MappedModel):
     """2D Gaussian according to::
 
-        z = (
-            a / ((sigma * sqrt(2*pi)) * (sigma * sqrt(2*pi)))
-            * exp(-0.5*((x-x0)/(sigma_x))^2 -0.5*((y-y0)/(sigma_y))^2) + z0
+        y = (
+            a / ((sigma_x0 * sqrt(2*pi)) * (sigma_x1 * sqrt(2*pi)))
+            * exp(-0.5*((x0-x0_x0)/(sigma_x0))^2 -0.5*((x1-x0_x1)/(sigma_x1))^2) + y0
 
     Parameters are:
 
     * ``a``
-    * ``x0``
+    * ``x0_x0``
+    * ``x0_x1``
+    * ``sigma_x0``
+    * ``sigma_x1``
     * ``y0``
-    * ``sigma_x``
-    * ``sigma_y``
-    * ``z0``
 
     Derived results are:
-      - ``FWHMH_x``
-      - ``FWHMH_y``
-      - ``w0_x``
-      - ``w0_y``
-      - ``peak_y``
+      - ``FWHMH_x0``
+      - ``FWHMH_x1``
+      - ``w0_x0``
+      - ``w0_x1``
+      - ``peak``
 
     See :class:`~ionics_fits.models.gaussian.Gaussian` for details.
     """
 
     def __init__(self):
-        # TODO: once we have proper support for 2D models, we should provide
-        # non-empty model names and Wrap the 2D model rather than wrapping the 1D
-        # models
-        inner_model = MappedModel(
-            model=Gaussian(),
-            param_mapping={"a_x": "a", "x0_x": "x0", "sigma_x": "sigma", "z0": "y0"},
-            derived_result_mapping={"FWHMH_x": "FWHMH", "w0_x": "w0", None: "peak"},
-        )
-        outer_model = MappedModel(
-            model=Gaussian(),
-            param_mapping={
-                "a": "a",
-                "x0_y": "x0",
-                "sigma_y": "sigma",
-            },
-            fixed_params={"y0": 0},
-            derived_result_mapping={"FWHMH_y": "FWHMH", "w0_y": "w0"},
-        )
+        class _Gaussian2D(Model2D):
+            def __init__(self):
+                super().__init__(
+                    models=(Gaussian(), Gaussian()),
+                    result_params=("a",),
+                )
 
+            def wrap_scale_funcs(self):
+                super().wrap_scale_funcs()
+
+                def scale_power(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
+                    return np.prod(x_scales) * float(y_scales)
+
+                self.parameters["a_x1"].scale_func = scale_power
+
+        model = _Gaussian2D()
+
+        param_mapping = {
+            param_name: param_name
+            for param_name in model.parameters.keys()
+            if param_name not in ["y0_x0", "y0_x1", "a_x1"]
+        }
+        param_mapping["y0"] = "y0_x0"
+        param_mapping["a"] = "a_x1"
         super().__init__(
-            models=(inner_model, outer_model),
-            model_names=("", ""),
-            result_params=("a_x",),
+            model=model,
+            param_mapping=param_mapping,
+            fixed_params={"y0_x1": 0},
+            derived_result_mapping={"peak": "peak_x1", None: "peak_x0"},
         )
 
-    def wrap_scale_funcs(self):
-        super().wrap_scale_funcs()
 
-        def scale_power(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
-            return np.prod(x_scales) * float(y_scales)
-
-        self.parameters["a"].scale_func = scale_power
-
-
-class Parabola2D(Model2D):
+class Parabola2D(MappedModel):
     """2D Parabola according to::
 
-        z = k_x * (x - x0)^2 + k_y *(y - y0) + z0
+        y = k_x0 * (x0 - x0_x0)^2 + k_x1 *(x1 - x0_x1) + y0
 
 
     Parameters are:
 
-    * ``x0``
-    * ``y0``
-    * ``k_x``
-    * ``k_y``
+    * ``x0_x0``
+    * ``x0_x1``
+    * ``k_x0``
+    * ``k_x1``
     * ``y0``
 
     See :class:`~ionics_fits.models.polynomial.Parabola` for details.
     """
 
     def __init__(self):
-        # TODO: once we have proper support for 2D models, we should provide
-        # non-empty model names and Wrap the 2D model rather than wrapping the 1D
-        # models
-        inner_model = MappedModel(
-            model=Parabola(),
-            param_mapping={"x0": "x0", "y0_x": "y0", "k_x": "k"},
-        )
-        outer_model = MappedModel(
-            model=Parabola(),
-            param_mapping={"y0": "x0", "z0": "y0", "k_y": "k"},
-        )
-
-        super().__init__(
-            models=(inner_model, outer_model),
-            model_names=("", ""),
-            result_params=("y0_x",),
-        )
+        model = Model2D(models=(Parabola(), Parabola()), result_params=("y0",))
+        param_mapping = {
+            param_name: param_name
+            for param_name in model.parameters.keys()
+            if param_name != "y0_x1"
+        }
+        param_mapping["y0"] = "y0_x1"
+        super().__init__(model=model, param_mapping=param_mapping)
 
 
-class Cone2D(Model2D):
+class Cone2D(MappedModel):
     r"""2D Cone Model.
 
     Parameters are:
 
-    - ``x0_x``
-    - ``x0_y``
-    - ``k_x``
-    - ``k_y``
+    - ``x0_x0``
+    - ``x0_x1``
+    - ``k_x0``
+    - ``k_x1``
     - ``y0``
 
-    Parameters with an ``_x`` suffix inherit from
-    :class:`~ionics_fits.models.cone.ConeSlice`\, parameters with an ``_y`` suffix
+    Parameters with an ``_x0`` suffix inherit from
+    :class:`~ionics_fits.models.cone.ConeSlice`\, parameters with an ``_x1`` suffix
     inherit from :class:`~ionics_fits.models.triangle.Triangle`.
     """
 
     def __init__(self):
-        # TODO: once we have proper support for 2D models, we should provide
-        # non-empty model names and Wrap the 2D model rather than wrapping the 1D
-        # models
-        inner_model = MappedModel(
-            model=ConeSlice(),
-            param_mapping={"alpha": "alpha", "y0": "z0", "x0_x": "x0", "k_x": "k"},
-        )
+        model = Model2D(models=(ConeSlice(), Triangle()), result_params=("alpha",))
+        param_mapping = {
+            param_name: param_name
+            for param_name in model.parameters.keys()
+            if param_name != "z0_x0"
+        }
 
-        triangle = Triangle()
-        triangle.parameters["y0"].fixed_to = 0
-        outer_model = MappedModel(
-            model=triangle,
-            param_mapping={"x0_y": "x0", "k_y": "k"},
-            fixed_params={
-                param_name: param_data.fixed_to
-                for param_name, param_data in triangle.parameters.items()
-                if param_data.fixed_to is not None
-            },
-        )
+        param_mapping["y0"] = "z0_x0"
 
-        super().__init__(
-            models=(inner_model, outer_model),
-            model_names=("", ""),
-            result_params=("alpha",),
-        )
+        super().__init__(model=model, param_mapping=param_mapping)

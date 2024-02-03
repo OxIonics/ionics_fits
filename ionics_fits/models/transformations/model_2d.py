@@ -328,6 +328,7 @@ class Model2D(Model):
                     for model_param_name, new_param_name in param_map.items()
                 }
             )
+
             derived = model.calculate_derived_params(
                 x=x[model_idx, :],
                 y=y,
@@ -335,8 +336,23 @@ class Model2D(Model):
                 fit_uncertainties=model_uncertainties[model_idx],
             )
 
-            model_derived_values[model_idx].update(derived[0])
-            model_derived_uncertainties[model_idx].update(derived[1])
+            if self.model_names[model_idx] != "":
+                model_suffix = f"_{self.model_names[model_idx]}"
+            else:
+                model_suffix = ""
+
+            model_derived_values[model_idx].update(
+                {
+                    f"{param_name}{model_suffix}": value
+                    for param_name, value in derived[0].items()
+                }
+            )
+            model_derived_uncertainties[model_idx].update(
+                {
+                    f"{param_name}{model_suffix}": value
+                    for param_name, value in derived[1].items()
+                }
+            )
 
         duplicates = set(model_derived_values[0].keys()).intersection(
             set(model_derived_values[1].keys())
