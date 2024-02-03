@@ -142,8 +142,15 @@ def scale_no_rescale(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
     :param y_scales: array of y-axis scale factors
     :returns: ``1``.
     """
-    if any(x_scales != 1.0) or any(y_scales != 1.0):
+    if any([x_scale != 1.0 for x_scale in x_scales]):
         raise RuntimeError(
-            "Attempt to rescale model parameter which does not support rescaling"
+            "Attempt to rescale model parameter along x which does not support "
+            "rescaling"
         )
+    if any([y_scale != 1.0 for y_scale in y_scales]):
+        raise RuntimeError(
+            "Attempt to rescale model parameter along y which does not support "
+            "rescaling"
+        )
+
     return 1.0

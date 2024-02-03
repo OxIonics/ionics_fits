@@ -1,8 +1,10 @@
-from typing import Dict, List, Optional, Tuple
+from functools import partial
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
 from ...common import Model, TX, TY
+from ...utils import TX_SCALE, TY_SCALE
 
 
 class Model2D(Model):
@@ -143,13 +145,49 @@ class Model2D(Model):
             internal_parameters += model.internal_parameters
 
         super().__init__(parameters=parameters, internal_parameters=internal_parameters)
+        self.wrap_scale_funcs()
+
+    def wrap_scale_funcs(self):
+        r"""Called during
+        :meth:`~ionics_fits.models.transformations.model_2d.Model2D.__init__` to make
+        sure that each :class:`~ionics_fits.common.ModelParameter` uses the scale factor
+        from the appropriate x-axis when rescaling.
+
+        This method wraps the :attr:`~ionics_fits.common.ModelParameter.scale_func`\s
+        for each parameter of the 1D models to use the x-axis scale factor for their
+        x-axis dimension when rescaling.
+
+        This is appropriate where each model parameter scales with just that the x-axis
+        associated with its model. If this is not the case, this method should be
+        overridden. See :class:`~ionics_fits.models.multi_x.Gaussian2D` for an example
+        of this.
+        """
+
+        def wrapped_scale_func(
+            scale_func: Callable[[TX_SCALE, TY_SCALE], float],
+            x_ax: int,
+            x_scales: TX_SCALE,
+            y_scales: TY_SCALE,
+        ) -> float:
+            return scale_func([x_scales[x_ax]], y_scales)
+
+        for model_idx, model in enumerate(self.models):
+            parameters = list(model.parameters.values()) + model.internal_parameters
+            for parameter in parameters:
+                scale_func = parameter.scale_func
+                parameter.scale_func = partial(
+                    wrapped_scale_func, scale_func, model_idx
+                )
+                parameter.scale_func.__name__ = scale_func.__name__
 
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         rescale_x0, rescale_y0 = self.models[0].can_rescale()
         rescale_x1, rescale_y1 = self.models[1].can_rescale()
-        # return [rescale_x0, rescale_x1]
-        # TODO
-        return [False, False], [False] * self.get_num_y_axes()
+
+        rescale_x = list(np.hstack((rescale_x0, rescale_x1)))
+        rescale_y = np.all(np.vstack((rescale_y0, rescale_y1)), axis=0)
+
+        return rescale_x, rescale_y
 
     def get_num_x_axes(self) -> int:
         return 2
