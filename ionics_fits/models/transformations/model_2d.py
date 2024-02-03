@@ -53,6 +53,11 @@ class Model2D(Model):
     amplitudes of those Gaussians at each value of the second x-axis dimension and
     fits those to a Gaussian to produce a 2D Gaussian fit.
 
+    At present this class aggregates a pair of 1D models to make a 2D model. It would
+    be easy to extend it to the more general case of aggregating an arbitrary number of
+    models, each with arbitrary x-axis dimensionality. This has not been done yet
+    because there has not been a use-case.
+
     See also :py:mod:`~ionics_fits.models.multi_x`.
     """
 
