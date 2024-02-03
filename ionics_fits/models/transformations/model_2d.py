@@ -169,7 +169,7 @@ class Model2D(Model):
             x_scales: TX_SCALE,
             y_scales: TY_SCALE,
         ) -> float:
-            return scale_func([x_scales[x_ax]], y_scales)
+            return scale_func(np.array([x_scales[x_ax]]), y_scales)
 
         for model_idx, model in enumerate(self.models):
             parameters = list(model.parameters.values()) + model.internal_parameters
