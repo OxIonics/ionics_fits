@@ -1,3 +1,5 @@
+.. _changes:
+
 # Changelog
 
 This document lists changes to ``ionics_fits``.

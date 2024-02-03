@@ -1,16 +1,19 @@
-r""" Validators are used to check whether a fit has been successful or not.
+r""" It's not enough to just fit data, we want to know whether we can trust the fit
+results. This is where validators come in.
 
-There are two aspects to fit validation:
+There are two distinct aspects to the validation problem:
 
-  1. Checking whether the fitted model matches the data.
-  2. Checking whether the fitted model describes a physically "reasonable" result (e.g.
-     does the fit tell us that the apparatus is misbehaving?)
+* did the fit find the model parameters which best match the data (as opposed to getting
+  stuck in a local minimum in parameter space far from the global optimum)? 
+* Are the fitted parameter values consistent with our prior knowledge of the system
+  (e.g. we know that a fringe contrast must lie within certain bounds).
 
-:class:`FitValidator`\ s are designed to deal with the first of these. The second should
-be handled by appropriately constraining the fit, such that the model parameters are
-only allowed to be varied within the space of "reasonable" value.
+The approach taken in ``ionics_fits`` is as follows. First any prior knowledge about the
+system should be encoded into the :class:`~ionics_fits.common.ModelParameter`
+configuration by setting parameter bounds, fixing parameters, etc.
 
-
+After that, the fit is validated using a :class:`FitValidator`. Validators provide a
+flexible and extensible framework for using statistical tests to validate fits.
 """
 
 from typing import Tuple

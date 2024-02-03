@@ -31,6 +31,8 @@ Fitters
     :members:
     :special-members: __init__
 
+.. _validators:
+
 Validators
 ~~~~~~~~~~
 .. automodule:: ionics_fits.validators
@@ -206,6 +208,8 @@ Utils
 .. automodule:: ionics_fits.models.utils
     :members:
     :exclude-members: clip
+
+.. _transformations:
 
 Transformations
 ~~~~~~~~~~~~~~~
