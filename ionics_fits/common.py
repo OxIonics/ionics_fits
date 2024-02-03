@@ -83,7 +83,11 @@ class ModelParameter:
 
     def __post_init__(self):
         self._metadata_attrs = [
-            "lower_bound", "upper_bound", "fixed_to", "user_estimate", "heuristic"
+            "lower_bound",
+            "upper_bound",
+            "fixed_to",
+            "user_estimate",
+            "heuristic",
         ]
 
     def _format_metadata(self) -> List[str]:

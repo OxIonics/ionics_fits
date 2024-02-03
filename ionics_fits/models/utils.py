@@ -1,6 +1,5 @@
 import copy
 import dataclasses
-import numpy as np
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from ..common import ModelParameter, TSCALE_FUN
@@ -33,8 +32,8 @@ def param_like(
 
 @dataclasses.dataclass
 class PeriodicModelParameter(ModelParameter):
-    """ Represents a model parameter whose value is periodic.
-    
+    """Represents a model parameter whose value is periodic.
+
     Parameter values are clipped to lie within::
 
         value = value - offset
@@ -44,6 +43,7 @@ class PeriodicModelParameter(ModelParameter):
         period: the period (default = 1)
         offset: the offset (default = 0)
     """
+
     scale_func: TSCALE_FUN
     period: float = 1
     offset: float = 0
@@ -59,9 +59,10 @@ class PeriodicModelParameter(ModelParameter):
 
     def _format_metadata(self) -> List[str]:
         metadata = super()._format_metadata()
-        
+
         metadata = [
-            attr for attr in metadata
+            attr
+            for attr in metadata
             if not (attr.startswith("lower_bound=") or attr.startswith("upper_bound="))
         ]
 

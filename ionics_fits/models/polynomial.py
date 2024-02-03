@@ -212,7 +212,7 @@ class Polynomial(Model):
         y = sum(a_n*(x-x0)^n) for n ={0...poly_degree}
 
     Model parameters:
-    
+
     * ``a_0`` ... ``a_{poly_degree}``: polynomial coefficients
     * ``x0``: x-axis offset (fixed to 0 by default). Floating ``x0`` as well as
       polynomial coefficients results in an under-defined problem.
@@ -274,7 +274,7 @@ class Line(MappedModel):
         y = a * x + y0
 
     Fit parameters (all floated by default unless stated otherwise):
-    
+
     * ``y0``: y-axis intercept
     * ``a``: slope
     """

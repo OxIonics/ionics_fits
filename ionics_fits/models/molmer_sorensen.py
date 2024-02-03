@@ -393,11 +393,10 @@ class MolmerSorensenFreq(MolmerSorensen):
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         r"""Derived parameters:
-        
+
         * ``f_0``: resonance frequency offset (Hz)
         * ``f_loop_{n}_{i}``: frequency offset of ``n``\th loop closure (Hz) for
           ``n = [1, 5]`` at "plus" (``i = p``\) or "minus" (``i = m``\) detuning
-
         """
 
         derived_params, derived_uncertainties = super().calculate_derived_params(
