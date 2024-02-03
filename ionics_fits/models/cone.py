@@ -49,7 +49,7 @@ class ConeSlice(Model):
         """
         :param x0: x-axis offset
         :param z0: vertical offset to the cone
-        :param k: slope along x
+        :param k: slope along ``x``
         :param alpha: offset due to being off-centre in the y-axis
         """
         return np.sign(k) * np.sqrt((k * (x - x0)) ** 2 + alpha**2) + z0

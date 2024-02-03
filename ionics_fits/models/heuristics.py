@@ -1,3 +1,5 @@
+"""Helper functions for writing robust heuristics."""
+
 from typing import cast, Dict, Optional, Tuple, TYPE_CHECKING
 import numpy as np
 from scipy import fft, signal
@@ -22,17 +24,23 @@ def param_min_sqrs(
     defaults: Optional[Dict[str, float]] = None,
 ) -> Tuple[float, float]:
     """Scans one model parameter while holding the others fixed to find the value
-    that gives the best fit to the data (minimum sum-squared residuals).
+    that gives the best fit to the data (in the minimum sum-squared residuals sense).
+
+    A limitation of this heuristic is that all other parameters must already have a
+    known value (fixed value, user estimate, heuristic or via the ``defaults``
+    argument).
+
+    This heuristic supports arbitrary numbers of x- and y-axis dimensions. 
 
     :param x: x-axis data
     :param y: y-axis data
     :param scanned_param: name of parameter to optimize
     :param scanned_param_values: array of scanned parameter values to test
     :param defaults: optional dictionary of fallback values to use for non-scanned
-       parameters which don't have heuristics set yet
-
-    :returns: tuple with the value from :param scanned_param_values: which results
-      in lowest residuals and the root-sum-squared residuals for that value.
+       parameters, which don't have an in initial value (fixed value, user estimate or
+       heuristic) set
+    :returns: tuple with the value from ``scanned_param_values`` which gives the
+      best fit and the root-sum-squared residuals for that value ("cost").
     """
     defaults = cast(dict, defaults or {})
     if not set(defaults.keys()).issubset(model.parameters.keys()):
@@ -72,7 +80,27 @@ def param_min_sqrs(
 
 
 def get_sym_x(x: TX, y: TY) -> float:
-    """Returns `x_0` such that y(x-x_0) is maximally symmetric."""
+    """Returns ``x_0`` such that ``y(x-x_0)`` is maximally symmetric.
+
+    This heuristic does not require any model parameters to have value estimates.
+
+    This heuristic supports arbitrary numbers y-axis dimensions, but only a single
+    x-axis dimension.
+
+    Limitations of the current implementation:
+
+    * it can struggle with datasets which have significant amounts of data "in the
+      wings" of the model function. Because it doesn't know anything about the model
+      function (to avoid needing estimates for parameters) it can't tell if the symmetry
+      point it has found is really just an area of the distribution which is
+      featureless. This could potentially be fixed by changing how we divide the data
+      up into "windows"
+    * it currently assumes the data is on a roughly regularly sampled grid
+
+    :param x: x-axis data
+    :param y: y-axis data
+    :returns: the value of ``x`` about which ``y`` is maximally symmetric
+    """
     y = np.atleast_2d(y)
     x_span = x.ptp()
     num_samples = x.size
@@ -119,12 +147,21 @@ def find_x_offset_fft(
     """Finds the x-axis offset of a dataset from the phase of an FFT.
 
     This function uses the FFT shift theorem to extract the offset from the phase
-    slope of an FFT. At present it only supports models with a single y-axis dimension.
+    slope of an FFT.
+
+    This heuristic does not require any model parameters to have value estimates. It has
+    good noise robustness (e.g. it's not thrown off by a small number of outliers). It
+    is generally accurate when the dataset is roughly regularly sampled along ``x``,
+    when the model is roughly zero outside of the dataset and when the model's spectral
+    content is below the dataset's Nyquist frequency.
+
+    This heuristic supports datasets with a single x- and y-axis dimension.
+
+    See also :func:`get_spectrum`.
 
     :param omega: FFT frequency axis
-    :param spectrum: complex FFT data.
+    :param spectrum: complex FFT data
     :param omega_cut_off: highest value of omega to use in offset estimation
-
     :returns: an estimate of the x-axis offset
     """
     if spectrum.ndim != 1:
@@ -160,12 +197,18 @@ def find_x_offset_sym_peak_fft(
     defaults: Optional[Dict[str, float]] = None,
 ):
     """Finds the x-axis offset for symmetric, peaked (maximum deviation from the
-    baseline occurs at the origin) functions.
+    baseline occurs at the symmetry point) functions.
 
-    This heuristic draws candidate x-offset points from three sources and picks the
-    best one (in the least-squares residuals sense). Sources:
+    This heuristic combines the following heuristics, picking the one that gives the
+    best fit (in the "lowest sum squared residuals" sense):
 
-    * FFT shift theorem based on provided spectrum data
+    A limitation of this heuristic is that all other parameters must already have a
+    known value (fixed value, user estimate, heuristic or via the ``defaults``
+    argument).
+
+    This heuristic supports datasets with a single x- and y-axis dimension.
+
+    * :func:`find_x_offset_fft`
     * Tests all points in the top quartile of deviation from the baseline
     * Optionally, user-provided "test points", taken from another heuristic. This
       allows the developer to combine the general-purpose heuristics here with
@@ -181,8 +224,7 @@ def find_x_offset_sym_peak_fft(
     :param x_offset_param_name: name of the x-axis offset model parameter
     :param y_offset_param_name: name of the y-axis offset model parameter
     :param defaults: optional dictionary of fallback values to use for parameters with
-        no initial value specified.
-
+        no initial value specified
     :returns: an estimate of the x-axis offset
     """
     defaults = defaults or {}
@@ -235,11 +277,14 @@ def get_spectrum(
 ]:
     """Returns the frequency spectrum (Fourier transform) of a dataset.
 
-    NB the returned spectrum will only match the Fourier transform of the model function
-    in the limit where the model function is zero outside of the sampling window.
+    NB the returned spectrum will only match the continuos Fourier transform of the
+    model function in the limit where the model function is zero outside of the sampling
+    window.
 
     NB for narrow-band signals the peak amplitude depends on where the signal frequency
     lies compared to the frequency bins.
+
+    This function supports datasets with a single x- and y-axis dimension.
 
     :param x: 1D ndarray of shape (num_samples,) containing x-axis data
     :param y: 1D ndarray of shape (num_samples,) containing y-axis data
@@ -276,10 +321,10 @@ def get_pgram(
     Array[("num_spectrum_samples",), np.float64],
     Array[("num_spectrum_samples",), np.float64],
 ]:
-    """Returns a periodogram for a dataset, converted into amplitude units.
-
-    Based on the Lombe-Scargle periodogram (essentially least-squares fitting of
-    sinusoids at different frequencies).
+    """Returns a Lombe-Scargle periodogram for a dataset, converted into amplitude
+    units.
+    
+    This function supports datasets with a single x- and y-axis dimension.
 
     :param x: x-axis data
     :param y: y-axis data

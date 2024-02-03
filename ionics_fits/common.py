@@ -79,22 +79,41 @@ class ModelParameter:
     heuristic: Optional[float] = None
     scale_factor: Optional[float] = dataclasses.field(init=False, default=None)
 
+    _metadata_attrs: List[str] = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self._metadata_attrs = [
+            "lower_bound", "upper_bound", "fixed_to", "user_estimate", "heuristic"
+        ]
+
+    def _format_metadata(self) -> List[str]:
+        data = []
+
+        if self.lower_bound != -np.inf:
+            data.append(f"lower_bound={self.lower_bound}")
+        if self.upper_bound != np.inf:
+            data.append(f"upper_bound={self.upper_bound}")
+        if self.fixed_to is not None:
+            data.append(f"fixed_to={self.fixed_to}")
+        if self.user_estimate is not None:
+            data.append(f"user_estimate={self.user_estimate}")
+        data.append(f"scale_func={self.scale_func.__name__}")
+
+        return data
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(" + ",".join(self._format_metadata()) + ")>"
+
     def __getattribute__(self, name):
         attr = object.__getattribute__(self, name)
-        if name == "scale_factor":
+        if name in ["scale_factor", "_metadata_attrs"]:
             return attr
 
         scale_factor = self.scale_factor
         if attr is None or scale_factor is None:
             return attr
 
-        if name in [
-            "lower_bound",
-            "upper_bound",
-            "fixed_to",
-            "user_estimate",
-            "heuristic",
-        ]:
+        if name in self._metadata_attrs:
             attr /= scale_factor
 
         return attr
@@ -102,13 +121,7 @@ class ModelParameter:
     def __setattr__(self, name, value):
         scale_factor = self.scale_factor
 
-        if None not in [scale_factor, value] and name in [
-            "lower_bound",
-            "upper_bound",
-            "fixed_to",
-            "user_estimate",
-            "heuristic",
-        ]:
+        if None not in [scale_factor, value] and name in self._metadata_attrs:
             value *= scale_factor
         object.__setattr__(self, name, value)
 

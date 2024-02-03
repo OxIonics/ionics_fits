@@ -1,1 +1,1 @@
-""" Models that change the behaviour of other models """
+""" Models that change the behaviour of other models. """

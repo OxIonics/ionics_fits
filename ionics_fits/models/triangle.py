@@ -15,17 +15,7 @@ class Triangle(Model):
         k_p = (1 + sym) * k
         k_m = (1 - sym) * k
 
-    Fit parameters (all floated by default unless stated otherwise):
-      * x0: x-axis offset
-      * y0: y-axis offset
-      * k: average slope
-      * sym: symmetry parameter (fixed to ``0`` by default)
-      * y_min: minimum value of y (bound to ``-inf`` by default)
-      * y_max: maximum value of y (bound to ``+inf`` by default)
-
-    Derived parameters:
-      * k_m: slope for ``x < x0``
-      * k_p: slope for ``x >= x0``
+    See :meth:`_func` for parameter details.
     """
 
     def get_num_x_axes(self) -> int:
@@ -50,6 +40,14 @@ class Triangle(Model):
         y_min: ModelParameter(fixed_to=-np.inf, scale_func=scale_y()),
         y_max: ModelParameter(fixed_to=+np.inf, scale_func=scale_y()),
     ) -> TY:
+        """
+        :param x0: x-axis offset
+        :param y0: y-axis offset
+        :param k: average slope
+        :param sym: symmetry parameter (fixed to ``0`` by default)
+        :param y_min: minimum value of y (bound to ``-inf`` by default)
+        :param y_max: maximum value of y (bound to ``+inf`` by default)
+        """
         k_p = k * (1 + sym)
         k_m = k * (1 - sym)
 
@@ -150,6 +148,12 @@ class Triangle(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        Derived parameters:
+
+        * k_m: slope for ``x < x0``
+        * k_p: slope for ``x >= x0``
+        """
         derived_params = {}
         k = fitted_params["k"]
         sym = fitted_params["sym"]

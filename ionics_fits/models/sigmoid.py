@@ -6,17 +6,11 @@ from ..utils import scale_x, scale_x_inv, scale_y
 
 
 class LogisticFunction(Model):
-    """Logistic function model according to:
-    y = a / (1 + exp(-k*(x - x0))) + y0
+    """Logistic function model according to::
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - a: y-axis scale factor
-      - y0: y-axis offset
-      - x0: x-axis offset
-      - k: logistic growth rate (steepness of the curve)
+        y = a / (1 + exp(-k*(x - x0))) + y0
 
-    Derived parameters:
-      None
+    See :meth:`_func` for parameters.
     """
 
     def get_num_x_axes(self) -> int:
@@ -37,6 +31,12 @@ class LogisticFunction(Model):
         x0: ModelParameter(scale_func=scale_x()),
         k: ModelParameter(scale_func=scale_x_inv(), lower_bound=0),
     ) -> TY:
+        """
+        :param a: y-axis scale factor
+        :param y0: y-axis offset
+        :param x0: x-axis offset
+        :param k: logistic growth rate (steepness of the curve)
+        """
         return a / (1 + np.exp(-k * (x - x0))) + y0
 
     # pytype: enable=invalid-annotation

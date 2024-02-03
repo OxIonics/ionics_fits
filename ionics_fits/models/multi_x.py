@@ -1,4 +1,7 @@
-""" Transformations which increase the x-axis dimensionality of other models """
+"""
+Models with more than one x-axis degree of freedom, which have been created from 1D
+models using :class:`~ionics_fits.models.transformations.model_2d.Model2D`.
+"""
 from .cone import ConeSlice
 from .gaussian import Gaussian
 from .polynomial import Parabola
@@ -15,21 +18,22 @@ class Gaussian2D(Model2D):
             * exp(-0.5*((x-x0)/(sigma_x))^2 -0.5*((y-y0)/(sigma_y))^2) + z0
 
     Parameters are:
-      - a
-      - x0
-      - y0
-      - sigma_x
-      - sigma_y
-      - z0
+
+    * ``a``
+    * ``x0``
+    * ``y0``
+    * ``sigma_x``
+    * ``sigma_y``
+    * ``z0``
 
     Derived results are:
-      - FWHMH_x
-      - FWHMH_y
-      - w0_x
-      - w0_y
-      - peak_y
+      - ``FWHMH_x``
+      - ``FWHMH_y``
+      - ``w0_x``
+      - ``w0_y``
+      - ``peak_y``
 
-    See ionics_fits.models.Gaussian for details.
+    See :class:`~ionics_fits.models.gaussian.Gaussian` for details.
     """
 
     def __init__(self):
@@ -66,13 +70,14 @@ class Parabola2D(Model2D):
 
 
     Parameters are:
-      - x0
-      - y0
-      - k_x
-      - k_y
-      - y0
 
-    See ionics_fits.models.Parabola for details.
+    * ``x0``
+    * ``y0``
+    * ``k_x``
+    * ``k_y``
+    * ``y0``
+
+    See :class:`~ionics_fits.models.polynomial.Parabola` for details.
     """
 
     def __init__(self):
@@ -96,19 +101,19 @@ class Parabola2D(Model2D):
 
 
 class Cone2D(Model2D):
-    """2D Cone Model.
+    r"""2D Cone Model.
 
-    Parameters are (x params inherit from
-    :class:`ionics_fits.models.cone.ConeSlice`):
-    while y params inherit from :class ionics_fits.models.Triangle:
+    Parameters are:
 
-      - x0_x
-      - x0_y
-      - k_x
-      - k_y
-      - y0
+    - ``x0_x``
+    - ``x0_y``
+    - ``k_x``
+    - ``k_y``
+    - ``y0``
 
-     See ionics_fits.models.ConeSlice and ionics_fits.models.triangle for details.
+    Parameters with an ``_x`` suffix inherit from
+    :class:`~ionics_fits.models.cone.ConeSlice`\, parameters with an ``_y`` suffix
+    inherit from :class:`~ionics_fits.models.triangle.Triangle`.
     """
 
     def __init__(self):

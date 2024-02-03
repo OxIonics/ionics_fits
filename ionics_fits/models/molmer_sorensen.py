@@ -21,8 +21,8 @@ class MolmerSorensen(Model):
     For single-qubit interactions, the model has one y-axis dimension, giving the
     excited-state population at the end of the interaction.
 
-    For two-qubit interactions, the model has three y-axis dimensions - ``P_gg``\ ,
-    ``P_1e``\ , ``P_ee`` - giving the probabilities of 0, 1 or 2 ions being in the
+    For two-qubit interactions, the model has three y-axis dimensions - ``P_gg``\,
+    ``P_1e``\, ``P_ee`` - giving the probabilities of 0, 1 or 2 ions being in the
     excited state at the end of the interaction duration.
 
     Modulation of the sign of the spin-dependent force according to a Walsh
@@ -34,18 +34,10 @@ class MolmerSorensen(Model):
     instead.
 
     Independent variables:
-        * t_pulse: total interaction duration.
-        * w: detuning of red/blue sideband tones relative to reference frequency
-            ``w_0``. The interaction detuning is given by ``delta = w - w_0``.
 
-    Model parameters:
-        - omega: sideband Rabi frequency
-        - w_0: angular resonance frequency offset
-        - n_bar: average initial occupancy of the motional mode (fixed to 0 by
-            default)
-
-    Derived parameters:
-        - f_0: resonance frequency offset (Hz)
+        * ``t_pulse``: total interaction duration.
+        * ``w``: detuning of red/blue sideband tones relative to reference frequency
+          ``w_0``. The interaction detuning is given by ``delta = w - w_0``.
 
     All frequencies are in angular units unless stated otherwise.
     """
@@ -87,6 +79,13 @@ class MolmerSorensen(Model):
             lower_bound=0.0, fixed_to=0.0, scale_func=scale_invariant
         ),
     ) -> TY:
+        r"""Return measurement probabilities for the states ``P_gg``\, ``P_1``\, and
+        ``P_ee``.
+
+        :param omega: sideband Rabi frequency
+        :param w_0: angular resonance frequency offset
+        :param n_bar: average initial occupancy of the motional mode
+        """
 
         t_pulse = x[0]
         delta = x[1] - w_0
@@ -188,6 +187,10 @@ class MolmerSorensen(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """Derived parameters:
+
+        * ``f_0``: resonance frequency offset (Hz)
+        """
         derived_params = {}
         w_0_param = "w_0" if "w_0" in fitted_params.keys() else "delta"
         derived_params["f_0"] = fitted_params[w_0_param] / (2 * np.pi)
@@ -277,11 +280,6 @@ class MolmerSorensenFreq(MolmerSorensen):
     when the gate duration is kept fixed and only the interaction detuning is
     varied. The pulse duration is specified using a new ``t_pulse`` model
     parameter.
-
-    Derived parameters:
-    
-    * ``f_loop_{n}_{i}``: frequency offset of ``n``\th loop closure (Hz) for
-      ``n = [1, 5]`` at "plus" (``i = p``\) or "minus" (``i = m``\) detuning
     """
 
     def __init__(self, num_qubits: int, start_excited: bool, walsh_idx: int):
@@ -394,6 +392,14 @@ class MolmerSorensenFreq(MolmerSorensen):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        r"""Derived parameters:
+        
+        * ``f_0``: resonance frequency offset (Hz)
+        * ``f_loop_{n}_{i}``: frequency offset of ``n``\th loop closure (Hz) for
+          ``n = [1, 5]`` at "plus" (``i = p``\) or "minus" (``i = m``\) detuning
+
+        """
+
         derived_params, derived_uncertainties = super().calculate_derived_params(
             x, y, fitted_params, fit_uncertainties
         )

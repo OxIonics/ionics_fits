@@ -10,17 +10,11 @@ from ..utils import scale_x, scale_x_inv, scale_y
 
 
 class Sinc(Model):
-    """Sinc function according to:
-    y = a * sin(w * (x - x0)) / (w * (x - x0)) + y0
+    """Sinc function according to::
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - x0: x-axis offset
-      - y0: y-axis offset
-      - a: amplitude
-      - w: x scale factor
+        y = a * sin(w * (x - x0)) / (w * (x - x0)) + y0
 
-    Derived parameters:
-      None
+    See :meth:`_func` for parameters.
     """
 
     def get_num_x_axes(self) -> int:
@@ -41,6 +35,12 @@ class Sinc(Model):
         a: ModelParameter(scale_func=scale_y()),
         w: ModelParameter(lower_bound=0, scale_func=scale_x_inv()),
     ) -> TY:
+        """
+        :param x0: x-axis offset
+        :param y0: y-axis offset
+        :param a: amplitude
+        :param w: x scale factor
+        """
         x = w * (x - x0) / np.pi  # np.sinc(x) = sin(pi*x) / (pi*x)
         y = a * np.sinc(x) + y0
         return y
@@ -83,17 +83,11 @@ class Sinc(Model):
 
 
 class Sinc2(Model):
-    """Sinc-squared function according to:
-    y = a * (sin(w * (x - x0)) / (w * (x - x0)))^2 + y0
+    """Sinc-squared function according to::
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - x0: x-axis offset
-      - y0: y-axis offset
-      - a: amplitude
-      - w: x scale factor
+        y = a * (sin(w * (x - x0)) / (w * (x - x0)))^2 + y0
 
-    Derived parameters:
-      None
+    See :meth:`_func` for parameters.
     """
 
     def get_num_x_axes(self) -> int:
@@ -114,6 +108,12 @@ class Sinc2(Model):
         a: ModelParameter(scale_func=scale_y()),
         w: ModelParameter(lower_bound=0, scale_func=scale_x_inv()),
     ) -> TY:
+        """
+        :param x0: x-axis offset
+        :param y0: y-axis offset
+        :param a: amplitude
+        :param w: x scale factor
+        """
         x = w * (x - x0) / np.pi  # np.sinc(x) = sin(pi*x) / (pi*x)
         y = a * (np.sinc(x) ** 2) + y0
         return y
