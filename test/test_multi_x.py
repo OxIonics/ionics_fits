@@ -6,6 +6,7 @@ from ionics_fits.models.laser_rabi import LaserFlopTimeThermal
 from ionics_fits.models.multi_x import Cone2D, Gaussian2D, Parabola2D
 from ionics_fits.models.sinusoid import Sinusoid
 from ionics_fits.models.transformations.model_2d import Model2D
+from ionics_fits.models.transformations.repeated_model import RepeatedModel
 from ionics_fits.normal import NormalFitter
 from .common import is_close, params_close
 
@@ -298,6 +299,34 @@ def test_laser_flop_2d(plot_failures):
 
     check_param_values(time_mesh, angle_mesh, params, fit, func, plot_failures)
 
+
 def test_repeated_model_2d(plot_failures):
-    """Test an instance of a repeated model2d """
-    pass
+    """Test an instance of a repeated model2d"""
+    model = Gaussian2D()
+    model = RepeatedModel(
+        model=model, num_repetitions=2, common_params=list(model.parameters.keys())
+    )
+
+    params = {
+        "a": 5,
+        "x0_x0": -2,
+        "x0_x1": +0.5,
+        "sigma_x0": 2,
+        "sigma_x1": 0.5,
+        "y0": 1.5,
+    }
+
+    x_ax_0 = np.linspace(-20, 20, 30)
+    x_ax_1 = np.linspace(-50, 50, 70)
+    x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
+    x = np.vstack((x_0, x_1))
+
+    y = Gaussian2D()(x, **params)
+    y = np.vstack((y, y))
+
+    fit = NormalFitter(x=x, y=y, model=model)
+
+    residuals = fit.residuals()
+    assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
