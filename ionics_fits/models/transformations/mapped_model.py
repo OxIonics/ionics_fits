@@ -141,7 +141,7 @@ class MappedModel(Model):
             {param_name: 0.0 for param_name, param_data in self.fixed_params.items()}
         )
         derived = self.model.calculate_derived_params(
-            x=y,
+            x=x,
             y=y,
             fitted_params=new_fitted_params,
             fit_uncertainties=new_fit_uncertainties,
