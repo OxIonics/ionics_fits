@@ -6,25 +6,26 @@ from ..utils import scale_invariant, scale_power, scale_x, scale_y
 
 
 class Triangle(Model):
-    """Triangle function according to:
-    y(x>=x0) = k_p*|x-x0| + y0
-    y(x<x0) = k_m*|x-x0| + y0
-    y = max(y, y_min)
-    y = min(y, m_max)
-    k_p = (1 + sym) * k
-    k_m = (1 - sym) * k
+    """Triangle function according to::
+
+        y(x>=x0) = k_p*|x-x0| + y0
+        y(x<x0) = k_m*|x-x0| + y0
+        y = max(y, y_min)
+        y = min(y, m_max)
+        k_p = (1 + sym) * k
+        k_m = (1 - sym) * k
 
     Fit parameters (all floated by default unless stated otherwise):
-      - x0: x-axis offset
-      - y0: y-axis offset
-      - k: average slope
-      - sym: symmetry parameter (fixed to 0 by default)
-      - y_min: minimum value of y (bound to -inf by default)
-      - y_max: maximum value of y (bound to +inf by default)
+      * x0: x-axis offset
+      * y0: y-axis offset
+      * k: average slope
+      * sym: symmetry parameter (fixed to ``0`` by default)
+      * y_min: minimum value of y (bound to ``-inf`` by default)
+      * y_max: maximum value of y (bound to ``+inf`` by default)
 
     Derived parameters:
-      - k_m: slope for x < x0
-      - k_p: slope for x >= x0
+      * k_m: slope for ``x < x0``
+      * k_p: slope for ``x >= x0``
     """
 
     def get_num_x_axes(self) -> int:
