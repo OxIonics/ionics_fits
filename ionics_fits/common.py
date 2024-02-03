@@ -769,6 +769,7 @@ class Fitter:
                 for idx, rescale in enumerate(rescale_xs)
             ]
         )
+
         self.y_scales = np.array(
             [
                 max(np.abs(self.y[idx, :])) if rescale else 1.0
