@@ -227,7 +227,9 @@ class Model2D(Model):
 
     def estimate_parameters(self, x: TX, y: TY):
         x_1_ax = np.unique(x[1, :])
+
         # Step 1: find heuristics for model 0 for each point along the second x-axis
+        x_1_keep = np.full(len(x_1_ax) + 1, True, dtype=bool)
         heuristics = {
             param_name: np.zeros(len(x_1_ax) + 1, dtype=np.float64)
             for param_name in self.models[0].parameters.keys()
@@ -239,10 +241,17 @@ class Model2D(Model):
             y_x_1 = y[:, x_1_mask]
 
             self.models[0].clear_heuristics()
-            self.models[0].estimate_parameters(x=x_0_ax, y=y_x_1)
+            try:
+                self.models[0].estimate_parameters(x=x_0_ax, y=y_x_1)
+            except Exception:
+                x_1_keep[x_1_idx] = False
 
             for param_name, param_data in self.models[0].parameters.items():
                 heuristics[param_name][x_1_idx] = param_data.get_initial_value()
+
+        x_1_ax = x_1_ax[x_1_keep[:-1]]
+        for param_name in heuristics.keys():
+            heuristics[param_name] = heuristics[param_name][x_1_keep]
 
         for param_name in heuristics.keys():
             heuristics[param_name][-1] = np.mean(heuristics[param_name][:-1])
