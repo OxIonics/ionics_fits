@@ -1,52 +1,50 @@
-from typing import Tuple, TYPE_CHECKING
+from typing import List, Tuple
 import numpy as np
 
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-if TYPE_CHECKING:
-    num_samples = float
+from ..common import Model, ModelParameter, TX, TY
+from ..utils import scale_x, scale_x_inv, scale_y
 
 
 class LogisticFunction(Model):
-    """Logistic function model according to:
-    y = a / (1 + exp(-k*(x - x0))) + y0
+    """Logistic function model according to::
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - a: y-axis scale factor
-      - y0: y-axis offset
-      - x0: x-axis offset
-      - k: logistic growth rate (steepness of the curve)
+        y = a / (1 + exp(-k*(x - x0))) + y0
 
-    Derived parameters:
-      None
+    See :meth:`_func` for parameters.
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [True]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        a: ModelParameter(scale_func=common.scale_y),
-        y0: ModelParameter(scale_func=common.scale_y),
-        x0: ModelParameter(scale_func=common.scale_x),
-        k: ModelParameter(scale_func=common.scale_x_inv, lower_bound=0),
-    ) -> Array[("num_samples",), np.float64]:
+        x: TX,
+        a: ModelParameter(scale_func=scale_y()),
+        y0: ModelParameter(scale_func=scale_y()),
+        x0: ModelParameter(scale_func=scale_x()),
+        k: ModelParameter(scale_func=scale_x_inv(), lower_bound=0),
+    ) -> TY:
+        """
+        :param a: y-axis scale factor
+        :param y0: y-axis offset
+        :param x0: x-axis offset
+        :param k: logistic growth rate (steepness of the curve)
+        """
         return a / (1 + np.exp(-k * (x - x0))) + y0
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        y = y.squeeze()
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
+        y = np.squeeze(y)
+
         sgn = +1 if y[-1] > y[0] else -1
         y0 = self.parameters["y0"].get_initial_value(y[0])
         self.parameters["y0"].heuristic = y0

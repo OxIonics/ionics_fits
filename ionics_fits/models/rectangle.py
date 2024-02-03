@@ -1,61 +1,60 @@
-from typing import Tuple, TYPE_CHECKING
+from typing import List, Tuple
 import numpy as np
 
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-if TYPE_CHECKING:
-    num_samples = float
+from ..common import Model, ModelParameter, TX, TY
+from ..utils import scale_x, scale_y
 
 
 class Rectangle(Model):
-    """Rectangle function according to:
-    x <= x_l: y = y0
-    x >= x_r: y = y0
-    x_r > x > x_l: y0 + a
+    """Rectangle function according to::
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - a: rectangle height above the baseline
-      - y0: y-axis offset
-      - x_l: left transition point
-      - x_r: right transition point
+        x <= x_l: y = y0
+        x >= x_r: y = y0
+        x_r > x > x_l: y0 + a
 
-    Derived parameters:
-      None
-
-    For `x_l = y0 = 0`, `x_r = inf` this is a Heaviside step function.
+    For ``x_l = y0 = 0``, ``x_r = inf`` this is a Heaviside step function.
     """
 
     def __init__(self, thresh: float = 0.5):
-        """threshold is used to configure the parameter estimator"""
+        """
+        :param thresh: threshold used to configure the parameter estimator, which
+            attempts to find the edges of the rectangle by applying this threshold to
+            the peak height above the baseline to determine which points are inside
+            / outside the rectangle.
+        """
         self.thresh = thresh
         super().__init__()
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [True]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        a: ModelParameter(scale_func=common.scale_y),
-        y0: ModelParameter(scale_func=common.scale_y),
-        x_l: ModelParameter(scale_func=common.scale_x),
-        x_r: ModelParameter(scale_func=common.scale_x),
-    ) -> Array[("num_samples",), np.float64]:
+        x: TX,
+        a: ModelParameter(scale_func=scale_y()),
+        y0: ModelParameter(scale_func=scale_y()),
+        x_l: ModelParameter(scale_func=scale_x()),
+        x_r: ModelParameter(scale_func=scale_x()),
+    ) -> TY:
+        """
+        :param a: rectangle height above the baseline
+        :param y0: y-axis offset
+        :param x_l: left transition point
+        :param- x_r: right transition point
+        """
         return np.where(np.logical_and(x_r > x, x > x_l), y0 + a, y0)
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         unknowns = {

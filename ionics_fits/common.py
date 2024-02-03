@@ -7,118 +7,71 @@ import logging
 import numpy as np
 from typing import Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
-from .utils import Array, ArrayLike
+from .utils import Array, ArrayLike, scale_undefined, TSCALE_FUN, TX_SCALE, TY_SCALE
 
 
 if TYPE_CHECKING:
     num_samples = float
-    num_values = float
-    num_spectrum_pts = float
-    num_test_pts = float
-    num_y_channels = float
+    num_x_axes = float
+    num_y_axes = float
 
 
 logger = logging.getLogger(__name__)
 
 
-TX = ArrayLike[("num_samples",), np.float64]
-TY = Union[
-    Array[("num_y_channels", "num_samples"), np.float64],
-    Array[("num_samples"), np.float64],
+TX = Union[
+    float,
+    ArrayLike[("num_samples",), np.float64],
+    ArrayLike[
+        (
+            "num_x_axes",
+            "num_samples",
+        ),
+        np.float64,
+    ],
 ]
-
-
-def scale_invariant(x_scale: float, y_scale: float) -> float:
-    """Scale function for model parameters whose value is invariant under rescaling of
-    the x- and y-axes"""
-    return 1
-
-
-def scale_x(x_scale: float, y_scale: float) -> float:
-    """
-    Scale function for model parameters whose value scales linearly with the x-axis
-    """
-    return x_scale
-
-
-def scale_x_inv(x_scale: float, y_scale: float) -> float:
-    """
-    Scale function for model parameters whose value scales with 1/x_scale
-    """
-    return 1 / x_scale
-
-
-def scale_y(x_scale: float, y_scale: float) -> float:
-    """
-    Scale function for model parameters whose value scales linearly with the x-axis
-    """
-    return y_scale
-
-
-def scale_power(x_power: int, y_power: int) -> Callable[[float, float], float]:
-    """Returns a scale function for model parameters whose value scales as a power of
-    the x- and y-axes
-    """
-
-    def scale_func(x_scale: float, y_scale: float) -> float:
-        return (x_scale**x_power) * (y_scale**y_power)
-
-    return scale_func
-
-
-def scale_undefined(x_scale: float, y_scale: float) -> float:
-    """This is typically used when the appropriate scale factor to use must be
-    determined at runtime"""
-    raise RuntimeError(
-        "Attempt to rescale model parameter with undefined scale function"
-    )
-
-
-def scale_no_rescale(x_scale: float, y_scale: float) -> float:
-    """For model parameters which cannot be rescaled"""
-    if x_scale != 1.0 or y_scale != 1:
-        raise RuntimeError(
-            "Attempt to rescale model parameter which does not support rescaling"
-        )
-    return 1.0
+TY = Union[
+    float,
+    Array[("num_samples"), np.float64],
+    Array[("num_y_axes", "num_samples"), np.float64],
+]
 
 
 @dataclasses.dataclass
 class ModelParameter:
-    """Metadata associated with a model parameter.
+    """Represents a model parameter.
 
     Attributes:
         scale_func: callable returning a scale factor which the parameter must be
-            *multiplied* by if it was fitted using `x` / `y` data that has been
+            *multiplied* by if it was fitted using ``x`` and ``y`` data that has been
             *multiplied* by the given scale factors. Scale factors are used to improve
             numerical stability by avoiding asking the optimizer to work with very large
-            or very small values of `x` and `y`. The callable takes the x-axis and
+            or very small values of ``x`` and ``y``. The callable takes the x-axis and
             y-axis scale factors as arguments. A number of default scale functions are
-            provided for convenience.
+            provided for convenience in :py:mod:`ionics_fits.utils`.
         lower_bound: lower bound for the parameter. Fitted values are guaranteed to be
             greater than or equal to the lower bound. Parameter bounds may be used by
             fit heuristics to help find good starting points for the optimizer.
         upper_bound: upper bound for the parameter. Fitted values are guaranteed to be
             lower than or equal to the upper bound. Parameter bounds may be used by
             fit heuristics to help find good starting points for the optimizer.
-        fixed_to: if not `None`, the model parameter is fixed to this value during
+        fixed_to: if not ``None``, the model parameter is fixed to this value during
             fitting instead of being floated. This value may additionally be used by
-            the heuristics to help find good initial values for other model parameters
-            for which none have been provided by the user. The value of `fixed_to` must
-            lie within the bounds of the parameter.
-        user_estimate: if not `None` and the parameter is not fixed, this value is
+            the heuristics to help find good initial values for other model parameters.
+            The value of ``fixed_to`` must lie within the bounds of the parameter.
+        user_estimate: if not ``None`` and the parameter is not fixed, this value is
             used as an initial value during fitting rather than obtaining a value from
             the heuristics. This value may additionally be used by the heuristics to
-            help find good initial values for other model parameters for which none
-            have been provided by the user. The value of `user_estimate` must lie
-            within the bounds of the parameter.
-        heuristic: if both of `fixed_to` and `user_estimate` are `None`, this value is
-            used as an initial value during fitting. It is set by the
-            `estimate_parameters` method of the model in which the parameter is used
-            and should not be set by the user.
+            help find good initial values for other model parameters. The value of
+            ``user_estimate`` must lie within the bounds of the parameter.
+        heuristic: if both of ``fixed_to`` and ``user_estimate`` are ``None``, this
+            value is used as an initial value during fitting. It is set by the
+            :class:`~ionics_fits.common.Model`\' s
+            :meth:`~ionics_fits.common.Model.estimate_parameters` method  and should not
+            be set by the user.
     """
 
-    scale_func: Callable[[float, float], float]
+    scale_func: TSCALE_FUN
     lower_bound: float = -np.inf
     upper_bound: float = np.inf
     fixed_to: Optional[float] = None
@@ -126,22 +79,45 @@ class ModelParameter:
     heuristic: Optional[float] = None
     scale_factor: Optional[float] = dataclasses.field(init=False, default=None)
 
+    _metadata_attrs: List[str] = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self._metadata_attrs = [
+            "lower_bound",
+            "upper_bound",
+            "fixed_to",
+            "user_estimate",
+            "heuristic",
+        ]
+
+    def _format_metadata(self) -> List[str]:
+        data = []
+
+        if self.lower_bound != -np.inf:
+            data.append(f"lower_bound={self.lower_bound}")
+        if self.upper_bound != np.inf:
+            data.append(f"upper_bound={self.upper_bound}")
+        if self.fixed_to is not None:
+            data.append(f"fixed_to={self.fixed_to}")
+        if self.user_estimate is not None:
+            data.append(f"user_estimate={self.user_estimate}")
+        data.append(f"scale_func={self.scale_func.__name__}")
+
+        return data
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(" + ",".join(self._format_metadata()) + ")>"
+
     def __getattribute__(self, name):
         attr = object.__getattribute__(self, name)
-        if name == "scale_factor":
+        if name in ["scale_factor", "_metadata_attrs"]:
             return attr
 
         scale_factor = self.scale_factor
         if attr is None or scale_factor is None:
             return attr
 
-        if name in [
-            "lower_bound",
-            "upper_bound",
-            "fixed_to",
-            "user_estimate",
-            "heuristic",
-        ]:
+        if name in self._metadata_attrs:
             attr /= scale_factor
 
         return attr
@@ -149,23 +125,23 @@ class ModelParameter:
     def __setattr__(self, name, value):
         scale_factor = self.scale_factor
 
-        if None not in [scale_factor, value] and name in [
-            "lower_bound",
-            "upper_bound",
-            "fixed_to",
-            "user_estimate",
-            "heuristic",
-        ]:
+        if None not in [scale_factor, value] and name in self._metadata_attrs:
             value *= scale_factor
         object.__setattr__(self, name, value)
 
-    def rescale(self, x_scale: float, y_scale: float):
-        """Rescales the parameter metadata based on the specified x and y data scale
+    def rescale(self, x_scales: TX_SCALE, y_scales: TY_SCALE):
+        r"""Rescales the parameter metadata based on the specified x and y data scale
         factors.
+
+        Rescaling affects the values of :attr:`lower_bound`\, :attr:`upper_bound`\,
+        :attr:`fixed_to`\, :attr:`user_estimate`\, and :attr:`heuristic`.
+
+        :param x_scales: array of x-axis scale factors
+        :param y_scales: array of y-axis scale factors
         """
         if self.scale_factor is not None:
             raise RuntimeError("Attempt to rescale an already rescaled model parameter")
-        self.scale_factor = self.scale_func(x_scale, y_scale)
+        self.scale_factor = self.scale_func(x_scales, y_scales)
 
     def unscale(self):
         """Disables rescaling of the parameter metadata"""
@@ -176,13 +152,12 @@ class ModelParameter:
         self.scale_factor = None
 
     def get_initial_value(self, default: Optional[float] = None) -> float:
-        """
-        Get initial value.
+        """Returns the parameter's initial value.
 
         For fixed parameters, this is the value the parameter is fixed to. For floated
         parameters, it is the value used to seed the fit. In the latter case, the
-        initial value is retrieved from `user_estimate` if that attribute is not
-        `None`, otherwise `heuristic` is used.
+        initial value is retrieved from the :attr:`user_estimate` if available,
+        otherwise the :attr:`heuristic` is used.
 
         :param default: optional value to use if no other value is available
         """
@@ -208,17 +183,21 @@ class ModelParameter:
 
     def has_initial_value(self) -> bool:
         """
-        Returns True if the parameter is fixed, has a user estimate or a heuristic.
+        Returns ``True`` if the parameter is fixed, has a user estimate or a heuristic.
         """
         values = [self.fixed_to, self.user_estimate, self.heuristic]
         return any([None is not value for value in values])
 
     def has_user_initial_value(self) -> bool:
-        """Returns True if the parameter is fixed or has a user estimate"""
+        """Returns ``True`` if the parameter is fixed or has a user estimate"""
         return self.fixed_to is not None or self.user_estimate is not None
 
     def clip(self, value: float) -> float:
-        """Clip value to lie between lower and upper bounds."""
+        """Clips a value to lie between the parameter's lower and upper bounds.
+
+        :param value: value to be clipped
+        :returns: clipped value
+        """
         return np.clip(value, self.lower_bound, self.upper_bound)
 
 
@@ -228,25 +207,47 @@ class Model:
     A model groups a function to be fitted with associated metadata (parameter names,
     default bounds etc) and heuristics. It is agnostic about the method of fitting or
     the data statistics.
+
+    Models may be used either as part of a fit (see :class:`~ionics_fits.common.Fitter`)
+    or as a standalone function (see :meth:`__call__`).
+
+    Class Attributes
+    ================
+
+    Attributes:
+        parameters: dictionary mapping parameter names to
+            :class:`~ionics_fits.common.ModelParameter` s. The parameters may be
+            modified to alter their properties (bounds, user estimates, etc.).
+        internal_parameters: list of "internal" model parameters. These are not directly
+            used during the fit, but are rescaled in the same way as regular model
+            parameters. These are used, for example, by
+            :py:mod:`~ionics_fits.models.transformations` models.
     """
+
+    parameters: Dict[str, ModelParameter]
+    internal_parameters: List[ModelParameter]
 
     def __init__(
         self,
         parameters: Optional[Dict[str, ModelParameter]] = None,
         internal_parameters: Optional[List[ModelParameter]] = None,
     ):
-        """
-        :param parameters: optional dictionary mapping names of model parameters to
-            their metadata. This should be `None` (default) if the model has a static
-            set of parameters in which case the parameter dictionary is generated from
-            the call signature of :meth _func:. The model parameters are stored as
-            `self.parameters` and may be modified after construction to change the model
-            behaviour during fitting (e.g. to change the bounds, fixed parameters, etc).
+        r"""
+        :param parameters: optional dictionary mapping parameter names to
+            :class:`~ionics_fits.common.ModelParameter`\ s. This should be ``None``
+            (default) if the model has a static set of parameters, in which case the
+            parameter dictionary is generated from the call signature of
+            :func:`~ionics_fits.common.Model._func`. The model parameters are stored as
+            :attr:`~ionics_fits.common.Model.parameters` and may be modified
+            after construction to change the model behaviour during fitting (e.g. to
+            change the bounds, fixed parameters, etc).
         :param internal_parameters: optional list of "internal" model parameters, which
-            are not exposed to the user as arguments of :meth func:. Internal parameters
+            are not exposed to the user as arguments of
+            :func:`~ionics_fits.common.Model.func`. Internal parameters
             are rescaled in the same way as regular model parameters, but are not
-            otherwise used by :class Model:. These are typically used by models which
-            encapsulate / modify the behaviour of other models.
+            otherwise used by :class:`~ionics_fits.common.Model`. These are used by
+            :py:mod:`~ionics_fits.models.transformations` models, which modify the
+            behaviour of other models.
         """
         if parameters is None:
             spec = inspect.getfullargspec(self._func)
@@ -261,13 +262,34 @@ class Model:
             self.parameters = parameters
         self.internal_parameters = internal_parameters or []
 
-    def __call__(self, x: TX, **kwargs: float) -> TY:
-        """Evaluates the model.
+    def __call__(self, x: TX, transpose_and_squeeze=False, **kwargs: float) -> TY:
+        r"""Evaluates the model at a given set of x-axis points and with a given set of
+        parameter values and returns the results.
 
-        - keyword arguments specify values for model parameters (see model definition)
-        - all model parameters which are not `fixed_to` a value by default must be
-          specified
-        - any parameters which are not specified default to their `fixed_to` values
+        Example:
+
+        .. testcode::
+
+            import numpy as np
+            from matplotlib import pyplot as plt
+            from ionics_fits.models.sinusoid import Sinusoid
+
+            model = Sinusoid()
+            x = np.linspace(0, 1)
+            y = model(x, True, a=1, omega=2*np.pi, phi=0, y0=0)
+            plt.plot(x, y)
+
+        :param x: x-axis data. For models with more than one x-axis, the data should
+            be shaped ``(num_x_axes, num_samples)``. For models with a single x-axis
+            dimension, a 1D array may be used instead.
+        :param transpose_and_squeeze: if True, the results arrays are transposed and
+            squeezed proior to being returned. This is intended to be used for plotting,
+            since matplotlib requires different y-series to be stored as columns.
+        :param \**kwargs: values for model parameters. All model parameters
+            which are not :attr:`~ionics_fits.common.ModelParameter.fixed_to` a value
+            must be specified. Any parameters which are not specified default to their
+            fixed values.
+        :returns: the model function values
         """
         args = {
             param_name: param_data.fixed_to
@@ -275,31 +297,42 @@ class Model:
             if param_data.fixed_to is not None
         }
         args.update(kwargs)
-        return self.func(x, args)
+        y = self.func(x, args)
 
-    def can_rescale(self) -> Tuple[bool, bool]:
+        if transpose_and_squeeze:
+            y = y.T.squeeze()  # pytype: disable=attribute-error
+
+        return y
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         """
-        Returns a Tuple of bools specifying whether the model can be rescaled along
-        the x- and y-axes
+        Returns a tuple of lists of bools specifying whether the model can be rescaled
+        along each x- and y-axes dimension.
         """
         raise NotImplementedError
 
-    def rescale(self, x_scale: float, y_scale: float):
+    def rescale(self, x_scales: TX_SCALE, y_scales: TY_SCALE):
         """Rescales the model parameters based on the specified x and y data scale
         factors.
 
-        :param x_scale: x-axis scale factor
-        :param y_scale: y-axis scale factor
+        All :attr:`~ionics_fits.common.Model.parameters` and
+        :attr:`~ionics_fits.common.Model.internal_parameters` are rescaled.
+
+        :param x_scales: array of x-axis scale factors
+        :param y_scales: array of y-axis scale factors
         """
         for param_name, param_data in self.parameters.items():
             if param_data.scale_func == scale_undefined:
                 raise RuntimeError(
                     f"Parameter {param_name} has an undefined scale function"
                 )
-            param_data.rescale(x_scale, y_scale)
+            try:
+                param_data.rescale(x_scales, y_scales)
+            except Exception as e:
+                raise RuntimeError(f"Error rescaling parameter {param_name}") from e
 
         for param_data in self.internal_parameters:
-            param_data.rescale(x_scale, y_scale)
+            param_data.rescale(x_scales, y_scales)
 
     def unscale(self):
         """Disables rescaling of the model parameters."""
@@ -307,82 +340,92 @@ class Model:
         for param_data in parameters:
             param_data.unscale()
 
-    def get_num_y_channels(self) -> int:
-        """Returns the number of y-axis dimensions ("channels") the model has."""
+    def get_num_x_axes(self) -> int:
+        """Returns the number of x-axis dimensions the model has."""
+        raise NotImplementedError
+
+    def get_num_y_axes(self) -> int:
+        """Returns the number of y-axis dimensions the model has."""
         raise NotImplementedError
 
     def clear_heuristics(self):
-        """Clear the heuristics for all model parameters.
+        r"""Clear the heuristics for all model parameters (both exposed and internal).
 
-        This is mainly used in container-type models, where the parameter estimator
-        my be run multiple times for the same model instance.
+        This is mainly used in :py:mod:`~ionics_fits.models.transformations`\-type
+        models where the parameter estimator my be run multiple times for the same model
+        instance.
         """
         for param_data in self.parameters.values():
             param_data.heuristic = None
         for param_data in self.internal_parameters:
             param_data = None
 
-    def get_num_x_axes(self) -> int:
-        """Returns the number of x-axis dimensions the model has."""
-        raise NotImplementedError
-
     def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         """Evaluates the model at a given set of x-axis points and with a given set of
         parameter values and returns the result.
 
-        To use the model as a function outside of a fit, :meth __call__: generally
+        To use the model as a function outside of a fit,
+        :meth:`~ionics_fits.common.Model.__call__` generally
         provides a more convenient interface.
 
         Overload this to provide a model function with a dynamic set of parameters,
-        otherwise prefer to override `_func`.
+        otherwise prefer to override :func:`~ionics_fits.common.Model._func`.
 
         :param x: x-axis data
         :param param_values: dictionary of parameter values
         :returns: array of model values
         """
+        x = np.atleast_2d(x)
         return self._func(x, **param_values)
 
-    def _func(
-        self,
-        x: TX,
-    ) -> TY:
-        """Evaluates the model at a given set of x-axis points and with a given set of
-        parameter values and returns the result.
+    def _func(self, x: TX) -> TY:
+        r"""Evaluates the model at a given set of x-axis points and with a given set of
+        parameter values and returns the results.
 
-        Overload this in preference to `func` unless the FitModel takes a
-        dynamic set of parameters. Use : class ModelParameter: objects as the annotation
-        for the parameters arguments. e.g.:
+        Overload this in preference to :func:`~ionics_fits.common.Model.func` unless the
+        :class:`~ionics_fits.common.Model` takes a dynamic set of parameters.
 
-        ```
-        def _func(self, x, a: ModelParameter(), b: ModelParameter()):
-        ```
+        :class:`~ionics_fits.common.ModelParameter`\ s should be used as the type
+        annotations for the parameters arguments to define the model's parameters.
+        These are used in the construction to generate the
+        :attr:`~ionics_fits.common.Model.parameters` dictionary::
 
-        A dictionary of `ModelParameter`s may be accessed via the `self.parameters`
-        attribute. These parameters may be modified by the user to change the model
-        behaviour during fitting (e.g. to change the bounds, fixed parameters, etc).
+            from ionics_fits.utils import scale_x, scale_y
+
+            def _func(
+                self,
+                x,
+                a: ModelParameter(lower_bound=-1., scale_func=scale_y()),
+                x0: ModelParameter(fixed_to=0, scale_func=scale_x())
+            ):
+                ...
 
         :param x: x-axis data
         :returns: array of model values
         """
         raise NotImplementedError
 
-    def estimate_parameters(
-        self,
-        x: TX,
-        y: TY,
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
         """Set heuristic values for model parameters.
 
-        Typically called during `Fitter.fit`. This method may make use of information
-        supplied by the user for some parameters (via the `fixed_to` or
-        `user_estimate` attributes) to find initial guesses for other parameters.
+        Typically called by :class:`~ionics_fits.common.Fitter`.
 
-        The datasets must be sorted in order of increasing x-axis values and must not
-        contain any infinite or nan values. If the model allows rescaling then rescaled
-        units will be used everywhere (`x` and `y` as well as parameter values).
+        Implementations of this method must ensure that all parameters have an initial
+        value set (at least one of :attr:`~ionics_fits.common.ModelParameter.fixed_to`,
+        :attr:`~ionics_fits.common.ModelParameter.user_estimate` or
+        :attr:`~ionics_fits.common.ModelParameter.heuristic` must not be ``None`` for
+        each parameter).
 
-        :param x: x-axis data, rescaled if allowed.
-        :param y: y-axis data, rescaled if allowed.
+        Implementations should aim to make use of all information supplied by the user
+        (bounds, user estimates, fixed values) to provide the best initial guesses for
+        all parameters.
+
+        The x and y data is sorted along the x-axis dimensions and is filtered to remove
+        points with non-finite x or y values and are is rescaled if supported by the
+        model.
+
+        :param x: x-axis data
+        :param y: y-axis data
         """
         raise NotImplementedError
 
@@ -405,30 +448,215 @@ class Model:
             fitted values.
         :param fit_uncertainties: dictionary mapping model parameter names to
             their fit uncertainties.
-        :returns: tuple of dictionaries mapping derived parameter names to their
-            values and uncertainties.
+        :returns: tuple of dictionaries containing the derived parameter values and
+            uncertainties.
         """
         return {}, {}
 
 
 class Fitter:
-    """Base class for fitters.
+    r"""Base class for fitters.
 
     Fitters perform maximum likelihood parameter estimation on a dataset under the
     assumption of a certain model and statistics (normal, binomial, etc) and store the
     results as attributes.
 
+    For details about the various fitter subclasses provided by ``ionics_fits``\ , see
+    :ref:`fitters`.
+
+    Usage
+    =====
+
+    Basic usage::
+
+        import numpy as np
+        from matplotlib import pyplot as plt
+
+        from ionics_fits.models.polynomial import Line
+        from ionics_fits.normal import NormalFitter
+
+        a = 3.2
+        y0 = -9
+
+        x = np.linspace(-10, 10)
+        y = a * x + y0
+
+        fit = NormalFitter(x, y, model=Line())
+        print(f"Fitted: y = {fit.values['a']:.3f} * x + {fit.values['y0']:.3f}")
+
+        plt.plot(x, y)
+        plt.plot(*fit.evaluate())
+        plt.show()
+
+    The fit may be configured by modifying the :class:`~ionics_fits.common.Model`\ 's
+    :attr:`~ionics_fits.common.Model.parameters` dictionary. This allows one to:
+
+      * set upper and lower bounds for each parameter
+      * control which parameters are fixed / floated
+      * provide user estimates to be used instead of the
+        :class:`~ionics_fits.common.Model`\ 's heuristics
+
+    As an example, let's fit a sinusoid, whose frequency is already known:
+
+    .. testcode::
+
+        import numpy as np
+        from matplotlib import pyplot as plt
+
+        from ionics_fits.models.sinusoid import Sinusoid
+        from ionics_fits.normal import NormalFitter
+
+        omega = 2 * np.pi
+        model = Sinusoid()
+        model.parameters["omega"].fixed_to = omega
+
+        params = {
+            "a": 2,
+            "omega": omega,
+            "phi": 0.5 * np.pi,
+            "y0": 0,
+            "x0": 0,
+            "tau": np.inf,
+        }
+
+        x = np.linspace(-3, 3, 100)
+        y = model(x, True, **params)
+
+        fit = NormalFitter(x, y, model=model)
+        print(f"Amplitude: dataset = {params['a']:.3f}, fit = {fit.values['a']:.3f}")
+        print(f"Phase: dataset = {params['phi']:.3f}, fit = {fit.values['phi']:.3f}")
+
+        plt.plot(*fit.evaluate(None, True), '-.o', label="fit")
+        plt.plot(x, y, label="data")
+        plt.grid()
+        plt.legend()
+        plt.show()
+
+    .. testoutput::
+
+        Amplitude: dataset = 2.000, fit = 2.000
+        Phase: dataset = 1.571, fit = 1.571
+
+    ``ionics_fits`` supports fitting datasets with arbitrary x-axis and y-axis
+    dimensions. The :py:mod:`~ionics_fits.models.transformations` module provides a
+    number of classes which allow higher-dimensional models to be constructed from
+    lower-dimension models.
+
+    Example of fitting a dataset with a 2D x-axis:
+
+    .. testcode::
+
+        import numpy as np
+        from matplotlib import pyplot as plt
+
+        from ionics_fits.models.multi_x import Gaussian2D
+        from ionics_fits.normal import NormalFitter
+
+        omega = 2 * np.pi  # we know the frequency
+        model = Gaussian2D()
+
+        params = {
+            "x0_x0": 0,
+            "x0_x1": 3,
+            "sigma_x0": 2,
+            "sigma_x1": 3,
+            "y0": 0,
+            "a": 9,
+        }
+
+        x_0_ax = np.linspace(-3, 3, 50)
+        x_1_ax = np.linspace(-10, 10, 100)
+        x_0_mesh, x_1_mesh = np.meshgrid(x_0_ax, x_1_ax)
+        x_shape = x_0_mesh.shape
+
+        x = np.vstack((x_0_mesh.ravel(), x_1_mesh.ravel()))
+        y = model(x, **params)
+
+        fit = NormalFitter(x, y, model=model)
+
+        _, y_fit = fit.evaluate(x)
+        y_fit = y_fit.reshape(x_shape)
+
+        _, axs = plt.subplots(2, 1)
+        axs[0].pcolormesh(x_0_mesh, x_1_mesh, y.reshape(x_shape))
+        axs[1].pcolormesh(x_0_mesh, x_1_mesh, y_fit)
+        axs[0].title.set_text("Model")
+        axs[1].title.set_text("Fit")
+        axs[0].grid()
+        axs[1].grid()
+        plt.show()
+
+    As an example of fitting a dataset with a 2D y-axis, here's how to fit Rabi flopping
+    on a pair of qubits. We'll assume all parameters are the same for the two qubits,
+    other than the Rabi frequencies:
+
+    .. testcode::
+
+        import pprint
+        import numpy as np
+        from matplotlib import pyplot as plt
+
+        from ionics_fits.models.rabi import RabiFlopTime
+        from ionics_fits.models.transformations.repeated_model import RepeatedModel
+        from ionics_fits.normal import NormalFitter
+
+        params = {
+            "omega_0": 2 * np.pi * 1,
+            "omega_1": 2 * np.pi * 2,
+            "delta": 0,
+            "P_readout_e": 1,
+            "P_readout_g": 0
+        }
+
+        rabi_model = RabiFlopTime(start_excited=False)
+        model = RepeatedModel(
+            model=rabi_model,
+            num_repetitions=2,
+            common_params=[
+                param_name for param_name in rabi_model.parameters.keys()
+                if param_name != "omega"
+            ]
+        )
+
+        t = np.linspace(0, 3, 100)
+        y = model(t, **params)
+
+        fit = NormalFitter(t, y, model)
+
+        pprint.pprint(fit.values)
+
+        plt.plot(t, y.T, ".")
+        plt.legend(("qubit 0", "qubit 1"))
+        plt.gca().set_prop_cycle(None)
+        plt.plot(*fit.evaluate(None, True))
+        plt.grid()
+        plt.show()
+
+    .. testoutput::
+
+        {'P_readout_e': 0.9999999999,
+         'P_readout_g': 1e-10,
+         'delta': 0.0,
+         'omega_0': 6.283185307179586,
+         'omega_1': 12.566370614362235,
+         't_dead': 0.0,
+         'tau': inf}
+
+    Class Attributes
+    ================
+
     Attributes:
-        x: 1D ndarray of shape (num_samples,) containing x-axis values of valid points.
-        y: 2D ndarray of shape (num_y_channels, num_samples) containing y-axis values
-            of valid points.
-        sigma: 2D ndarray of shape (num_y_channels, num_samples) containing y-axis
-            standard errors where available.
+        x: x-axis data. The input data is sorted along the x-axis dimensions and
+            filtered to contain only the "valid" points where x and y are finite.
+        y: y-axis data. The input data is sorted along the x-axis dimensions x and
+            filtered to contain only the "valid" points where x and y are finite.
+        sigma: standard errors for each point. This is stored as an array with the same
+            shape as `y`.
         values: dictionary mapping model parameter names to their fitted values
         uncertainties: dictionary mapping model parameter names to their fit
             uncertainties. For sufficiently large datasets, well-formed problems and
             ignoring covariances these are the 1-sigma confidence intervals (roughly:
-            there is a 1/3 chance that the real parameter values differ from their
+            there is a 1/3 chance that the true parameter values differ from their
             fitted values by more than this much)
         derived_values: dictionary mapping names of derived parameters (parameters which
             are not part of the fit, but are calculated by the model from the fitted
@@ -439,8 +667,8 @@ class Fitter:
             used to seed the fit.
         model: the fit model
         free_parameters: list of names of the model parameters floated during the fit
-        x_scale: the applied x-axis scale factor
-        y_scale: the applied y-axis scale factor
+        x_scales: the applied x-axis scale factors
+        y_scales: the applied y-axis scale factors
     """
 
     x: TX
@@ -453,19 +681,16 @@ class Fitter:
     initial_values: Dict[str, float]
     model: Model
     free_parameters: List[str]
-    x_scale: float
-    y_scale: float
+    x_scales: TX_SCALE
+    y_scales: TY_SCALE
 
-    def __init__(
-        self,
-        x: TX,
-        y: TY,
-        model: Model,
-    ):
+    def __init__(self, x: TX, y: TY, model: Model):
         """Fits a model to a dataset and stores the results.
 
-        :param x: x-axis data
-        :param y: y-axis data
+        :param x: x-axis data. For models with more than one x-axis dimension, ``x``
+            should be in the form ``(num_x_axes, num_samples)``.
+        :param y: y-axis data.For models with more than one y-axis dimension, ``y``
+            should be in the form ``(num_y_axes, num_samples)``.
         :param model: the model function to fit to. The model's parameter dictionary is
             used to configure the fit (set parameter bounds etc). Modify this before
             fitting to change the fit behaviour from the model class' defaults. The
@@ -473,27 +698,33 @@ class Fitter:
         """
         self.model = copy.deepcopy(model)
 
-        self.x = np.array(x, dtype=np.float64, copy=True)
+        self.x = np.atleast_2d(np.array(x, dtype=np.float64, copy=True))
         self.y = np.atleast_2d(np.array(y, dtype=np.float64, copy=True))
 
         self.sigma = self.calc_sigma()
         self.sigma = np.atleast_2d(self.sigma) if self.sigma is not None else None
 
-        if self.x.ndim != 1:
-            raise ValueError("x-axis data must be a 1D array.")
+        if self.x.ndim != 2:
+            raise ValueError("x-axis data must be a 1D or 2D array.")
 
         if self.y.ndim != 2:
             raise ValueError("y-axis data must be a 1D or 2D array.")
 
-        if self.x.shape[0] != self.y.shape[1]:
+        if self.x.shape[1] != self.y.shape[1]:
             raise ValueError(
-                "Number of x-axis and y-axis samples must match "
-                f"(got {self.x.shape} and {self.y.shape})."
+                "Number of samples in the x and y datasets must match "
+                f"(got {self.x.shape[1]} along x and {self.y.shape[1]} along y)."
             )
 
-        if self.y.shape[0] != self.model.get_num_y_channels():
+        if self.x.shape[0] != self.model.get_num_x_axes():
             raise ValueError(
-                f"Expected {self.model.get_num_y_channels()} y channels, "
+                f"Expected {self.model.get_num_x_axes()} x axes, "
+                f"got {self.x.shape[0]}."
+            )
+
+        if self.y.shape[0] != self.model.get_num_y_axes():
+            raise ValueError(
+                f"Expected {self.model.get_num_y_axes()} y axes, "
                 f"got {self.y.shape[0]}."
             )
 
@@ -503,18 +734,18 @@ class Fitter:
                 f"{self.y.shape})."
             )
 
-        valid_x = np.isfinite(self.x)
+        valid_x = np.all(np.isfinite(self.x), axis=0)
         valid_y = np.all(np.isfinite(self.y), axis=0)
-        valid_pts = np.logical_and(valid_x, valid_y).squeeze()
+        valid_pts = np.logical_and(valid_x, valid_y)
+        assert valid_pts.ndim == 1
 
-        (inds,) = np.where(valid_pts)
-        sorted_inds = inds[np.argsort(self.x[valid_pts])]
+        (valid_inds,) = np.where(valid_pts)
+        sorted_inds = valid_inds[np.lexsort(np.flipud(self.x[:, valid_inds]))]
 
-        self.x = self.x[sorted_inds]
+        self.x = self.x[:, sorted_inds]
         self.y = self.y[:, sorted_inds]
 
         if self.sigma is not None:
-
             self.sigma = self.sigma[:, sorted_inds]
             if np.any(self.sigma == 0) or not np.all(np.isfinite(self.sigma)):
                 raise RuntimeError(
@@ -523,22 +754,46 @@ class Fitter:
 
         # Rescale coordinates to improve numerics (optimizers need to do things like
         # calculate numerical derivatives which is easiest if x and y are O(1)).
-        #
-        # Currently we use a single scale factor for all y channels. This may change in
-        # future
-        rescale_x, rescale_y = self.model.can_rescale()
-        self.x_scale = np.max(np.abs(self.x)) if rescale_x else 1.0
-        self.y_scale = np.max(np.abs(self.y)) if rescale_y else 1.0
+        rescale_xs, rescale_ys = self.model.can_rescale()
 
-        # Corner-case if a y-channel has values that are all 0
-        if self.y_scale == 0 or not np.isfinite(self.y_scale):
-            self.y_scale = 1
-            rescale_y = False
+        if len(rescale_xs) != self.model.get_num_x_axes():
+            raise ValueError(
+                "Unexpected number of x-axis results returned from model.can_rescale: "
+                f"expected {self.model.get_num_x_axes()}, got {len(rescale_xs)}"
+            )
 
-        self.model.rescale(self.x_scale, self.y_scale)
+        if len(rescale_ys) != self.model.get_num_y_axes():
+            raise ValueError(
+                "Unexpected number of y-axis results returned from model.can_rescale: "
+                f"expected {self.model.get_num_y_axes()}, got {len(rescale_ys)}"
+            )
 
-        x_scaled = self.x / self.x_scale
-        y_scaled = self.y / self.y_scale
+        self.x_scales = np.array(
+            [
+                max(np.abs(self.x[idx, :])) if rescale else 1.0
+                for idx, rescale in enumerate(rescale_xs)
+            ]
+        )
+
+        self.y_scales = np.array(
+            [
+                max(np.abs(self.y[idx, :])) if rescale else 1.0
+                for idx, rescale in enumerate(rescale_ys)
+            ]
+        )
+
+        # Corner-case if a y-axis dimension has values that are all 0
+        self.y_scales = np.array(
+            [
+                y_scale if (y_scale != 0 and np.isfinite(y_scale)) else 1.0
+                for y_scale in self.y_scales
+            ]
+        )
+
+        self.model.rescale(self.x_scales, self.y_scales)
+
+        x_scaled = self.x / self.x_scales[:, None]
+        y_scaled = self.y / self.y_scales[:, None]
 
         self.model.estimate_parameters(x_scaled, y_scaled)
 
@@ -563,17 +818,14 @@ class Fitter:
         if self.free_parameters == []:
             raise ValueError("Attempt to fit with no free parameters.")
 
-        def free_func(
-            x: Array[("num_samples",), np.float64], *free_param_values: float
-        ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+        def free_func(x: TX, *free_param_values: float) -> TY:
             """Call the model function with the values of the free parameters."""
             params = {
                 param: value
                 for param, value in zip(self.free_parameters, list(free_param_values))
             }
             params.update(self.fixed_parameters)
-            y = self.model.func(x, params)
-            return y
+            return self.model.func(x, params)
 
         fitted_params, uncertainties = self._fit(
             x_scaled, y_scaled, self.model.parameters, free_func
@@ -613,7 +865,7 @@ class Fitter:
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Implementation of the parameter estimation.
 
-        `Fitter` implementations must override this method to provide a fit with
+        ``Fitter`` implementations must override this method to provide a fit with
         appropriate statistics.
 
         :param x: rescaled x-axis data, must be a 1D array
@@ -629,26 +881,25 @@ class Fitter:
 
     def evaluate(
         self,
-        transpose_and_squeeze=False,
         x_fit: Optional[TX] = None,
+        transpose_and_squeeze=False,
     ) -> Tuple[TX, TY]:
-        """Evaluates the model function using the fitted parameter set.
+        r"""Evaluates the model function using the fitted parameter set.
 
-        :param transpose_and_squeeze: if True, array `y_fit` is transposed
-            and squeezed before being returned. This is intended to be used
-            for plotting, since matplotlib requires different y-series to be
-            stored as columns.
-        :param x_fit: optional x-axis points to evaluate the model at. If
-            `None`, we use the values stored as attribute `x` of the fitter.
+        :param x_fit: optional x-axis points to evaluate the model at. If ``None``\ , we
+            use the stored value of :attr:`x`.
+        :param transpose_and_squeeze: if ``True``, the results arrays are transposed and
+            squeezed prior to being returned. This is intended to be used for plotting,
+            since matplotlib requires different y-series to be stored as columns.
 
-        :returns: tuple of x-axis values used and corresponding y-axis values
-            of the fitted model
+        :returns: tuple of x-axis values used and corresponding y-axis found by
+            evaluating the model.
         """
-        x_fit = x_fit if x_fit is not None else self.x
-        y_fit = self.model.func(x_fit, self.values)
+        x_fit = np.atleast_2d(x_fit if x_fit is not None else self.x)
+        y_fit = np.atleast_2d(self.model.func(x_fit, self.values))
 
         if transpose_and_squeeze:
-            return x_fit, y_fit.T.squeeze()
+            return x_fit.T.squeeze(), y_fit.T.squeeze()
         return x_fit, y_fit
 
     def residuals(self) -> TY:
@@ -656,5 +907,8 @@ class Fitter:
         return self.y - self.evaluate()[1]
 
     def calc_sigma(self) -> Optional[TY]:
-        """Return an array of standard error values for each y-axis data point."""
+        """Returns an array of standard error values for each y-axis data point
+
+        Subclasses must override this.
+        """
         raise NotImplementedError

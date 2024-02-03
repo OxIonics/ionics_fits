@@ -1,62 +1,57 @@
-from typing import Tuple, TYPE_CHECKING
+from typing import Tuple, List
 import numpy as np
 
 from . import heuristics
 from .heuristics import get_spectrum
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
+from ..common import Model, ModelParameter, TX, TY
+from ..utils import scale_x, scale_y
 
 
 class Lorentzian(Model):
-    """Lorentzian model according to:
-    y = a * fwhmh^2 / ((x - x0)^2 + fwhmh^2) + y0
+    """Lorentzian model according to::
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - x0: x-axis offset
-      - y0: y-axis offset
-      - a: peak value of the function above y0
-      - fwhmh: full width at half maximum height of the function
+        y = a * fwhmh^2 / ((x - x0)^2 + fwhmh^2) + y0
 
-    Derived parameters:
-        None
+    See :meth:`_func` for parameter details.
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [True]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=common.scale_x),
-        y0: ModelParameter(scale_func=common.scale_y),
-        a: ModelParameter(scale_func=common.scale_y),
-        fwhmh: ModelParameter(lower_bound=0, scale_func=common.scale_x),
-    ) -> Array[("num_samples",), np.float64]:
+        x: TX,
+        x0: ModelParameter(scale_func=scale_x()),
+        y0: ModelParameter(scale_func=scale_y()),
+        a: ModelParameter(scale_func=scale_y()),
+        fwhmh: ModelParameter(lower_bound=0, scale_func=scale_x()),
+    ) -> TY:
+        """
+        :param x0: x-axis offset
+        :param y0: y-axis offset
+        :param a: peak value of the function above ``y0``
+        :param fwhmh: full width at half maximum height of the function
+        """
         y = a * fwhmh**2 / ((x - x0) ** 2 + fwhmh**2) + y0
         return y
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         # Fourier transform:
         #  f(y) = a * fwhmh^2 / ((x - x0)^2 + fwhmh^2) + y0
         #  f(k) = a * fwhmh * pi * exp(-2*pi*i*k*x0) * exp(-2*pi*fwhmh*|k|)
-        omega, spectrum = get_spectrum(x, y, trim_dc=True, density_units=False)
+        omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
         k = omega / (2 * np.pi)
 

@@ -1,7 +1,7 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.lorentzian import Lorentzian
+from .common import check_multiple_param_sets, check_single_param_set, fuzz, Config
 
 
 def test_lorentzian(plot_failures):
@@ -13,12 +13,12 @@ def test_lorentzian(plot_failures):
         "a": [-5, 5],
         "fwhmh": [0.1, 0.25, 0.5],
     }
-    model = fits.models.Lorentzian()
-    common.check_multiple_param_sets(
+    model = Lorentzian()
+    check_multiple_param_sets(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.7),
+        Config(plot_failures=plot_failures, heuristic_tol=0.7),
     )
 
 
@@ -31,19 +31,19 @@ def test_lorentzian_heuristic(plot_failures):
         "a": -5,
         "fwhmh": 0.25,
     }
-    model = fits.models.Lorentzian()
-    common.check_single_param_set(
+    model = Lorentzian()
+    check_single_param_set(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures, heuristic_tol=0.05),
+        Config(plot_failures=plot_failures, heuristic_tol=0.05),
     )
 
 
 def fuzz_lorentzian(
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     x = np.linspace(-4, 4, 1000)
     fuzzed_params = {
@@ -53,9 +53,9 @@ def fuzz_lorentzian(
         "fwhmh": (0.1, 1),
     }
 
-    return common.fuzz(
+    return fuzz(
         x=x,
-        model=fits.models.Lorentzian(),
+        model=Lorentzian(),
         static_params={},
         fuzzed_params=fuzzed_params,
         test_config=test_config,

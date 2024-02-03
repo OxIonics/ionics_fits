@@ -3,17 +3,13 @@ import logging
 import numpy as np
 import pprint
 from scipy import optimize
-from typing import Callable, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
-from . import Fitter, Model, ModelParameter
-from .utils import Array, ArrayLike
+from .common import Fitter, Model, ModelParameter, TX, TY
+from .utils import Array
 
 if TYPE_CHECKING:
     num_free_params = float
-    num_samples = float
-    num_values = float
-    num_y_channels = float
-    num_samples_flattened = float
 
 
 logger = logging.getLogger(__name__)
@@ -22,16 +18,18 @@ logger = logging.getLogger(__name__)
 class MLEFitter(Fitter):
     """Base class for maximum Likelihood Parameter Estimation fitters.
 
-    Implementations should override the :meth log_liglihood: and
-    :meth calc_sigma: methods.
+    Implementations should override the :meth:`log_likelihood` and
+    :meth:`~ionics_fits.common.Fitter.calc_sigma` methods.
+
+    See :class:`~ionics_fits.common.Fitter` for further details.
     """
 
     TYPE: str = "MLE"
 
     def __init__(
         self,
-        x: ArrayLike[("num_samples",), np.float64],
-        y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         model: Model,
         step_size: float = 1e-4,
         minimizer_args: Optional[Dict] = None,
@@ -49,7 +47,7 @@ class MLEFitter(Fitter):
             parameter bounds are provided, they are used to scale the step size
             appropriately for each parameter.
         :param minimizer_args: optional dictionary of keyword arguments to be passed
-            into scipy.optimize.minimize.
+            into ``scipy.optimize.minimize``.
         """
         self.minimizer_args = {"options": {"maxls": 100}}
         if minimizer_args is not None:
@@ -62,9 +60,9 @@ class MLEFitter(Fitter):
 
         # Since we interpret the y-axis as a probability distribution, it should not be
         # rescaled
-        def can_rescale() -> Tuple[bool, bool]:
-            rescale_x = self._can_rescale()[0]
-            return rescale_x, False
+        def can_rescale() -> Tuple[List[bool], List[bool]]:
+            rescale_xs, rescale_ys = self._can_rescale()
+            return rescale_xs, [False] * len(rescale_ys)
 
         model = copy.deepcopy(model)
         self._can_rescale = model.can_rescale
@@ -72,12 +70,12 @@ class MLEFitter(Fitter):
 
         super().__init__(x=x, y=y, model=model)
 
-    def log_liklihood(
+    def log_likelihood(
         self,
         free_param_values: Array[("num_free_params",), np.float64],
-        x: ArrayLike[("num_samples",), np.float64],
-        y: ArrayLike[("num_y_channels", "num_samples"), np.float64],
-        free_func: Callable[..., Array[("num_y_channels", "num_samples"), np.float64]],
+        x: TX,
+        y: TY,
+        free_func: Callable[..., TY],
     ) -> float:
         """Returns the negative log-likelihood of a given dataset
 
@@ -91,10 +89,10 @@ class MLEFitter(Fitter):
 
     def _fit(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         parameters: Dict[str, ModelParameter],
-        free_func: Callable[..., Array[("num_y_channels", "num_samples"), np.float64]],
+        free_func: Callable[..., TY],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Performs maximum likelihood parameter estimation and calculates standard
         errors in each parameter.
@@ -122,9 +120,6 @@ class MLEFitter(Fitter):
             param: parameters[param].get_initial_value() for param in free_parameters
         }
 
-        assert x.dtype == np.float64
-        assert y.dtype == np.float64
-
         logger.debug(
             f"Starting {self.TYPE} fitting with initial parameters: "
             f"{pprint.pformat(p0_dict)}"
@@ -132,7 +127,7 @@ class MLEFitter(Fitter):
 
         # maxls setting helps with ABNORMAL_TERMINATION_IN_LNSRCH
         res = optimize.minimize(
-            fun=self.log_liklihood,
+            fun=self.log_likelihood,
             args=(x, y, free_func),
             x0=p0,
             bounds=zip(lower, upper),
@@ -186,8 +181,8 @@ class MLEFitter(Fitter):
 
             return _fun
 
-        def log_liklihood(free_param_values):
-            return self.log_liklihood(
+        def log_likelihood(free_param_values):
+            return self.log_likelihood(
                 free_param_values=free_param_values, x=x, y=y, free_func=free_func
             )
 
@@ -195,7 +190,7 @@ class MLEFitter(Fitter):
 
         for i_idx in range(num_free_params):
             for j_idx in range(num_free_params):
-                first_diff = diff(i_idx, log_liklihood)
+                first_diff = diff(i_idx, log_likelihood)
                 second_diff = diff(j_idx, first_diff)
                 hessian[i_idx, j_idx] = second_diff(res.x)
 

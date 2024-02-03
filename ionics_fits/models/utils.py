@@ -1,17 +1,13 @@
 import copy
 import dataclasses
-import numpy as np
-from typing import Any, Dict, Optional, Type, TYPE_CHECKING, TypeVar
-from ..common import Model, ModelParameter
-from ..utils import Array
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+from ..common import ModelParameter, TSCALE_FUN
 
 
 if TYPE_CHECKING:
     num_samples = float
-    num_y_channels = float
     num_spectrum_samples = float
-
-TModel = TypeVar("TModel", bound=Type[Model])
 
 
 def param_like(
@@ -23,6 +19,7 @@ def param_like(
       parameter.
     :param overrides: optional dictionary of attributes of the template parameter to
       replace.
+    :returns: the new :class:`~ionics_fits.common.ModelParameter`
     """
     new_param = copy.deepcopy(template_param)
 
@@ -35,57 +32,49 @@ def param_like(
 
 @dataclasses.dataclass
 class PeriodicModelParameter(ModelParameter):
+    """Represents a model parameter whose value is periodic.
+
+    Parameter values are clipped to lie within::
+
+        value = value - offset
+        value (value % period) + offset
+
+    Attributes:
+        period: the period (default = 1)
+        offset: the offset (default = 0)
+    """
+
+    scale_func: TSCALE_FUN
     period: float = 1
     offset: float = 0
     lower_bound: float = dataclasses.field(init=False)
     upper_bound: float = dataclasses.field(init=False)
 
     def __post_init__(self):
+        super().__post_init__()
+        self._metadata_attrs += ["period", "offset"]
+
         self.lower_bound = 1.5 * self.offset
         self.upper_bound = 1.5 * (self.offset + self.period)
 
-    upper_bound = 1.5 * np.pi
+    def _format_metadata(self) -> List[str]:
+        metadata = super()._format_metadata()
+
+        metadata = [
+            attr
+            for attr in metadata
+            if not (attr.startswith("lower_bound=") or attr.startswith("upper_bound="))
+        ]
+
+        metadata.append(f"period={self.period:.3f}")
+        metadata.append(f"offset={self.offset:.3f}")
+
+        return metadata
+
+    def __repr__(self):
+        return super().__repr__()
 
     def clip(self, value: float):
         """Clip value to lie between lower and upper bounds."""
         value = value - self.offset
         return (value % self.period) + self.offset
-
-
-def rescale_model_x(model_class: TModel, x_scale: float) -> TModel:
-    """Rescales the x-axis for a model class.
-
-    This is commonly used to convert models between linear and angular units.
-
-    :param model_class: model class to rescale
-    :param x_scale: multiplicative x-axis scale factor. To convert a model that takes
-      x in angular units and convert to one that takes x in linear units use
-      `x_scale = 2 * np.pi`
-    """
-
-    class ScaledModel(model_class):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.__x_scale = x_scale
-            self.__rescale = True
-
-        def func(
-            self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-        ) -> Array[("num_samples", "num_y_channels"), np.float64]:
-            x = (x * self.__x_scale) if self.__rescale else x
-            return super().func(x, param_values)
-
-        def estimate_parameters(
-            self,
-            x: Array[("num_samples",), np.float64],
-            y: Array[("num_samples", "num_y_channels"), np.float64],
-        ):
-            # avoid double rescaling if estimate_parameters calls self.func internally
-            self.__rescale = False
-            super().estimate_parameters(x * self.__x_scale, y)
-            self.__rescale = True
-
-    ScaledModel.__name__ = model_class.__name__
-    ScaledModel.__doc__ = model_class.__doc__
-
-    return ScaledModel

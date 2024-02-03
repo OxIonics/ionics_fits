@@ -1,79 +1,83 @@
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple
 
 import numpy as np
 
 from . import heuristics
-from .containers import MappedModel
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-if TYPE_CHECKING:
-    num_samples = float
+from .transformations.mapped_model import MappedModel
+from ..common import Model, ModelParameter, TX, TY
+from ..utils import (
+    scale_invariant,
+    scale_power,
+    scale_undefined,
+    scale_x,
+    scale_y,
+    TX_SCALE,
+    TY_SCALE,
+)
 
 
 class Power(Model):
-    """Single-power fit according to:
-    y = a*(x-x0)^n + y0
+    """Single-power fit according to::
 
-    `x - x0` must always be strictly greater than 0. This is because `n` can take
-    non-integral values (for integer coefficients use :class Polynomial: instead)
-    and this function's return is real-valued.
+        y = a*(x-x0)^n + y0
 
-    The fit will often struggle when both y0 and n are floated if the dataset doesn't
-    contain some asymptotic values where `y ~ y0`. The more you can help it out by
-    bounding parameters and providing initial guesses the better.
+    ``x - x0`` must always be strictly greater than ``0``. This is because ``n`` can
+    take non-integral values (for integer coefficients use
+    :class:`~ionics_fits.models.polynomial.Polynomial` instead) and this function's
+    return is real-valued.
 
-    The fit will generally struggle to converge if both `a` and `y0` are floated unless
-    it is given some guidance (e.g. initial values).
+    The fit will often struggle when both ``y0`` and ``n`` are floated if the dataset
+    doesn't contain some asymptotic values where ``y ~ y0``. The more you can help it
+    out by bounding parameters and providing initial guesses the better.
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - a: y-axis scale factor (fixed to 1 by default)
-      - x0: x-axis offset (fixed to 0 by default). This parameter is not expected to be
-        used often.
-      - y0: y-axis offset
-      - n: power
-
-    Derived parameters:
-        None
+    The fit will generally struggle to converge if both ``a`` and ``y0`` are floated
+    unless it is given some guidance (e.g. initial values).
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        rescale_x = False if self.parameters["n"].fixed_to is None else True
-        return rescale_x, True
+    def get_num_y_axes(self) -> int:
+        return 1
 
-    def rescale(self, x_scale: float, y_scale: float):
-        def scale_func(x_scale, y_scale) -> float:
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        rescale_x = False if self.parameters["n"].fixed_to is None else True
+        return [rescale_x], [True]
+
+    def rescale(self, x_scales: TX_SCALE, y_scales: TY_SCALE):
+        def scale_func(x_scales, y_scales) -> float:
             # NB the common scale functions do not support float powers
-            if x_scale == 1.0:
+            x_scale = float(x_scales)
+            y_scale = float(y_scales)
+            if x_scales == 1.0:
                 return y_scale
             return y_scale / np.float_power(x_scale, self.parameters["n"].fixed_to)
 
         self.parameters["a"].scale_func = scale_func
-        super().rescale(x_scale=x_scale, y_scale=y_scale)
+        super().rescale(x_scales=x_scales, y_scales=y_scales)
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        a: ModelParameter(fixed_to=1, scale_func=common.scale_undefined),
-        x0: ModelParameter(fixed_to=0, scale_func=common.scale_x),
-        y0: ModelParameter(scale_func=common.scale_y),
-        n: ModelParameter(scale_func=common.scale_invariant),
-    ) -> Array[("num_samples",), np.float64]:
-        assert all(x - x0 >= 0), "`x - x0` must be > 0"
+        x: TX,
+        a: ModelParameter(fixed_to=1, scale_func=scale_undefined),
+        x0: ModelParameter(fixed_to=0, scale_func=scale_x()),
+        y0: ModelParameter(scale_func=scale_y()),
+        n: ModelParameter(scale_func=scale_invariant),
+    ) -> TY:
+        """
+        * ``a``: y-axis scale factor
+        * ``x0``: x-axis offset
+        * ``y0``: y-axis offset
+        * ``n``: power
+        """
+        assert np.all(x - x0 >= 0), "`x - x0` must be > 0"
         return a * np.float_power(x - x0, n) + y0
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         unknowns = {
@@ -192,65 +196,58 @@ class Power(Model):
 def poly_fit_parameter(n):
     return ModelParameter(
         fixed_to=None,
-        scale_func=common.scale_power(x_power=-n, y_power=1),
+        scale_func=scale_power(x_power=-n, y_power=1),
     )
 
 
 def _generate_poly_parameters(poly_degree):
     params = {f"a_{n}": poly_fit_parameter(n) for n in range(poly_degree + 1)}
-    params.update({"x0": ModelParameter(fixed_to=0, scale_func=common.scale_x)})
+    params.update({"x0": ModelParameter(fixed_to=0, scale_func=scale_x())})
     return params
 
 
 class Polynomial(Model):
-    """A polynomial fit model.
+    """Polynomial fit model according to::
 
-    Fits the function:
-    y = sum(a_n*(x-x0)^n) for n ={0...poly_degree}
+        y = sum(a_n*(x-x0)^n) for n ={0...poly_degree}
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - a_0 ... a_{poly_degree}: polynomial coefficients.
-      - x0: x-axis offset (fixed to 0 by default). Floating x0 as well as polynomial
-          coefficients results in an under-defined problem.
+    Model parameters:
 
-    Derived parameters:
-        None
+    * ``a_0`` ... ``a_{poly_degree}``: polynomial coefficients
+    * ``x0``: x-axis offset (fixed to 0 by default). Floating ``x0`` as well as
+      polynomial coefficients results in an under-defined problem.
     """
 
     def __init__(self, poly_degree=10):
-        """Init
-
+        """
         :param poly_degree: The degree of the polynomial that we're fitting
            defaults to 10.
         """
         self.poly_degree = poly_degree
         super().__init__(parameters=_generate_poly_parameters(poly_degree))
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        rescale_x = True if self.parameters["x0"].fixed_to == 0.0 else False
-        return rescale_x, True
+    def get_num_y_axes(self) -> int:
+        return 1
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], params: Dict[str, float]
-    ) -> Array[("num_samples",), np.float64]:
-        x0 = params["x0"]
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        rescale_x = True if self.parameters["x0"].fixed_to == 0.0 else False
+        return [rescale_x], [True]
+
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
+        x0 = param_values["x0"]
         p = np.array(
-            [params[f"a_{n}"] for n in range(self.poly_degree, -1, -1)],
+            [param_values[f"a_{n}"] for n in range(self.poly_degree, -1, -1)],
             dtype=np.float64,
         )
 
         y = np.polyval(p, x - x0)
         return y
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         self.parameters["x0"].heuristic = 0.0
@@ -272,15 +269,14 @@ class Polynomial(Model):
 
 
 class Line(MappedModel):
-    """Straight line fit according to:
-    `y = a * x + y0`
+    """Straight line fit according to::
+
+        y = a * x + y0
 
     Fit parameters (all floated by default unless stated otherwise):
-      - y0: y-axis intercept
-      - a: slope
 
-    Derived parameters:
-        None
+    * ``y0``: y-axis intercept
+    * ``a``: slope
     """
 
     def __init__(self):
@@ -314,24 +310,20 @@ class Parabola(MappedModel):
             {"a_1": 0},
         )
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
         """
-        If `x0` is floated, we map the Polynomial `a_1` coefficient onto a value for
-        `x0` according to:
-        ```
-        y = a_0 + a_2 * x^2
-        x -> x - x0: y = a_0 + a_2 * (x - x0)^2
-        y = a_0 + a_2*x^2 + a_2 * x0^2 + 2*a_2*x*x0
-        y = (a_0 + a_2 * x0^2) + 2*a_2*x*x0 + a_2*x^2
+        If ``x0`` is floated, we map the Polynomial ``a_1`` coefficient onto a value for
+        ``x0`` according to::
 
-        a_0 -> a_0 + a_2 * x0^2
-        a_1 -> 2*a_2*x0 => x0 = a_1/(2*a_2)
-        a_2 -> a_2
-        ```
+            y = a_0 + a_2 * x^2
+            x -> x - x0: y = a_0 + a_2 * (x - x0)^2
+            y = a_0 + a_2*x^2 + a_2 * x0^2 + 2*a_2*x*x0
+            y = (a_0 + a_2 * x0^2) + 2*a_2*x*x0 + a_2*x^2
+
+            a_0 -> a_0 + a_2 * x0^2
+            a_1 -> 2*a_2*x0 => x0 = a_1/(2*a_2)
+            a_2 -> a_2
+
         """
         super().estimate_parameters(x, y)
 

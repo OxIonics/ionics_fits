@@ -1,7 +1,14 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.laser_rabi import (
+    LaserFlopFreqCoherent,
+    LaserFlopFreqSqueezed,
+    LaserFlopFreqThermal,
+    LaserFlopTimeCoherent,
+    LaserFlopTimeThermal,
+    LaserFlopTimeSqueezed,
+)
+from .common import check_multiple_param_sets, Config
 
 
 def _test_laser_flop_freq(
@@ -39,13 +46,11 @@ def _test_laser_flop_freq(
     # omega is fixed and n_bar is floated
     model.parameters["omega"].fixed_to = params["omega"]
 
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         w,
         model,
         params,
-        common.TestConfig(
-            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
-        ),
+        Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
     )
 
 
@@ -55,35 +60,35 @@ def test_laser_flop_freq(plot_failures: bool):
         plot_failures=plot_failures,
         P_readout_e=1.0,
         sideband_index=-1,
-        flop_class=fits.models.LaserFlopFreqCoherent,
+        flop_class=LaserFlopFreqCoherent,
         dist_params={"alpha": np.sqrt(4)},
     )
     _test_laser_flop_freq(
         plot_failures=plot_failures,
         P_readout_e=1.0,
         sideband_index=0,
-        flop_class=fits.models.LaserFlopFreqThermal,
+        flop_class=LaserFlopFreqThermal,
         dist_params={"n_bar": [0, 1, 5, 10]},
     )
     _test_laser_flop_freq(
         plot_failures=plot_failures,
         P_readout_e=1.0,
         sideband_index=-1,
-        flop_class=fits.models.LaserFlopFreqThermal,
+        flop_class=LaserFlopFreqThermal,
         dist_params={"n_bar": [0.1, 1]},
     )
     _test_laser_flop_freq(
         plot_failures=plot_failures,
         P_readout_e=1.0,
         sideband_index=+1,
-        flop_class=fits.models.LaserFlopFreqThermal,
+        flop_class=LaserFlopFreqThermal,
         dist_params={"n_bar": [0.1, 0.1, 1]},
     )
     _test_laser_flop_freq(
         plot_failures=plot_failures,
         P_readout_e=1.0,
         sideband_index=+1,
-        flop_class=fits.models.LaserFlopFreqSqueezed,
+        flop_class=LaserFlopFreqSqueezed,
         dist_params={"zeta": 1.0},
     )
 
@@ -120,13 +125,11 @@ def _test_laser_flop_time(
     # omega is fixed and n_bar is floated
     model.parameters["omega"].fixed_to = params["omega"]
 
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         t_pulse,
         model,
         params,
-        common.TestConfig(
-            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
-        ),
+        Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
     )
 
 
@@ -136,34 +139,34 @@ def test_laser_flop_time(plot_failures: bool):
         plot_failures=plot_failures,
         P_readout_e=1.0,
         sideband_index=-1,
-        flop_class=fits.models.LaserFlopTimeCoherent,
+        flop_class=LaserFlopTimeCoherent,
         dist_params={"alpha": np.sqrt(4)},
     )
     _test_laser_flop_time(
         plot_failures=plot_failures,
         P_readout_e=1.0,
         sideband_index=0,
-        flop_class=fits.models.LaserFlopTimeThermal,
+        flop_class=LaserFlopTimeThermal,
         dist_params={"n_bar": [0, 1, 5, 10]},
     )
     _test_laser_flop_time(
         plot_failures=plot_failures,
         P_readout_e=1.0,
         sideband_index=-1,
-        flop_class=fits.models.LaserFlopTimeThermal,
+        flop_class=LaserFlopTimeThermal,
         dist_params={"n_bar": [0, 0.1, 1]},
     )
     _test_laser_flop_time(
         plot_failures=plot_failures,
         P_readout_e=1.0,
         sideband_index=+1,
-        flop_class=fits.models.LaserFlopTimeThermal,
+        flop_class=LaserFlopTimeThermal,
         dist_params={"n_bar": [0, 0.1, 1]},
     )
     _test_laser_flop_time(
         plot_failures=plot_failures,
         P_readout_e=1.0,
         sideband_index=+1,
-        flop_class=fits.models.LaserFlopTimeSqueezed,
+        flop_class=LaserFlopTimeSqueezed,
         dist_params={"zeta": 1.0},
     )

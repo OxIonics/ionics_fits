@@ -1,7 +1,7 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.rectangle import Rectangle
+from .common import check_multiple_param_sets, fuzz, Config
 
 
 def test_rectangle(plot_failures: bool):
@@ -18,41 +18,41 @@ def test_rectangle(plot_failures: bool):
         "x_l": -1,
         "x_r": [1, 2.01],
     }
-    model = fits.models.Rectangle()
+    model = Rectangle()
 
     model.parameters["x_l"].fixed_to = params["x_l"]
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures, param_tol=5e-2),
+        Config(plot_failures=plot_failures, param_tol=5e-2),
     )
 
     params["x_l"] = -10
     params["x_r"] = 1
     model.parameters["x_l"].fixed_to = params["x_l"]
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures, param_tol=5e-2),
+        Config(plot_failures=plot_failures, param_tol=5e-2),
     )
 
     params["x_l"] = [-2.01, -1]
     params["x_r"] = 1
     model.parameters["x_l"].fixed_to = None
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures, param_tol=5e-2),
+        Config(plot_failures=plot_failures, param_tol=5e-2),
     )
 
 
 def fuzz_rectangle(
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     x = np.linspace(-2, 2, 100)
     fuzzed_params = {
@@ -62,12 +62,12 @@ def fuzz_rectangle(
     }
     static_params = {"x_l": -1}
 
-    model = fits.models.Rectangle()
+    model = Rectangle()
     model.parameters["x_l"].fixed_to = static_params["x_l"]
 
     test_config.param_tol = 5e-2
 
-    return common.fuzz(
+    return fuzz(
         x=x,
         model=model,
         static_params=static_params,

@@ -1,59 +1,56 @@
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple
 import numpy as np
 
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-if TYPE_CHECKING:
-    num_samples = float
+from ..common import Model, ModelParameter, TX, TY
+from ..utils import scale_x, scale_y
 
 
 class Exponential(Model):
-    """Exponential function according to:
-    y(x < x_dead) = y0
-    y(x >= x_dead) = y0 + (y_inf-y0)*(1-exp(-(x-x_dead)/tau))
+    """Exponential function according to::
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - x_dead: x-axis "dead time" (fixed to 0 by default)
-      - y0: initial (x = x_dead) y-axis offset
-      - y_inf: y-axis asymptote (i.e. y(x - x_0 >> tau) => y_inf)
-      - tau: decay constant
+        y(x < x_dead) = y0
+        y(x >= x_dead) = y0 + (y_inf-y0)*(1-exp(-(x-x_dead)/tau))
 
-    Derived parameters:
-      - x_1_e: x-axis value for 1/e decay including dead time (`x_1_e = x0 + tau`)
+    See :meth:`_func` for parameter details.
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [True]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
+        x: TX,
         x_dead: ModelParameter(
             lower_bound=0,
             fixed_to=0,
-            scale_func=common.scale_x,
+            scale_func=scale_x(),
         ),
-        y0: ModelParameter(scale_func=common.scale_y),
-        y_inf: ModelParameter(scale_func=common.scale_y),
-        tau: ModelParameter(lower_bound=0, scale_func=common.scale_x),
-    ) -> Array[("num_samples",), np.float64]:
+        y0: ModelParameter(scale_func=scale_y()),
+        y_inf: ModelParameter(scale_func=scale_y()),
+        tau: ModelParameter(lower_bound=0, scale_func=scale_x()),
+    ) -> TY:
+        """
+        :param x_dead: x-axis "dead time" (fixed to ``0`` by default)
+        :param y0: initial (``x = x_dead``) y-axis offset
+        :param y_inf: y-axis asymptote (i.e. ``y(x - x_dead >> tau) => y_inf``)
+        :param tau: decay constant
+        """
         y = y0 + (y_inf - y0) * (1 - np.exp(-(x - x_dead) / tau))
         y = np.where(x >= x_dead, y, y0)
         return y
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
         # Ensure that y is a 1D array
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         # Exponentials are generally pretty easy to fit so we keep the estimator simple
@@ -64,11 +61,18 @@ class Exponential(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        Derived parameters:
+
+            * ``x_1_e``: x-axis value for ``1/e`` decay including dead time
+              (``x_1_e = x_dead + tau``)
+
+        """
         derived_params = {"x_1_e": fitted_params["x_dead"] + fitted_params["tau"]}
         derived_uncertainties = {
             "x_1_e": np.sqrt(

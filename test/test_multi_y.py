@@ -1,20 +1,15 @@
-""" Tests for fitting models with multiple y channels """
-from typing import TYPE_CHECKING
+""" Tests for fitting models with multiple y-axis dimensions """
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.rabi import RabiFlopFreq
+from ionics_fits.models.transformations.repeated_model import RepeatedModel
+from .common import check_multiple_param_sets, Config
 
 
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
-
-
-class DoubleRabiFreq(fits.models.RepeatedModel):
+class DoubleRabiFreq(RepeatedModel):
     def __init__(self):
         super().__init__(
-            model=fits.models.RabiFlopFreq(start_excited=True),
+            model=RabiFlopFreq(start_excited=True),
             common_params=[
                 "P_readout_e",
                 "P_readout_g",
@@ -28,7 +23,7 @@ class DoubleRabiFreq(fits.models.RepeatedModel):
 
 
 def test_multi_y(plot_failures):
-    """Test fitting to a model with multiple y channels"""
+    """Test fitting to a model with multiple y-axis dimensions"""
     w = np.linspace(-10, 10, 200)
     params = {
         "w_0_0": [-3.0],
@@ -46,11 +41,9 @@ def test_multi_y(plot_failures):
     model.parameters["P_readout_g"].fixed_to = params["P_readout_g"]
     model.parameters["t_pulse"].fixed_to = params["t_pulse"]
 
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         w,
         model,
         params,
-        common.TestConfig(
-            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
-        ),
+        Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
     )

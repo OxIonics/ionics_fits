@@ -13,7 +13,12 @@ release = "1.3"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["sphinx_mdinclude", "sphinx.ext.autodoc", "sphinx.ext.napoleon"]
+extensions = [
+    "sphinx_mdinclude",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.doctest",
+]
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
@@ -27,3 +32,5 @@ html_static_path = ["_static"]
 html_css_files = [
     "css/custom.css",
 ]
+
+nitpick_ignore = [("py:class", "numpy.ndarray")]
