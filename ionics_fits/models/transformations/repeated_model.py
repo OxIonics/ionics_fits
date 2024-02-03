@@ -1,9 +1,11 @@
-from typing import Dict, List, Optional, Tuple
+from functools import partial
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
 from ..utils import param_like
 from ...common import Model, TX, TY
+from ...utils import TX_SCALE, TY_SCALE
 
 
 class RepeatedModel(Model):
@@ -69,11 +71,6 @@ class RepeatedModel(Model):
                 "Common parameters must be a subset of the model's parameters"
             )
 
-        # make model scale functions use correct y-axis dimension
-        def wrapped_scale_func(model_idx, scale_func, x_scales, y_scales):
-            y_scales_model = [y_scales[model_idx]]
-            return scale_func(x_scales, y_scales_model)
-
         independent_params = set(model_params) - common_params
         params = {param: model.parameters[param] for param in common_params}
         for param in independent_params:
@@ -92,6 +89,17 @@ class RepeatedModel(Model):
         super().__init__(
             parameters=params, internal_parameters=self.model.internal_parameters
         )
+
+        def wrapped_scale_func(
+            scale_func: Callable, x_scales: TX_SCALE, y_scales: TY_SCALE
+        ) -> float:
+            return scale_func(x_scales, y_scales[0 : self.model.get_num_y_axes()])
+
+        parameters = list(self.parameters.values()) + self.internal_parameters
+        for parameter in parameters:
+            scale_func = parameter.scale_func
+            parameter.scale_func = partial(wrapped_scale_func, scale_func)
+            parameter.scale_func.__name__ = scale_func.__name__
 
     def get_num_x_axes(self) -> int:
         return self.model.get_num_x_axes()
