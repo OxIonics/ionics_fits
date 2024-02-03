@@ -30,7 +30,7 @@ def param_min_sqrs(
     known value (fixed value, user estimate, heuristic or via the ``defaults``
     argument).
 
-    This heuristic supports arbitrary numbers of x- and y-axis dimensions. 
+    This heuristic supports arbitrary numbers of x- and y-axis dimensions.
 
     :param x: x-axis data
     :param y: y-axis data
@@ -323,7 +323,7 @@ def get_pgram(
 ]:
     """Returns a Lombe-Scargle periodogram for a dataset, converted into amplitude
     units.
-    
+
     This function supports datasets with a single x- and y-axis dimension.
 
     :param x: x-axis data

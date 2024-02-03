@@ -4,7 +4,12 @@ from ...common import Model, TX, TY
 
 
 class MappedModel(Model):
-    """`Model` wrapping another `Model` with renamed parameters"""
+    r"""Wraps a :class:`~ionics_fits.common.Model`\, allowing parameters to be renamed
+    or replaced with fixed values.
+
+    See also
+    :class:`~ionics_fits.models.transformations.reparametrized_model.ReparametrizedModel`
+    """
 
     def __init__(
         self,
@@ -13,19 +18,18 @@ class MappedModel(Model):
         fixed_params: Optional[Dict[str, float]] = None,
         derived_result_mapping: Optional[Dict[str, Optional[str]]] = None,
     ):
-        """Init
-
-        :param model: The wrapped model. This model is considered "owned" by the
-            MappedModel and should not be modified / used elsewhere.
-        :param param_mapping: dictionary mapping names of parameters in the new
-            model to names of parameters used in the wrapped model.
-        :param fixed_params: dictionary mapping names of parameters used in the
-            wrapped model to values they are fixed to in the new model. These
-            will not be parameters of the new model.
+        """
+        :param model: The model to be wrapped. This model is considered "owned" by the
+            ``MappedModel`` and should not be modified / used elsewhere.
+        :param param_mapping: dictionary mapping names of parameters in the
+            ``WrappedModel`` to names of parameters in the model being wrapped.
+        :param fixed_params: dictionary mapping names of ``WrappedModel`` parameters
+            to values they sould be fixed to. Fixed parameters are not parameters of the
+            ``WrappedModel``.
         :param derived_result_mapping: optional dictionary mapping names of derived
-            result in the new model to names of derived results in the wrapped model.
-            Derived results may be renamed to `None` to exclude them from the model's
-            outputs.
+            result in the ``WrappedModel`` to names of derived results in the model
+            being wrapped. Derived results may be renamed to ``None`` to exclude them
+            from the ``WrappedModel``.
         """
         self.model = model
         self.derived_result_mapping = derived_result_mapping or {}

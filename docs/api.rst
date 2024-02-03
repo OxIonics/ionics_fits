@@ -216,27 +216,45 @@ Aggregate Model
 
 .. automodule:: ionics_fits.models.transformations.aggregate_model
     :members:
+    :special-members: __init__
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale, calculate_derived_params, func
 
 Mapped Model
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.transformations.mapped_model
     :members:
+    :special-members: __init__
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale, calculate_derived_params, func
 
 Model2D
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.transformations.model_2d
     :members:
+    :special-members: __init__
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale, calculate_derived_params, func
 
 Reparametrized Model
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.transformations.reparametrized_model
     :members:
+    :special-members: __init__
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale, calculate_derived_params, func
+
+Repeated Model
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: ionics_fits.models.transformations.repeated_model
+    :members:
+    :special-members: __init__
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale, calculate_derived_params, func
 
 Scaled Model
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: ionics_fits.models.transformations.scaled_model
     :members:
+    :special-members: __init__
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale, calculate_derived_params, func

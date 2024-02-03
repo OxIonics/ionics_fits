@@ -6,8 +6,9 @@ from ...common import Model, TX, TY
 
 
 class Model2D(Model):
-    """Combines a pair of :class Model:s, each of which is a function of a single
-    x-dimension, make a new :class Model: which is a function of 2 x-axis dimensions.
+    r"""Combines a pair of :class:`~ionics_fits.common.Model`\'s, each of which is a
+    function of a single x-dimension, to make a new :class:`~ionics_fits.common.Model`\,
+    which is a function of 2 x-axis dimensions.
 
     All y-axis data is generated from the output of the first model; the output from
     the second model provides the values of certain "result" parameters used by the
@@ -17,22 +18,42 @@ class Model2D(Model):
       model_1 = models[1] = g(x_axis_1)
       y(x_0, x_1) = model_0(x_0 | result_params = model_1(x_1))
 
+    The 2D models generated using this class are separable into functions of the two
+    x-axes. As a result, it can only generate axis-aligned models.
 
-    NB the 2D models generated using this class are separable into functions of the two
-    x-axes. As a result, it can only generate axis-aligned models. TODO: provide a
-    :class RotatedModel: transformation to allow non axis-aligned functions to be
-    represented.
+    This model provides a quick and convenient means of extending the x-axis
+    dimensionality of existing models. The design aim is to maximise flexibility while
+    making minimal assumptions about the underlying
+    :class:`~ionics_fits.common.Model`\s.
 
-    Model parameters and results
+    Model parameters and results:
 
     * All parameters from the two models - apart from the first model's *result
       parameters* - are parameters of the 2D model.
-    * All derived results from the two models are included in the :class:`Model2D` 's
+    * All derived results from the two models are included in the :class:`Model2D`\'s
       derived results.
     * A parameter/derived result named ``param`` from a model named ``model`` is
-      exposed as a parameter / result of the :class Model2D: named ``param_model``.
-    * A :class:`ionics_fits.models.transformations.mapped_model.MappedModel` can be
+      exposed as a parameter / result of the :class:`Model2D` named ``param_model``.
+    * A :class:`~ionics_fits.models.transformations.mapped_model.MappedModel` can be
       used to provide custom naming schemes
+
+    Example usage:
+
+    .. doctest::
+
+        from ionics_fits.models.gaussian import Gaussian
+        from ionics_Fits.models.transformations.model_2d import Model2D
+
+        Gaussian2D = Model2D(
+            models=(Gaussian(), Gaussian),
+            result_params=("a_x0",),
+        )
+
+    This fits a Gaussian model along the first x-axis dimension. It then takes the
+    amplitudes of those Gaussians at each value of the second x-axis dimension and
+    fits those to a Gaussian to produce a 2D Gaussian fit.
+
+    See also :py:mod:`~ionics_fits.models.multi_x`.
     """
 
     def __init__(
@@ -41,10 +62,11 @@ class Model2D(Model):
         result_params: Tuple[str],
         model_names: Optional[Tuple[str, str]] = None,
     ):
-        """
-        :param models: Tuple containing the two :class Model:s to be combined to make
-            the 2D model. The model instances are considered "owned" by the 2D model
-            (they are not copied). They should not be referenced externally.
+        r"""
+        :param models: Tuple containing the two :class:`~ionics_fits.common.Model`\s to
+            be combined to make the 2D model. The model instances are considered "owned"
+            by the 2D model (they are not copied). They should not be referenced
+            externally.
         :param result_params: tuple of names of "result parameters" of the first model,
             whose value is found by evaluating the second model. The order of parameter
             names in this tuple must match the order of y-axis dimensions for the second
@@ -52,7 +74,7 @@ class Model2D(Model):
         :param model_names: optional tuple of names for the two models. These are used
             when generating names for fit results and derived parameters. Empty strings
             are allowed so long as the two models do not share any parameter names. If
-            this argument is `None` the model names default to `x0` and `x1`
+            this argument is ``None`` the model names default to ``x0`` and ``x1``
             respectively. If a model name is an empty string, the trailing underscore
             is omitted in parameter / result names.
         """

@@ -275,6 +275,7 @@ class LaserFlopFreqCoherent(LaserFlop, RabiFlopFreq):
     """Fit model for Rabi flopping pulse detuning scans when the motional degree of
     freedom starts in a coherent state.
     """
+
     def __init__(
         self,
         start_excited: bool,
@@ -293,6 +294,7 @@ class LaserFlopFreqThermal(LaserFlop, RabiFlopFreq):
     """Fit model for Rabi flopping pulse detuning scans when the motional degree of
     freedom starts in a thermal state.
     """
+
     def __init__(
         self,
         start_excited: bool,
@@ -311,6 +313,7 @@ class LaserFlopFreqSqueezed(LaserFlop, RabiFlopFreq):
     """Fit model for Rabi flopping pulse detuning scans when the motional degree of
     freedom starts in a squeezed state.
     """
+
     def __init__(
         self,
         start_excited: bool,
@@ -329,6 +332,7 @@ class LaserFlopTimeCoherent(LaserFlop, RabiFlopTime):
     """Fit model for Rabi flopping pulse duration scans when the motional degree of
     freedom starts in a coherent state.
     """
+
     def __init__(
         self,
         start_excited: bool,
@@ -347,6 +351,7 @@ class LaserFlopTimeThermal(LaserFlop, RabiFlopTime):
     """Fit model for Rabi flopping pulse duration scans when the motional degree of
     freedom starts in a thermal state.
     """
+
     def __init__(
         self,
         start_excited: bool,
@@ -365,6 +370,7 @@ class LaserFlopTimeSqueezed(LaserFlop, RabiFlopTime):
     """Fit model for Rabi flopping pulse duration scans when the motional degree of
     freedom starts in a squeezed state.
     """
+
     def __init__(
         self,
         start_excited: bool,

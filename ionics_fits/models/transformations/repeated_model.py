@@ -7,15 +7,34 @@ from ...common import Model, TX, TY
 
 
 class RepeatedModel(Model):
-    """Model formed by repeating a `Model` one more times.
+    """Model formed by repeating a :class:`~ionics_fits.common.Model` one or more models
+    along the y-axis to produce a new model, with greater y-axis dimensionality.
 
-    The `RepeatedModel` has multiple y-axes, corresponding to the repetitions of
-    the repeated model.
+    The number of y-axis dimensions in the ``RepeatedModel`` is the product of the
+    number of y-axis dimensions form the original model and the number of repetitions.
 
     Repeated models allow multiple datasets to be analysed simultaneously. This is
-    useful, for example, when doing joint fits to datasets (using common parameters)
-    or in automated tooling (for example ndscan OnlineAnalyses) which needs a single
-    model for an entire dataset.
+    useful, for example, when doing joint fits to datasets (using common parameters).
+
+    The ``RepeatedModel`` has the following parameters and fit results:
+
+    * all common parameters of the repeated model are parameters of the new model
+    * for each independent (not common) parameter of the repeated model, ``param``,
+      the ``RepeatedModel`` has parameters ``param_{n}`` for ``n`` in
+      ``[0, .., num_repitions-1]``
+    * for each independent parameter, ``param``, the ``RepeatedModel`` model
+      has additional fit results representing statistics between the repetitions.
+      For each independent parameter ``param``, the results dictionary will have
+      additional quantities ``param_mean`` and ``param_peak_peak``.
+
+    If ``aggregate_results`` is enabled the rules for fit results are modified as
+    follows:
+
+    * no statistical quantities are calculated for fit parameters or derived results
+    * all derived results whose values and uncertainties are the same for all
+      repetitions are aggregated together to give a single result. These results have
+      the same name as the original model's results, with no suffix.
+    * all derived results whose value is not the same for al repetitions are omitted.
     """
 
     def __init__(
@@ -26,41 +45,20 @@ class RepeatedModel(Model):
         aggregate_results=False,
     ):
         """
-        :param model: The repeated model, the implementation of `model` will be used to
-          generate data for all y axes. This model is considered owned by the
-          RepeatedModel and should not be used / modified elsewhere.
+        :param model: The :class:`~ionics_fits.common.Model` to be repeated. The
+          implementation of ``model`` will be used to generate data for all y axes. This
+          model is considered owned by the ``RepeatedModel`` and should not be used /
+          modified elsewhere.
         :param common_params: optional list of names of model parameters, whose value is
           common to all y axes. All other model parameters are allowed to vary
           independently between the y axes
-        :param num_repetitions: the number of times the model is repeated
+        :param num_repetitions: the number of times the model is to be repeated
         :param aggregate_results: determines whether derived results are aggregated or
-          not (see below). The default behaviour is to not aggregate results. This is
+          not. The default behaviour is to not aggregate results. This is
           generally suitable when one wants access to the values of non-common
           parameters from the various repetitions. Aggregating results can be useful,
           for example, when all parameters are common across the repetitions and one
           wants a single set of values reported.
-
-        The `RepeatedModel` has the following parameters and fit results:
-          - all common parameters of the repeated model are parameters of the new model
-          - for each independent (not common) parameter of the repeated model, `param`,
-            the `RepeatedModel` has parameters `param_{n}` for n in
-            [0, .., num_repitions-1]
-          - for each independent parameter, `param`, the `RepeatedModel` model
-            has additional fit results representing statistics between the repetitions.
-            For each independent parameter `param`, the results dictionary will have
-            additional quantities: `param_mean` and `param_peak_peak`.
-
-        If :param aggregate_results: is `False` the rules for fit results follow those
-        described previously. This is the default behaviour.
-
-        If `aggregate_results` is `True`:
-          - no statistical quantities are calculated for fit parameters or derived
-            results
-          - all derived results whose values and uncertainties are the same for all
-            repetitions are aggregated together to give a single result. This has the
-            same name as the original model (no suffix).
-          - all derived results whose value is not the same for al repetitions are
-            omitted.
         """
         self.aggregate_results = aggregate_results
         model_params = set(model.parameters.keys())

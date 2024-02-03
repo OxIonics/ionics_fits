@@ -4,18 +4,19 @@ from ...common import Model, TX, TY
 
 
 class ScaledModel(Model):
-    """Model with rescaled x-axis.
+    r"""Model with rescaled x-axis.
 
-    This is useful, for example, to convert models between linear and angular units.
+    A common use-case for ``ScaledModel``\s is converting models between linear and
+    angular units.
     """
 
     def __init__(self, model: Model, x_scale: float, x_offset: float = 0.0):
         """
         :param model: model to rescale. This model is considered "owned" by the
-          :class ScaledModel: and should not be used/modified elsewhere.
+          ``ScaledModel`` and should not be used/modified elsewhere.
         :param x_scale: multiplicative x-axis scale factor. To convert a model that
           takes x in angular units and convert to one that takes x in linear units use
-          `x_scale = 2 * np.pi`
+          ``x_scale = 2 * np.pi``
         :param x_offset: additive x-axis offset
         """
         self.model = model

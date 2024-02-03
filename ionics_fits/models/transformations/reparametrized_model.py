@@ -4,23 +4,77 @@ from ...common import Model, ModelParameter, TX, TY
 
 
 class ReparametrizedModel(Model):
-    """Model formed by reparametrizing an existing :class Model:.
+    r"""Model formed by reparametrizing an existing :class:`~ionics_fits.common.Model`.
+
+    ``ionics_fits`` aims to provide convenient and flexible model parametrisations,
+    however sometimes the default parametrisation won't be convenient for your
+    application. For these cases ``ReparametrizedModel``\s provide a convenient way of
+    changing and extending the parametrisation of an existing model.
 
     Reparametrizing a model involves replacing "bound" parameters with "new" parameters,
     whose values the bound parameter values are calculated from.
 
     All non-bound parameters of the original model as well as all "new" parameters are
-    parameters of the :class ReparametrizedModel: (bound parameters are internal
+    parameters of the :class:`ReparametrizedModel` (bound parameters are internal
     parameters of the new model, but are not directly exposed to the user). All derived
     results from the original model are derived results from the
-    :class ReparametrizedModel: (override :meth calculate_derived_params: to change this
-    behaviour).
+    :class:`ReparametrizedModel` (override ``calculate_derived_params`` to change
+    this behaviour).
 
     Values and uncertainties for the bound parameters are exposed as derived results.
 
-    Subclasses must override :meth bound_param_values:, :meth model_uncertainty_func:
-    and :meth reparametrized_value_func: to specify the mapping between "new" and
-    "bound" parameters.
+    Subclasses must override :meth:`bound_param_values`,
+    :meth:`bound_param_uncertainties` and :meth:`bound_param_uncertainties` to specify
+    the mapping between "new" and "bound" parameters.
+
+    Example usage converting a sinusoid parameterised by offset and amplitude into one
+    parametrised by minimum and maximum values:
+
+    .. testcode::
+
+        from typing import Dict
+
+        from ionics_fits.models.sinusoid import Sinusoid
+        from ionics_fits.models.transformations.reparametrized_model import (
+            ReparametrizedModel
+        )
+
+        class SineMinMax(ReparametrizedModel):
+            def __init__(self):
+                super().__init__(
+                    model=Sinusoid(),
+                    new_params={
+                        "min": ModelParameter(scale_func=scale_y()),
+                        "max": ModelParameter(scale_func=scale_y()),
+                    },
+                    bound_params=["a", "y0"],
+                )
+
+            @staticmethod
+            def bound_param_values(param_values: Dict[str, float]) -> Dict[str, float]:
+                return {
+                    "a": 0.5 * (param_values["max"] - param_values["min"]),
+                    "y0": 0.5 * (param_values["max"] + param_values["min"]),
+                }
+
+            @staticmethod
+            def bound_param_uncertainties(
+                param_values: Dict[str, float], param_uncertainties: Dict[str, float]
+            ) -> Dict[str, float]:
+                err = 0.5 * np.sqrt(
+                    param_uncertainties["max"] ** 2 + param_uncertainties["min"] ** 2
+                )
+                return {"a": err, "y0": err}
+
+            @staticmethod
+            def new_param_values(model_param_values: Dict[str, float]
+            ) -> Dict[str, float]:
+                return {
+                    "max": (model_param_values["y0"] + model_param_values["a"]),
+                    "min": (model_param_values["y0"] - model_param_values["a"]),
+                }
+
+    See also :class:`~ionics_fits.models.transformations.mapped_model.MappedModel`.
     """
 
     def __init__(
@@ -31,13 +85,11 @@ class ReparametrizedModel(Model):
     ):
         """
         :param model: The model to be reparametrized. This model is considered "owned"
-          by the :class ReparametrizedModel: and should not be used / modified
-          elsewhere.
-        :param new_params: dictionary of new parameters of the
-          :class ReparametrizedModel:
-        :param bound_params: list of parameters of the :class Model: to be
-          reparametrized. These parameters are not exposed as parameters of the
-          :class ReparametrizedModel:.
+          by the ``ReparametrizedModel`` and should not be used / modified elsewhere.
+        :param new_params: dictionary of new parameters of the ``ReparametrizedModel``
+        :param bound_params: list of parameters of the
+          :class:`~ionics_fits.common.Model` to bound. These parameters are
+          not exposed as parameters of the ``ReparametrizedModel``.
         """
         self.model = model
         self.bound_params = bound_params
@@ -72,10 +124,10 @@ class ReparametrizedModel(Model):
         """Returns a dictionary of values of the model's bound parameters.
 
         This method must be overridden to specify the mapping from parameters of the
-        :class ReparameterizedModel: to values of the bound parameters.
+        ``ReparameterizedModel`` to values of the bound parameters.
 
         :param new_param_values: dictionary of parameter values for the
-          :class ReparameterizedModel:.
+          ``ReparameterizedModel``.
         :returns: dictionary of values for the bound parameters of the original model.
         """
         raise NotImplementedError
@@ -87,30 +139,30 @@ class ReparametrizedModel(Model):
         """Returns a dictionary of uncertainties for the model's bound parameters.
 
         This method must be overridden to specify the mapping from parameter
-        uncertainties for the :class ReparameterizedModel: to bound parameter
+        uncertainties for the ``ReparameterizedModel`` to bound parameter
         uncertainties.
 
         :param param_values: dictionary of values for parameters of the
-          :class ReparameterizedModel:.
+          ``ReparameterizedModel``.
         :param param_uncertainties: dictionary of uncertainties for parameters of the
-          :class ReparameterizedModel:.
+          ``ReparameterizedModel``.
         :returns: dictionary of values for the bound parameters of the original model.
         """
         raise NotImplementedError
 
     @staticmethod
     def new_param_values(model_param_values: Dict[str, float]) -> Dict[str, float]:
-        """Returns a dictionary of values of the model's "new" parameters.
+        r"""Returns a dictionary of values of the model's "new" parameters.
 
         This method must be overridden to specify the mapping from values of the
-        original model to values of the :class ReparametrizedModel:'s "new" parameters.
+        original model to values of the ``ReparametrizedModel``\'s "new" parameters.
 
-        This is used to find estimates for the new parameters from on the original
+        This is used to find estimates for the new parameters from the original
         model's parameter estimates.
 
         :param model_param_values: dictionary of parameter values for the original model
         :returns: dictionary of values for the "new" parameters of the
-          :class ReparametrizedModel:
+          ``ReparametrizedModel``.
         """
         raise NotImplementedError
 

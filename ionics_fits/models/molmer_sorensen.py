@@ -393,7 +393,7 @@ class MolmerSorensenFreq(MolmerSorensen):
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """Derived parameters:
-        
+
         * ``f_0``: resonance frequency offset (Hz)
         * ``f_loop_{n}``: frequency offset of nth loop closure (Hz) for ``n = [1, 5]``
         """

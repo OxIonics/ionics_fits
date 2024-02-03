@@ -8,17 +8,60 @@ from ...common import Model, ModelParameter, TX, TY
 
 
 class AggregateModel(Model):
-    """Model formed by aggregating one or more models.
+    """Model formed by combining one or more models along the y-axis to produce a new
+    model, whose number of y-axis dimensions is the sum of the y-dimensionalities of the
+    aggregated models.
 
-    When aggregating a number of identical models, use a :class RepeatedModel: instead.
+    When aggregating a number of identical models, use a
+    :class:`~ionics_fits.models.transformations.repeated_model.RepeatedModel` instead.
 
-    Aggregate models have a number of uses. For example
+    Aggregate models allow multiple data sets to be fit jointly, with some parameters
+    treated as "common" - their values forced to be the same for all of the aggregated
+    models.
 
-    * joint fits to multiple data sets (pass the datasets in as y axes and use
-      "common" parameters for any parameters which are fit jointly to all y axis
-      dimensions).
-    * fit multiple datasets simultaneously. This is useful, for example in automated
-      tooling such as `ndscan`'s `OnlineAnalysis`.
+    Example usage:
+
+    .. testcode::
+
+        from pprint import pprint
+
+        from ionics_fits.models.laser_rabi import LaserFlopTimeThermal
+        from ionics_fits.models.transformations.aggregate_model import AggregateModel
+
+        rsb = LaserFlopTimeThermal(start_excited=False, sideband_index=-1)
+        bsb = LaserFlopTimeThermal(start_excited=False, sideband_index=+1)
+
+        model = AggregateModel(
+            models={"rsb": rsb, "bsb": bsb},
+            common_params={
+                param: (rsb.parameters[param], [("rsb", param), ("bsb", param)])
+                for param in rsb.parameters.keys()
+            },
+        )
+
+        pprint(list(model.parameters.keys()))
+
+    .. testoutput::
+
+        ['P_readout_e',
+         'P_readout_g',
+         'eta',
+         'omega',
+         'tau',
+         't_dead',
+         'delta',
+         'n_bar']
+
+    This creates an ``AggregateModel``, which models Rabi flopping on the blue and red
+    sidebands of a pair of spins coupled to a motional mode starting in a thermal state.
+    In this example, all parameters for the two sideband models are fit jointly.
+
+    The first y-axis dimension (``y[0, :]``) from the ``AggregateModel`` stores the red
+    sideband with the second dimension storing the blue sideband.
+
+    At present this class only supports models with a single y-axis dimension. This
+    is just because no one got around to implementing it yet rather than any
+    fundamental difficulty.
     """
 
     def __init__(
@@ -30,39 +73,39 @@ class AggregateModel(Model):
     ):
         """
         :param models: The models to be aggregated. This should be a dictionary mapping
-          model names to model instances. The model names are used as suffixes for names
-          of model parameters and derived results. For example, if one of the aggregated
-          models named `model` has a parameter `param`, the aggregate model will have a
-          parameter `param_model`.
+            model names to model instances. The model names are used as suffixes for
+            names of model parameters and derived results. For example, if one of the
+            aggregated models named ``model`` has a parameter ``param``, the aggregate
+            model will have a parameter ``param_model``. The same applies to the
+            derived results.
 
-          The passed-in models are considered "owned" by the AggregateModel and should
-          not be used / modified elsewhere.
+            The order of the models in this dictionary defines the order of the y-axis
+            dimensions for the ``AggregateModel``.
+
+            The passed-in models are considered "owned" by the AggregateModel and should
+            not be used / modified elsewhere.
 
         :param common_params: Optional dictionary specifying "common" model parameters.
-          This feature allows multiple parameters (which can be from the same or
-          different models) to be fit jointly to a single value. The common parameters
-          are demoted to being `internal` model parameters and a new parameter is
-          introduced to expose the common value to the user.
+            This feature allows multiple parameters (which can be from the same or
+            different models) to be fit jointly to a single value. The common parameters
+            are replaced with a new parameter, which is introduced to expose the common
+            value to the user.
 
-          The parameter metadata (limits, fixed_to, user_estimate, etc.) from the new
-          parameter replaces the metadata for all parameters bound to it. Metadata set
-          on the bound parameters is disregarded.
+            The parameter metadata (limits, ``fixed_to``, ``user_estimate``, etc.) from
+            the new parameter replaces the metadata for all parameters bound to it.
+            Metadata set on the bound parameters is disregarded.
 
-          The dictionary keys are the names of the new model parameters.
+            The ``common_params`` dictionary keys are the names of the new model
+            parameters.
 
-          The dictionary values are a tuple containing the new model template parameter
-          and a list of parameters to bind to the new parameter. The bound parameter
-          lists should be lists of tuples, specifying the parameters to bind to the new
-          parameter. The tuples should contain two strings, specifying the name of the
-          model which owns the common parameter, and the name of the model parameter to
-          make common.
+            The dictionary values should be tuples containing the new model template
+            parameter and a list of parameters to bind to the new parameter. The bound
+            parameter lists should be lists of tuples, comprised of a pair of strings
+            specifying the name of the model which owns the common parameter, and the
+            name of the model parameter to make common.
 
-          The new model parameters inherit their metadata (limits etc.) from the
-          template parameters, which are (deep) copied and are not modified.
-
-        At present this class only supports models with a single y-axis dimension. This
-        is just because no one got around to implementing it yet rather than any
-        fundamental difficulty.
+            The new model parameters inherit their metadata (limits etc.) from the
+            template parameters, which are (deep) copied and are not modified.
         """
         self.models = models
 
