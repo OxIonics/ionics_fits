@@ -100,8 +100,12 @@ class RepeatedModel(Model):
         return self.num_repetitions * self.model.get_num_y_axes()
 
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
-        x_scales, y_scales = self.model.can_rescale()
-        return x_scales, y_scales * self.num_repetitions
+        # Disable y-axis rescaling so we don't end up with multiple different scale
+        # factors for the common parameters. To support rescaling here we would need to
+        # extend Fitter to allow the model to have some control over the axis scale
+        # factors.
+        x_scales, _ = self.model.can_rescale()
+        return x_scales, [False] * self.get_num_y_axes()
 
     def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         x = np.atleast_2d(x)

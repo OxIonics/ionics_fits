@@ -755,12 +755,14 @@ class Fitter:
 
         if len(rescale_xs) != self.model.get_num_x_axes():
             raise ValueError(
-                "Unexpected number of x-axis results returned from model.can_rescale"
+                "Unexpected number of x-axis results returned from model.can_rescale: "
+                f"expected {self.model.get_num_x_axes()}, got {len(rescale_xs)}"
             )
 
         if len(rescale_ys) != self.model.get_num_y_axes():
             raise ValueError(
-                "Unexpected number of y-axis results returned from model.can_rescale"
+                "Unexpected number of y-axis results returned from model.can_rescale: "
+                f"expected {self.model.get_num_y_axes()}, got {len(rescale_ys)}"
             )
 
         self.x_scales = np.array(
