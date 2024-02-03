@@ -4,7 +4,7 @@ results. This is where validators come in.
 There are two distinct aspects to the validation problem:
 
 * did the fit find the model parameters which best match the data (as opposed to getting
-  stuck in a local minimum in parameter space far from the global optimum)? 
+  stuck in a local minimum in parameter space far from the global optimum)?
 * Are the fitted parameter values consistent with our prior knowledge of the system
   (e.g. we know that a fringe contrast must lie within certain bounds).
 
@@ -31,7 +31,7 @@ class FitValidator:
         fit validation. This implementation includes all x-axis data points;
         override to only include a subset.
         """
-        return np.full(fit_results.x.shape, True)
+        return np.full(fit_results.x.shape[1], True)
 
     def validate(self, fit_results: Fitter) -> Tuple[bool, float]:
         """Validates the fit.
@@ -67,16 +67,11 @@ class NSigmaValidator(FitValidator):
                 "Cannot validate fit without standard errors for each point"
             )
 
-        x = fit_results.x
-        y = fit_results.y
-        sigma = fit_results.sigma
+        window = self.window_fun(fit_results)
 
-        if list(fit_results.x) == 1:
-            window = self.window_fun(fit_results)
-
-            x = fit_results.x[window]
-            y = fit_results.y[:, window]
-            sigma = fit_results.sigma[:, window]
+        x = fit_results.x[:, window]
+        y = fit_results.y[:, window]
+        sigma = fit_results.sigma[:, window]
 
         _, y_fit = fit_results.evaluate(x_fit=x)
 
