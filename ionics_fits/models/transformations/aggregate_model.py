@@ -116,16 +116,15 @@ class AggregateModel(Model):
 
         # make model scale functions use correct y-axis dimension
         def wrapped_scale_func(model_idx, scale_func, x_scales, y_scales):
-            y_scales_model = [y_scales[model_idx]]
-            return scale_func(x_scales, y_scales_model)
+            return scale_func(x_scales, [y_scales[model_idx]])
 
         for idx, model in enumerate(self.models.values()):
             model_params = list(model.parameters.values()) + model.internal_parameters
             for parameter in model_params:
-                wrapped_param_scale_func = partial(
-                    wrapped_scale_func, idx, parameter.scale_func
-                )
+                scale_func = parameter.scale_func
+                wrapped_param_scale_func = partial(wrapped_scale_func, idx, scale_func)
                 parameter.scale_func = wrapped_param_scale_func
+                parameter.scale_func.__name__ = scale_func.__name__
 
         common_params = common_params or {}
 
