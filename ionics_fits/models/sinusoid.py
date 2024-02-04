@@ -188,3 +188,115 @@ class SineMinMax(ReparametrizedModel):
             "max": (model_param_values["y0"] + model_param_values["a"]),
             "min": (model_param_values["y0"] - model_param_values["a"]),
         }
+
+
+class Sine2(Sinusoid):
+    """Sine-squared fit according to::
+
+        y = Gamma * a * [sin(omega * (x - x0) + phi)]**2 + y0
+        Gamma = np.exp(-x / tau)
+
+    See also :class:`~ionics_fits.models.sinusoid.Sinusoid`.
+    """
+
+    # pytype: disable=invalid-annotation
+    def _func(
+        self,
+        x: TX,
+        a: ModelParameter(lower_bound=0, scale_func=scale_y()),
+        omega: ModelParameter(lower_bound=0, scale_func=scale_x_inv()),
+        phi: utils.PeriodicModelParameter(
+            period=2 * np.pi,
+            offset=-np.pi,
+            scale_func=scale_invariant,
+        ),
+        y0: ModelParameter(scale_func=scale_y()),
+        x0: ModelParameter(fixed_to=0, scale_func=scale_x()),
+        tau: ModelParameter(
+            lower_bound=0,
+            fixed_to=np.inf,
+            scale_func=scale_x(),
+        ),
+    ) -> TY:
+        """
+        :param a: initial (``x = 0``) amplitude of the sinusoid
+        :param omega: angular frequency
+        :param phi: phase offset
+        :param y0: y-axis offset
+        :param x0: x-axis offset
+        :param tau: decay/growth constant
+        """
+        Gamma = np.exp(-x / tau)
+        return Gamma * a * (np.sin(omega * (x - x0) + phi) ** 2) + y0
+
+    # pytype: enable=invalid-annotation
+
+    def estimate_parameters(self, x: TX, y: TY):
+        # Use the identity: sin(x)**2 = 1/2 * (1 + sin(2*x- pi/2))
+        # a * [sin(omega * (x - x0) + phi)]**2 + y0
+        # = 0.5 * a * (1 + sin(2*omega * (x - x0) + 2*phi - pi/2)) + y0
+        # = a' * sin(omega' * (x - x0) + phi') + y0'
+        #
+        # where
+        #  - a' = 0.5 * a
+        #  - omega' = 2 * omega
+        #  - phi' = 2 * phi - pi / 2
+        #  - y0' = y0 + a'
+
+        sine = Sinusoid()
+
+        attrs = ["lower_bound", "upper_bound", "fixed_to", "user_estimate"]
+        for param in ["x0", "tau"]:
+            for attr_name in attrs:
+                attr_value = getattr(self.parameters[param], attr_name)
+                setattr(sine.parameters[param], attr_name, attr_value)
+
+        for attr_name in attrs:
+            attr_value = getattr(self.parameters["a"], attr_name)
+            if attr_value is None:
+                attr_value_pr = None
+            else:
+                attr_value_pr = 0.5 * attr_value
+            setattr(sine.parameters["a"], attr_name, attr_value_pr)
+
+        for attr_name in attrs:
+            attr_value = getattr(self.parameters["omega"], attr_name)
+            if attr_value is None:
+                attr_value_pr = None
+            else:
+                attr_value_pr = 2 * attr_value
+            setattr(sine.parameters["omega"], attr_name, attr_value_pr)
+
+        for attr_name in attrs:
+            attr_value = getattr(self.parameters["phi"], attr_name)
+            if attr_value is None:
+                attr_value_pr = None
+            else:
+                attr_value_pr = 2 * attr_value - np.pi / 2
+            setattr(sine.parameters["phi"], attr_name, attr_value_pr)
+
+        # y0 and a are coupled in the sine2x model so we can't trivially transfer
+        # bounds across
+        if (
+            self.parameters["y0"].has_user_initial_value()
+            and self.parameters["a"].has_user_initial_value()
+        ):
+            a = self.parameters["a"].get_initial_value()
+            y0 = self.parameters["y0"].get_initial_value()
+            y0_pr = y0 + a
+            sine.parameters["y0"].user_estimate = y0_pr
+
+        sine.estimate_parameters(x, y)
+
+        self.parameters["tau"].heuristic = sine.parameters["tau"].get_initial_value()
+        self.parameters["x0"].heuristic = sine.parameters["x0"].get_initial_value()
+
+        a_pr = sine.parameters["a"].get_initial_value()
+        omega_pr = sine.parameters["omega"].get_initial_value()
+        phi_pr = sine.parameters["phi"].get_initial_value()
+        y0_pr = sine.parameters["y0"].get_initial_value()
+
+        self.parameters["a"].heuristic = 2 * a_pr
+        self.parameters["omega"].heuristic = omega_pr / 2
+        self.parameters["phi"].heuristic = (phi_pr + np.pi / 2) / 2
+        self.parameters["y0"].heuristic = y0_pr - a_pr

@@ -1,6 +1,6 @@
 import numpy as np
 
-from ionics_fits.models.sinusoid import Sinusoid, SineMinMax
+from ionics_fits.models.sinusoid import Sinusoid, SineMinMax, Sine2
 from .common import check_multiple_param_sets, check_single_param_set, fuzz, Config
 
 
@@ -61,6 +61,41 @@ def test_sinusoid_heuristic(plot_failures: bool):
         model,
         params,
         Config(plot_failures=plot_failures, heuristic_tol=0.02),
+    )
+
+
+def test_sine2_heuristic(plot_failures: bool):
+    """Check that the Sine2 heuristic gives an accurate estimate in an easy case"""
+    x = np.linspace(-10, 10, 1000)
+    params = {
+        "a": 2,
+        "omega": 10 / (2 * np.pi),
+        "phi": 0.75,
+        "y0": 1,
+        "x0": 0,
+        "tau": np.inf,
+    }
+
+    model = Sine2()
+    check_single_param_set(
+        x,
+        model,
+        params,
+        Config(plot_failures=plot_failures, heuristic_tol=0.075),
+    )
+
+    # Check the parameter estimator transfers user estimates across to its internal
+    # sin-2x model
+    model = Sine2()
+    for param_name, param_value in params.items():
+        if model.parameters[param_name].fixed_to is None:
+            model.parameters[param_name].user_estimate = param_value
+
+    check_single_param_set(
+        x,
+        model,
+        params,
+        Config(plot_failures=plot_failures, heuristic_tol=0),
     )
 
 
