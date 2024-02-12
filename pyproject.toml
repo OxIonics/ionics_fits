@@ -6,10 +6,10 @@ authors = ["hartytp <thomas.peter.harty@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.8, <3.11"
-numpy = "^1.21.2"
+python = "^3.12"
+numpy = "^1.26"
 scipy = "^1.7.1"
-statsmodels = "^0.13.2"
+statsmodels = "^0.14"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
@@ -18,8 +18,8 @@ flake8 = "^4.0.1"
 black = "^22.6.0"
 pyqt5 = "^5.15.9"
 pyqt5-qt5 = "^5.15.2, <5.15.11" # no windows wheels for 5.15.11 as of 24/10/2023
-matplotlib = "^3.5.3"
-pytype = {version = "^2022.4.15", markers = "os_name == 'posix'"}
+matplotlib = "^3.8.2"
+pytype = {version = "<2023.10.05", markers = "os_name == 'posix'"}
 sphinx = "^6.0"
 sphinx-rtd-theme = "^1.2.0"
 sphinx-mdinclude = "^0.5.3"
@@ -35,7 +35,13 @@ requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    "ignore:ast\\.Str is deprecated:DeprecationWarning",
+    "ignore:datetime\\.datetime\\.utcfromtimestamp\\(\\) is deprecated:DeprecationWarning",
+    "ignore:\\nPyarrow will become a required dependency:DeprecationWarning"
+]
+
 
 [tool.poe.tasks]
 test = "pytest"
