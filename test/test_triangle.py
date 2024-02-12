@@ -1,7 +1,7 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.triangle import Triangle
+from .common import check_multiple_param_sets, fuzz, Config
 
 
 def test_triangle(plot_failures: bool):
@@ -15,21 +15,21 @@ def test_triangle(plot_failures: bool):
         "y_min": -np.inf,
         "y_max": +np.inf,
     }
-    model = fits.models.Triangle()
+    model = Triangle()
     model.parameters["sym"].fixed_to = None
 
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures),
+        Config(plot_failures=plot_failures),
     )
 
 
 def fuzz_triangle(
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     x = np.linspace(-2, 2, 100)
     fuzzed_params = {
@@ -40,10 +40,10 @@ def fuzz_triangle(
     }
     static_params = {"y_min": -np.inf, "y_max": +np.inf}
 
-    model = fits.models.Triangle()
+    model = Triangle()
     model.parameters["sym"].fixed_to = None
 
-    return common.fuzz(
+    return fuzz(
         x=x,
         model=model,
         static_params=static_params,

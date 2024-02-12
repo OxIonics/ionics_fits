@@ -6,8 +6,10 @@ import pprint
 import traceback
 from typing import Callable, Dict, Optional, List, Tuple, Type, TYPE_CHECKING
 
-import ionics_fits as fits
-
+from ionics_fits.common import Fitter, Model
+from ionics_fits.models.heuristics import get_spectrum
+from ionics_fits.normal import NormalFitter
+from ionics_fits.utils import Array, ArrayLike
 
 if TYPE_CHECKING:
     num_samples = float
@@ -18,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 def is_close(
-    a: fits.utils.ArrayLike[("num_samples",), np.float64],
-    b: fits.utils.ArrayLike[("num_samples",), np.float64],
+    a: ArrayLike[("num_samples",), np.float64],
+    b: ArrayLike[("num_samples",), np.float64],
     tol: float,
 ):
     """Returns True if `a` and `b` are approximately equal.
@@ -49,11 +51,13 @@ def params_close(
 
 
 @dataclasses.dataclass
-class TestConfig:
+class Config:
     """Configuration settings for a model test.
 
     Attributes (test are only performed if values are not `None`):
+        :param_tol: tolerance to check fitted parameter values against
         :param residual_tol: tolerance to check fit residuals against
+        :param heuristic_tol: tolerance to check heuristic values against
         :param plot_failures: if `True` we plot the dataset/fit results for failed tests
         :param plot_all: if `True` we plot every run, not just failures (used in
             debugging)
@@ -61,16 +65,17 @@ class TestConfig:
 
     param_tol: Optional[float] = 1e-3
     residual_tol: Optional[float] = None
+    heuristic_tol: Optional[float] = None
     plot_failures: bool = True
     plot_all: bool = False
 
 
 def check_single_param_set(
-    x: fits.utils.ArrayLike[("num_samples",), np.float64],
-    model: fits.common.Model,
+    x: ArrayLike[("num_samples",), np.float64],
+    model: Model,
     test_params: Dict[str, float],
-    config: Optional[TestConfig] = None,
-    fitter_cls: Optional[Type[fits.common.Fitter]] = fits.normal.NormalFitter,
+    config: Optional[Config] = None,
+    fitter_cls: Optional[Type[Fitter]] = NormalFitter,
     fitter_args: Optional[Dict] = None,
     user_estimates: Optional[List[str]] = None,
 ):
@@ -85,10 +90,10 @@ def check_single_param_set(
     :param user_estimates: list of names of parameters to supply initial
         guesses for
     """
-    fitter_cls = fitter_cls if fitter_cls is not None else fits.normal.NormalFitter
+    fitter_cls = fitter_cls if fitter_cls is not None else NormalFitter
 
     x = np.asarray(x)
-    config = config or TestConfig()
+    config = config or Config()
 
     if set(test_params.keys()) != set(model.parameters.keys()):
         raise ValueError(
@@ -143,6 +148,22 @@ def check_single_param_set(
             f"free parameters were: {fit.free_parameters}"
         )
 
+    if config.heuristic_tol is not None and not params_close(
+        test_params, fit.initial_values, config.heuristic_tol
+    ):
+        if config.plot_failures:
+            _plot(
+                fit,
+                y,
+            )
+
+        raise ValueError(
+            "Error in heuristics is too large:\n"
+            f"test parameter set was: {params_str}\n"
+            f"estimated parameters were: {initial_params_str}\n"
+            f"free parameters were: {fit.free_parameters}"
+        )
+
     if config.residual_tol is not None and not is_close(
         y, fit.evaluate()[1], config.residual_tol
     ):
@@ -153,7 +174,7 @@ def check_single_param_set(
             )
 
         raise ValueError(
-            "Error in parameter values is too large:\n"
+            "Error in residuals is too large:\n"
             f"test parameter set was: {params_str}\n"
             f"fitted parameters were: {fitted_params_str}\n"
             f"estimated parameters were: {initial_params_str}\n"
@@ -165,8 +186,8 @@ def check_single_param_set(
 
 
 def _plot(
-    fit: fits.common.Fitter,
-    y_model: fits.utils.Array[("num_samples",), np.float64],
+    fit: Fitter,
+    y_model: Array[("num_samples",), np.float64],
 ):
 
     y_model = y_model
@@ -177,36 +198,40 @@ def _plot(
     y_heuristic = np.atleast_2d(y_heuristic)
     y_fit = np.atleast_2d(y_fit)
 
-    _, ax = plt.subplots(fit.model.get_num_y_channels(), 2)
-    for ch in range(fit.model.get_num_y_channels()):
+    _, ax = plt.subplots(fit.model.get_num_y_axes(), 2)
+    for ch in range(fit.model.get_num_y_axes()):
+
+        x = fit.x.squeeze()
+        if x.ndim != 1:
+            raise ValueError(
+                "Plotting is only supported for models with a single x axis"
+            )
 
         y_model_ch = y_model[ch, :]
         y_fit_ch = y_fit[ch, :]
         y_heuristic_ch = y_heuristic[ch, :]
 
-        if fit.model.get_num_y_channels() == 1:
+        if fit.model.get_num_y_axes() == 1:
             ax = np.expand_dims(ax, axis=0)
 
         ax[ch, 0].set_title(fit.model.__class__.__name__)
-        ax[ch, 0].plot(fit.x, y_model_ch, "-o", label="model")
-        ax[ch, 0].plot(fit.x, y_fit_ch, "-.o", label="fit")
+        ax[ch, 0].plot(x, y_model_ch, "-o", label="model")
+        ax[ch, 0].plot(x, y_fit_ch, "-.o", label="fit")
         ax[ch, 0].plot(
-            fit.x,
+            x,
             y_heuristic_ch,
             "--o",
             label="heuristic",
         )
         ax[ch, 0].set(
-            xlabel="x", ylabel="y" if fit.model.get_num_y_channels() == 1 else f"y_{ch}"
+            xlabel="x", ylabel="y" if fit.model.get_num_y_axes() == 1 else f"y_{ch}"
         )
         ax[ch, 0].grid()
         ax[ch, 0].legend()
 
-        freq_model, y_f_model = fits.models.heuristics.get_spectrum(fit.x, y_model_ch)
-        freq_fit, y_f_fit = fits.models.heuristics.get_spectrum(fit.x, y_fit_ch)
-        freq_heuristic, y_f_heuristic = fits.models.heuristics.get_spectrum(
-            fit.x, y_heuristic_ch
-        )
+        freq_model, y_f_model = get_spectrum(fit.x, y_model_ch)
+        freq_fit, y_f_fit = get_spectrum(fit.x, y_fit_ch)
+        freq_heuristic, y_f_heuristic = get_spectrum(fit.x, y_heuristic_ch)
 
         ax[ch, 1].set_title(f"{fit.model.__class__.__name__} spectrum")
         ax[ch, 1].plot(freq_model, np.abs(y_f_model), "-o", label="model")
@@ -225,11 +250,11 @@ def _plot(
 
 
 def check_multiple_param_sets(
-    x: fits.utils.ArrayLike[("num_samples",), np.float64],
-    model: fits.common.Model,
+    x: ArrayLike[("num_samples",), np.float64],
+    model: Model,
     test_params: Dict[str, List[float]],
-    config: Optional[TestConfig] = None,
-    fitter_cls: Type[fits.common.Fitter] = fits.normal.NormalFitter,
+    config: Optional[Config] = None,
+    fitter_cls: Type[Fitter] = NormalFitter,
     fitter_args: Optional[Dict] = None,
     user_estimates: Optional[List[str]] = None,
 ):
@@ -289,12 +314,12 @@ def check_multiple_param_sets(
 
 
 def fuzz(
-    x: fits.utils.ArrayLike[("num_samples",), np.float64],
-    model: fits.common.Model,
+    x: ArrayLike[("num_samples",), np.float64],
+    model: Model,
     static_params: Dict[str, float],
     fuzzed_params: Dict[str, Tuple[float, float]],
-    test_config: Optional[TestConfig] = None,
-    fitter_cls: Optional[Type[fits.common.Fitter]] = fits.normal.NormalFitter,
+    test_config: Optional[Config] = None,
+    fitter_cls: Optional[Type[Fitter]] = NormalFitter,
     fitter_args: Optional[Dict] = None,
     num_trials: int = 100,
     stop_at_failure: bool = True,

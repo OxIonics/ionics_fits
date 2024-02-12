@@ -1,34 +1,29 @@
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple
 
 import numpy as np
 
 from . import heuristics
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
+from ..common import Model, ModelParameter, TX, TY
+from ..utils import scale_invariant, scale_undefined, scale_x, scale_x_inv
 
 
 class MolmerSorensen(Model):
-    """Base class for Mølmer–Sørensen interactions.
+    r"""Base class for Mølmer–Sørensen interactions.
 
     This model calculates the time-dependent populations for one or two qubits
     coupled to a single motional mode undergoing a Mølmer–Sørensen type
     interaction.
 
     It requires that the initial spin states of all qubits are the same
-    and either |g> or |e> - different initial states for each qubit or initial
+    and either ``|g>`` or ``|e>`` - different initial states for each qubit or initial
     states which are superpositions of spin eigenstates are are not supported.
 
-    For single-qubit interactions, the model has one y channel, giving the
+    For single-qubit interactions, the model has one y-axis dimension, giving the
     excited-state population at the end of the interaction.
 
-    For two-qubit interactions, the model has three y channels - P_gg, P_1e,
-    P_ee - giving the probabilities of 0, 1 or 2 ions being in the excited state
-    at the end of the interaction duration.
+    For two-qubit interactions, the model has three y-axis dimensions - ``P_gg``\,
+    ``P_1e``\, ``P_ee`` - giving the probabilities of 0, 1 or 2 ions being in the
+    excited state at the end of the interaction duration.
 
     Modulation of the sign of the spin-dependent force according to a Walsh
     function is supported.
@@ -39,28 +34,20 @@ class MolmerSorensen(Model):
     instead.
 
     Independent variables:
-        - t_pulse: total interaction duration.
-        - w: detuning of red/blue sideband tones relative to reference frequency
-            `w_0`. The interaction detuning is given by `delta = w - w_0`.
 
-    Model parameters:
-        - omega: sideband Rabi frequency
-        - w_0: angular resonance frequency offset
-        - n_bar: average initial occupancy of the motional mode (fixed to 0 by
-            default)
-
-    Derived parameters:
-        - f_0: resonance frequency offset (Hz)
+        * ``t_pulse``: total interaction duration.
+        * ``w``: detuning of red/blue sideband tones relative to reference frequency
+          ``w_0``. The interaction detuning is given by ``delta = w - w_0``.
 
     All frequencies are in angular units unless stated otherwise.
     """
 
     def __init__(self, num_qubits: int, start_excited: bool, walsh_idx: int):
-        """
+        r"""
         :param num_qubits: number of qubits (must be 1 or 2)
         :param walsh_idx: Index of Walsh function
-        :param start_excited: If True, all qubits start in |e>, otherwise they
-            start in |g>
+        :param start_excited: If True, all qubits start in ``|e>``\ , otherwise they
+            start in ``|g>``.
         """
         super().__init__()
 
@@ -73,24 +60,32 @@ class MolmerSorensen(Model):
         self.start_excited = start_excited
         self.walsh_idx = walsh_idx
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
+        return 1
+
+    def get_num_y_axes(self) -> int:
         return [1, 3][self.num_qubits - 1]
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, False
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [False] * self.get_num_y_axes()
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Tuple[
-            Array[("num_samples",), np.float64], Array[("num_samples",), np.float64]
-        ],
-        omega: ModelParameter(lower_bound=0.0, scale_func=common.scale_undefined),
-        w_0: ModelParameter(scale_func=common.scale_undefined),
+        x: TX,
+        omega: ModelParameter(lower_bound=0.0, scale_func=scale_undefined),
+        w_0: ModelParameter(scale_func=scale_undefined),
         n_bar: ModelParameter(
-            lower_bound=0.0, fixed_to=0.0, scale_func=common.scale_invariant
+            lower_bound=0.0, fixed_to=0.0, scale_func=scale_invariant
         ),
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    ) -> TY:
+        r"""Return measurement probabilities for the states ``P_gg``\, ``P_1``\, and
+        ``P_ee``.
+
+        :param omega: sideband Rabi frequency
+        :param w_0: angular resonance frequency offset
+        :param n_bar: average initial occupancy of the motional mode
+        """
 
         t_pulse = x[0]
         delta = x[1] - w_0
@@ -187,11 +182,15 @@ class MolmerSorensen(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """Derived parameters:
+
+        * ``f_0``: resonance frequency offset (Hz)
+        """
         derived_params = {}
         w_0_param = "w_0" if "w_0" in fitted_params.keys() else "delta"
         derived_params["f_0"] = fitted_params[w_0_param] / (2 * np.pi)
@@ -205,7 +204,7 @@ class MolmerSorensen(Model):
 
 
 class MolmerSorensenTime(MolmerSorensen):
-    """
+    r"""
     Fit model for Mølmer–Sørensen pulse duration scans.
 
     This model calculates the populations for Mølmer–Sørensen interactions
@@ -213,7 +212,7 @@ class MolmerSorensenTime(MolmerSorensen):
     is varied.
 
     Since the detuning is not scanned as an independent variable, we replace
-    `w_0` with a new model parameter `delta`, defined by `delta = |w - w_0|`.
+    ``w_0`` with a new model parameter ``delta``\ , defined by ``delta = |w - w_0|``.
     """
 
     def __init__(self, num_qubits: int, start_excited: bool, walsh_idx: int):
@@ -221,14 +220,12 @@ class MolmerSorensenTime(MolmerSorensen):
             num_qubits=num_qubits, start_excited=start_excited, walsh_idx=walsh_idx
         )
 
-        self.parameters["delta"] = ModelParameter(scale_func=common.scale_x_inv)
+        self.parameters["delta"] = ModelParameter(scale_func=scale_x_inv())
         del self.parameters["w_0"]
 
-        self.parameters["omega"].scale_func = common.scale_x_inv
+        self.parameters["omega"].scale_func = scale_x_inv()
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         """
         Return populations as function of pulse duration for fixed detuning.
 
@@ -239,11 +236,9 @@ class MolmerSorensenTime(MolmerSorensen):
         param_values["w_0"] = 0.0
         return self._func((x, delta), **param_values)  # pytype: disable=wrong-arg-types
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
+
         self.parameters["n_bar"].heuristic = 0.0
         if (
             not self.parameters["delta"].has_user_initial_value()
@@ -278,17 +273,13 @@ class MolmerSorensenTime(MolmerSorensen):
 
 
 class MolmerSorensenFreq(MolmerSorensen):
-    """
+    r"""
     Fit model for Mølmer–Sørensen detuning scans.
 
     This model calculates the populations for Mølmer–Sørensen interactions
     when the gate duration is kept fixed and only the interaction detuning is
-    varied. The pulse duration is specified using a new `t_pulse` model
+    varied. The pulse duration is specified using a new ``t_pulse`` model
     parameter.
-
-    Derived parameters:
-        - f_loop_{n}: frequency offset of nth loop closure (Hz) for n = [1, 5]
-
     """
 
     def __init__(self, num_qubits: int, start_excited: bool, walsh_idx: int):
@@ -297,15 +288,13 @@ class MolmerSorensenFreq(MolmerSorensen):
         )
 
         self.parameters["t_pulse"] = ModelParameter(
-            lower_bound=0.0, scale_func=common.scale_x_inv
+            lower_bound=0.0, scale_func=scale_x_inv()
         )
 
-        self.parameters["omega"].scale_func = common.scale_x
-        self.parameters["w_0"].scale_func = common.scale_x
+        self.parameters["omega"].scale_func = scale_x()
+        self.parameters["w_0"].scale_func = scale_x()
 
-    def func(
-        self, x: Array[("num_samples",), np.float64], param_values: Dict[str, float]
-    ) -> Array[("num_y_channels", "num_samples"), np.float64]:
+    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         """
         Return populations as function of detuning for fixed duration.
 
@@ -317,11 +306,8 @@ class MolmerSorensenFreq(MolmerSorensen):
             (t_pulse, x), **param_values
         )  # pytype: disable=wrong-arg-types
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
-    ):
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         self.parameters["n_bar"].heuristic = 0.0
 
         # estimate the centre frequency by looking for the symmetry point.
@@ -401,20 +387,34 @@ class MolmerSorensenFreq(MolmerSorensen):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_y_channels", "num_samples"), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        r"""Derived parameters:
+
+        * ``f_0``: resonance frequency offset (Hz)
+        * ``f_loop_{n}_{i}``: frequency offset of ``n``\th loop closure (Hz) for
+          ``n = [1, 5]`` at "plus" (``i = p``\) or "minus" (``i = m``\) detuning
+        """
+
         derived_params, derived_uncertainties = super().calculate_derived_params(
             x, y, fitted_params, fit_uncertainties
         )
 
         for n in range(1, 6):
-            derived_params[f"f_loop_{n}"] = (
+            derived_params[f"f_loop_{n}_p"] = (
                 n / fitted_params["t_pulse"] + derived_params["f_0"]
             )
-            derived_uncertainties[f"f_loop_{n}"] = np.sqrt(
+            derived_params[f"f_loop_{n}_m"] = (
+                -n / fitted_params["t_pulse"] + derived_params["f_0"]
+            )
+            derived_uncertainties[f"f_loop_{n}_p"] = np.sqrt(
+                (n * fit_uncertainties["t_pulse"]) ** 2
+                + derived_uncertainties["f_0"] ** 2
+            )
+            derived_uncertainties[f"f_loop_{n}_m"] = np.sqrt(
                 (n * fit_uncertainties["t_pulse"]) ** 2
                 + derived_uncertainties["f_0"] ** 2
             )

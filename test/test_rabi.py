@@ -1,7 +1,81 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.sinc import Sinc2
+from ionics_fits.models.rabi import RabiFlopFreq, RabiFlopTime
+from ionics_fits.normal import NormalFitter
+from .common import check_multiple_param_sets, check_single_param_set, fuzz, Config
+
+
+def test_155(plot_failures):
+    """Regression test for issue #155"""
+    x = np.array(
+        [
+            6.20335041,
+            6.20667686,
+            6.21000332,
+            6.21332977,
+            6.21665623,
+            6.21998268,
+            6.22330913,
+            6.22663559,
+            6.22996204,
+            6.2332885,
+            6.23661495,
+            6.2399414,
+            6.24326786,
+            6.24659431,
+            6.24992077,
+            6.25324722,
+            6.25657368,
+            6.25990013,
+            6.26322658,
+            6.26655304,
+            6.26987949,
+            6.27320595,
+            6.2765324,
+            6.27985885,
+            6.28318531,
+        ]
+    )
+    y = np.array(
+        [
+            [
+                0.14,
+                0.18,
+                0.1,
+                0.04,
+                0.04,
+                0.06,
+                0.08,
+                0.2,
+                0.18,
+                0.5,
+                0.64,
+                0.72,
+                0.9,
+                0.92,
+                1.0,
+                0.92,
+                0.88,
+                0.74,
+                0.58,
+                0.42,
+                0.22,
+                0.14,
+                0.1,
+                0.06,
+                0.1,
+            ]
+        ]
+    )
+
+    model = Sinc2()
+    fit = NormalFitter(x=x, y=y, model=model)
+
+    assert np.abs(1 - fit.initial_values["x0"] / 6.24) < 0.01
+    assert np.abs(fit.initial_values["y0"] - 0.06733490126289012) < 0.1
+    assert np.abs(1 - fit.initial_values["a"] / 0.927) < 0.05
+    assert np.abs(1 - fit.initial_values["w"] / 98.3) < 0.25
 
 
 def _test_rabi_freq(plot_failures: bool, P_readout_e: float):
@@ -18,13 +92,11 @@ def _test_rabi_freq(plot_failures: bool, P_readout_e: float):
         "tau": np.inf,
     }
 
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         w,
-        fits.models.RabiFlopFreq(start_excited=True),
+        RabiFlopFreq(start_excited=True),
         params,
-        common.TestConfig(
-            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
-        ),
+        Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
     )
 
 
@@ -51,16 +123,14 @@ def test_rabi_freq_w0_only(plot_failures: bool):
 
     for omega in np.array([0.1, 0.25, 1]):
         params["omega"] = omega * np.pi / t_pulse
-        model = fits.models.RabiFlopFreq(start_excited=True)
+        model = RabiFlopFreq(start_excited=True)
         model.parameters["omega"].fixed_to = params["omega"]
         model.parameters["t_pulse"].fixed_to = params["t_pulse"]
-        common.check_multiple_param_sets(
+        check_multiple_param_sets(
             w,
             model,
             params,
-            common.TestConfig(
-                plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
-            ),
+            Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
         )
 
 
@@ -80,13 +150,11 @@ def _test_rabi_time(plot_failures: bool, P_readout_e: float):
         "tau": np.inf,
     }
 
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         t_pulse,
-        fits.models.RabiFlopTime(start_excited=True),
+        RabiFlopTime(start_excited=True),
         params,
-        common.TestConfig(
-            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
-        ),
+        Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
     )
 
 
@@ -112,19 +180,17 @@ def test_rabi_tau(plot_failures: bool):
         "t_dead": 0.0,
         "tau": 2 * t_pi,
     }
-    model = fits.models.RabiFlopTime(start_excited=True)
+    model = RabiFlopTime(start_excited=True)
     model.parameters["P_readout_e"].fixed_to = params["P_readout_e"]
     model.parameters["P_readout_g"].fixed_to = params["P_readout_g"]
     model.parameters["delta"].fixed_to = params["delta"]
     model.parameters["tau"].fixed_to = None
 
-    common.check_single_param_set(
+    check_single_param_set(
         t_pulse,
         model,
         params,
-        common.TestConfig(
-            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
-        ),
+        Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
     )
 
 
@@ -141,18 +207,16 @@ def test_rabi_time_offset(plot_failures: bool):
         "t_dead": 0.0,
         "tau": np.inf,
     }
-    model = fits.models.RabiFlopTime(start_excited=True)
+    model = RabiFlopTime(start_excited=True)
     model.parameters["P_readout_e"].fixed_to = params["P_readout_e"]
     model.parameters["P_readout_g"].fixed_to = params["P_readout_g"]
     model.parameters["delta"].fixed_to = params["delta"]
 
-    common.check_single_param_set(
+    check_single_param_set(
         t_pulse,
         model,
         params,
-        common.TestConfig(
-            plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
-        ),
+        Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
     )
 
 
@@ -160,7 +224,7 @@ def _fuzz_rabi_freq(
     P_readout_e: float,
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     delta = np.linspace(-2e6, 2e6, 200) * 2 * np.pi
     fuzzed_params = {
@@ -189,9 +253,9 @@ def _fuzz_rabi_freq(
     test_config.param_tol = None
     test_config.residual_tol = 1e-2
 
-    return common.fuzz(
+    return fuzz(
         x=delta,
-        model=fits.models.RabiFlopFreq(start_excited=True),
+        model=RabiFlopFreq(start_excited=True),
         static_params=static_params,
         fuzzed_params=fuzzed_params,
         test_config=test_config,
@@ -205,7 +269,7 @@ def _fuzz_rabi_time(
     P_readout_e: float,
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     t = np.linspace(0, 20e-6, 400) * 2 * np.pi
     fuzzed_params = {
@@ -221,7 +285,7 @@ def _fuzz_rabi_time(
     }
 
     # If we float the readout levels and the detuning the fits are under-defined
-    model = fits.models.RabiFlopTime(start_excited=True)
+    model = RabiFlopTime(start_excited=True)
     model.parameters["P_readout_e"].fixed_to = P_readout_e
     model.parameters["P_readout_g"].fixed_to = 1 - P_readout_e
 
@@ -238,7 +302,7 @@ def _fuzz_rabi_time(
     test_config.param_tol = None
     test_config.residual_tol = 1e-2
 
-    return common.fuzz(
+    return fuzz(
         x=t,
         model=model,
         static_params=static_params,
@@ -253,7 +317,7 @@ def _fuzz_rabi_time(
 def fuzz_rabi_time(
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     return _fuzz_rabi_time(
         P_readout_e=1.0,
@@ -266,7 +330,7 @@ def fuzz_rabi_time(
 def fuzz_rabi_time_inverted(
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     return _fuzz_rabi_time(
         P_readout_e=0.0,
@@ -279,7 +343,7 @@ def fuzz_rabi_time_inverted(
 def fuzz_rabi_freq(
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     return _fuzz_rabi_freq(
         P_readout_e=1.0,
@@ -292,7 +356,7 @@ def fuzz_rabi_freq(
 def fuzz_rabi_freq_inverted(
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     return _fuzz_rabi_freq(
         P_readout_e=0.0,

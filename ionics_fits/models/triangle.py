@@ -1,54 +1,53 @@
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple
 import numpy as np
 
-from .. import common, Model, ModelParameter
-from ..utils import Array
-
-if TYPE_CHECKING:
-    num_samples = float
+from ..common import Model, ModelParameter, TX, TY
+from ..utils import scale_invariant, scale_power, scale_x, scale_y
 
 
 class Triangle(Model):
-    """Triangle function according to:
-    y(x>=x0) = k_p*|x-x0| + y0
-    y(x<x0) = k_m*|x-x0| + y0
-    y = max(y, y_min)
-    y = min(y, m_max)
-    k_p = (1 + sym) * k
-    k_m = (1 - sym) * k
+    """Triangle function according to::
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - x0: x-axis offset
-      - y0: y-axis offset
-      - k: average slope
-      - sym: symmetry parameter (fixed to 0 by default)
-      - y_min: minimum value of y (bound to -inf by default)
-      - y_max: maximum value of y (bound to +inf by default)
+        y(x>=x0) = k_p*|x-x0| + y0
+        y(x<x0) = k_m*|x-x0| + y0
+        y = max(y, y_min)
+        y = min(y, m_max)
+        k_p = (1 + sym) * k
+        k_m = (1 - sym) * k
 
-    Derived parameters:
-      - k_m: slope for x < x0
-      - k_p: slope for x >= x0
+    See :meth:`_func` for parameter details.
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [True]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=common.scale_x),
-        y0: ModelParameter(scale_func=common.scale_y),
-        k: ModelParameter(scale_func=common.scale_power(x_power=-1, y_power=1)),
+        x: TX,
+        x0: ModelParameter(scale_func=scale_x()),
+        y0: ModelParameter(scale_func=scale_y()),
+        k: ModelParameter(scale_func=scale_power(x_power=-1, y_power=1)),
         sym: ModelParameter(
-            lower_bound=-1, upper_bound=1, fixed_to=0, scale_func=common.scale_invariant
+            lower_bound=-1, upper_bound=1, fixed_to=0, scale_func=scale_invariant
         ),
-        y_min: ModelParameter(fixed_to=-np.inf, scale_func=common.scale_y),
-        y_max: ModelParameter(fixed_to=+np.inf, scale_func=common.scale_y),
-    ) -> Array[("num_samples",), np.float64]:
+        y_min: ModelParameter(fixed_to=-np.inf, scale_func=scale_y()),
+        y_max: ModelParameter(fixed_to=+np.inf, scale_func=scale_y()),
+    ) -> TY:
+        """
+        :param x0: x-axis offset
+        :param y0: y-axis offset
+        :param k: average slope
+        :param sym: symmetry parameter (fixed to ``0`` by default)
+        :param y_min: minimum value of y (bound to ``-inf`` by default)
+        :param y_max: maximum value of y (bound to ``+inf`` by default)
+        """
         k_p = k * (1 + sym)
         k_m = k * (1 - sym)
 
@@ -61,12 +60,8 @@ class Triangle(Model):
         return y
 
     # pytype: enable=invalid-annotation
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         # Written to handle the case of data which is only well-modelled by a
@@ -148,11 +143,17 @@ class Triangle(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        Derived parameters:
+
+        * k_m: slope for ``x < x0``
+        * k_p: slope for ``x >= x0``
+        """
         derived_params = {}
         k = fitted_params["k"]
         sym = fitted_params["sym"]

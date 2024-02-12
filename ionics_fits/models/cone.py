@@ -1,63 +1,64 @@
-from typing import Tuple, TYPE_CHECKING
+from typing import List, Tuple
 import numpy as np
 
-from . import heuristics, Triangle
-from .. import common, Model, ModelParameter, NormalFitter
-from ..utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
-    num_y_channels = float
+from . import heuristics
+from .triangle import Triangle
+from ..common import Model, ModelParameter, TX, TY
+from ..normal import NormalFitter
+from ..utils import scale_no_rescale
 
 
 class ConeSlice(Model):
-    """Slice through a cone.
+    """Slice through a cone according to::
 
-    We parametrise cones as:
         z = sign * sqrt( (k_x * (x - x0))**2 + (k_y * (y - y0)) ** 2)) + z0
 
-    This model represents a slice through the cone with fixed `y`, given by:
+    This model represents a slice through the cone with fixed ``y``, given by::
+
         z = sign(k_x) * sqrt( (k_x * (x - x0))**2 + alpha ** 2 ) + z0
+
     where:
-      - alpha = k_y * (y - y0)
-      - we use the sign of k_x to set the sign for the cone
 
-    Fit parameters (all floated by default unless stated otherwise):
-      - x0: x-axis offset
-      - z0: vertical offset to the cone. Fixed to 0 by default
-      - alpha: offset due to being off-centre in the y-axis
-      - k: slope along x
+      * ``alpha = k_y * (y - y0)``
+      * we use the sign of ``k_x`` to set the sign for the cone
 
-    Floating z0 and alpha without a user-estimate for either may result in an unreliable
-    fit.
+    Floating ``z0`` and ``alpha`` without a user-estimate for either may result in an
+    unreliable fit.
+
+    See :meth:`_func` for parameter details.
     """
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return False, False
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [False], [False]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
-        x0: ModelParameter(scale_func=common.scale_no_rescale),
-        z0: ModelParameter(scale_func=common.scale_no_rescale, fixed_to=0),
-        k: ModelParameter(scale_func=common.scale_no_rescale),
-        alpha: ModelParameter(lower_bound=0, scale_func=common.scale_no_rescale),
-    ) -> Array[("num_samples",), np.float64]:
+        x: TX,
+        x0: ModelParameter(scale_func=scale_no_rescale),
+        z0: ModelParameter(scale_func=scale_no_rescale, fixed_to=0),
+        k: ModelParameter(scale_func=scale_no_rescale),
+        alpha: ModelParameter(lower_bound=0, scale_func=scale_no_rescale),
+    ) -> TY:
+        """
+        :param x0: x-axis offset
+        :param z0: vertical offset to the cone
+        :param k: slope along ``x``
+        :param alpha: offset due to being off-centre in the y-axis
+        """
         return np.sign(k) * np.sqrt((k * (x - x0)) ** 2 + alpha**2) + z0
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        y = y.squeeze()
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
+        y = np.squeeze(y)
 
         fit = NormalFitter(x=x, y=y, model=Triangle())
         self.parameters["x0"].heuristic = fit.values["x0"]

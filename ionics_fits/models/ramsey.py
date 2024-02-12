@@ -1,44 +1,27 @@
-from typing import Dict, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple
 
 import numpy as np
 
-from .. import common, Model, ModelParameter
 from . import heuristics
 from .utils import PeriodicModelParameter
-from ..utils import Array
-
-
-if TYPE_CHECKING:
-    num_samples = float
+from ..common import Model, ModelParameter, TX, TY
+from ..utils import scale_invariant, scale_x, scale_x_inv, scale_y
 
 
 class Ramsey(Model):
-    """Fit model for detuning scans of Ramsey experiments (for time scans, use the
+    r"""Fit model for detuning scans of Ramsey experiments (for time scans, use the
     Sinusoid model).
 
-    This model calculates the measurement outcomes for Ramsey experiments, defined by:
-        `P = P_readout_g + (P_readout_e - P_readout_g) * P_e`
-        where `P_e` is the (time-dependent) population in the excited state and
-    `P_readout_g` and `P_readout_e` are the readout levels (measurement outcomes
+    This model calculates the measurement outcomes for Ramsey experiments, defined by::
+
+        P = P_readout_g + (P_readout_e - P_readout_g) * P_e
+
+    where ``P_e`` is the (time-dependent) population in the excited state and
+    ``P_readout_g`` and ``P_readout_e`` are the readout levels (measurement outcomes
     when the qubit is in one state).
 
     The model requires that the system starts out entirely in one of the ground or
-    excited states, specified using :meth:`__init__`'s :param:`start_excited` parameter.
-
-    Model parameters:
-        - P_readout_e: excited state readout level
-        - P_readout_g: ground state readout level
-        - t: Ramsey delay
-        - t_pi_2: duration of the pi/2 pulses. The pi/2 pulses are assumed to be
-            ideal pi/2 pulses with a corresponding Rabi frequency of
-            `Omega = np.pi / (2 * t_pi_2)`
-        - w_0: resonance frequency offset, defined such that the Ramsey detuning is
-            given by `delta = x - w_0`
-        - phi: phase of the second pi/2 pulse relative to the first pi/2 pulse
-        - tau: decay time constant (fixed to infinity by default)
-
-    Derived parameters:
-        - f_0: resonance frequency offset in linear units, given by `w_0 / (2 * np.pi)`
+    excited states, specified using :meth:``__init__``\'s ``start_excited`` parameter.
 
     All frequencies are in angular units.
     """
@@ -47,46 +30,61 @@ class Ramsey(Model):
         super().__init__()
         self.start_excited = start_excited
 
-    def get_num_y_channels(self) -> int:
+    def get_num_x_axes(self) -> int:
         return 1
 
-    def can_rescale(self) -> Tuple[bool, bool]:
-        return True, True
+    def get_num_y_axes(self) -> int:
+        return 1
+
+    def can_rescale(self) -> Tuple[List[bool], List[bool]]:
+        return [True], [False]
 
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: Array[("num_samples",), np.float64],
+        x: TX,
         P_readout_e: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            scale_func=common.scale_y,
+            scale_func=scale_y(),
         ),
         P_readout_g: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
-            scale_func=common.scale_y,
+            scale_func=scale_y(),
         ),
         t: ModelParameter(
             lower_bound=0.0,
-            scale_func=common.scale_x_inv,
+            scale_func=scale_x_inv(),
         ),
         t_pi_2: ModelParameter(
             lower_bound=0.0,
-            scale_func=common.scale_x_inv,
+            scale_func=scale_x_inv(),
         ),
-        w_0: ModelParameter(scale_func=common.scale_x),
+        w_0: ModelParameter(scale_func=scale_x()),
         phi: PeriodicModelParameter(
             period=2 * np.pi,
             offset=-np.pi,
-            scale_func=common.scale_invariant,
+            scale_func=scale_invariant,
         ),
         tau: ModelParameter(
             lower_bound=0.0,
             fixed_to=np.inf,
-            scale_func=common.scale_x_inv,
+            scale_func=scale_x_inv(),
         ),
     ):
+        """
+        :param P_readout_e: excited state readout level
+        :param P_readout_g: ground state readout level
+        :param t: Ramsey delay
+        :param t_pi_2: duration of the pi/2 pulses. The pi/2 pulses are assumed to be
+            ideal pi/2 pulses with a corresponding Rabi frequency of
+            ``Omega = np.pi / (2 * t_pi_2)``
+        :param w_0: resonance frequency offset, defined such that the Ramsey detuning is
+            given by ``delta = x - w_0``
+        :param phi: phase of the second pi/2 pulse relative to the first pi/2 pulse
+        :param tau: decay time constant (fixed to infinity by default)
+        """
         delta = x - w_0
         Omega = np.pi / (2 * t_pi_2)
 
@@ -108,12 +106,8 @@ class Ramsey(Model):
 
     # pytype: enable=invalid-annotation
 
-    def estimate_parameters(
-        self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
-    ):
-        # Ensure that y is a 1D array
+    def estimate_parameters(self, x: TX, y: TY):
+        x = np.squeeze(x)
         y = np.squeeze(y)
 
         if self.start_excited:
@@ -149,11 +143,17 @@ class Ramsey(Model):
 
     def calculate_derived_params(
         self,
-        x: Array[("num_samples",), np.float64],
-        y: Array[("num_samples",), np.float64],
+        x: TX,
+        y: TY,
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        Derived parameters:
+
+        * ``f_0``: resonance frequency offset in linear units, given by
+          ``w_0 / (2 * np.pi)``
+        """
         derived_params = {}
         derived_uncertainties = {}
 

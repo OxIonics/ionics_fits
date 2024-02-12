@@ -1,7 +1,7 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.molmer_sorensen import MolmerSorensenFreq, MolmerSorensenTime
+from .common import check_multiple_param_sets, Config
 
 
 # Currently we don't fuzz this model. The tests are pretty comprehensive and
@@ -22,7 +22,7 @@ def test_ms_time(plot_failures: bool):
             "n_bar": 0,
         }
 
-        model = fits.models.MolmerSorensenTime(
+        model = MolmerSorensenTime(
             num_qubits=num_qubits, walsh_idx=walsh_idx, start_excited=start_excited
         )
 
@@ -30,13 +30,11 @@ def test_ms_time(plot_failures: bool):
         # often fail to converge properly no matter how close the heuristic gets
         model.parameters["delta"].fixed_to = 0
 
-        common.check_multiple_param_sets(
+        check_multiple_param_sets(
             t,
             model,
             params,
-            common.TestConfig(
-                plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
-            ),
+            Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
             user_estimates=user_estimates,
         )
 
@@ -83,17 +81,15 @@ def test_ms_freq(plot_failures: bool):
             "t_pulse": t_pulse,
         }
 
-        model = fits.models.MolmerSorensenFreq(
+        model = MolmerSorensenFreq(
             num_qubits=num_qubits, walsh_idx=walsh_idx, start_excited=start_excited
         )
 
-        common.check_multiple_param_sets(
+        check_multiple_param_sets(
             w,
             model,
             params,
-            common.TestConfig(
-                plot_failures=plot_failures, param_tol=None, residual_tol=1e-4
-            ),
+            Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
             user_estimates=user_estimates,
         )
 

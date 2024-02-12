@@ -1,7 +1,7 @@
 import numpy as np
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.exponential import Exponential
+from .common import check_multiple_param_sets, fuzz, Config
 
 
 def test_exponential(plot_failures):
@@ -13,20 +13,20 @@ def test_exponential(plot_failures):
         "y_inf": [-5, 5],
         "tau": [0.5, 1, 5],
     }
-    model = fits.models.Exponential()
+    model = Exponential()
     model.parameters["x_dead"].fixed_to = None
-    common.check_multiple_param_sets(
+    check_multiple_param_sets(
         x,
         model,
         params,
-        common.TestConfig(plot_failures=plot_failures),
+        Config(plot_failures=plot_failures),
     )
 
 
 def fuzz_exponential(
     num_trials: int,
     stop_at_failure: bool,
-    test_config: common.TestConfig,
+    test_config: Config,
 ) -> float:
     x = np.linspace(-2, 2, 100)
     fuzzed_params = {
@@ -36,10 +36,10 @@ def fuzz_exponential(
         "tau": (0.5, 5),
     }
 
-    model = fits.models.Exponential()
+    model = Exponential()
     model.parameters["x_dead"].fixed_to = None
 
-    return common.fuzz(
+    return fuzz(
         x=x,
         model=model,
         static_params={},

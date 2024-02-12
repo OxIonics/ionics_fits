@@ -2,34 +2,39 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pprint
 
-import ionics_fits as fits
-from . import common
+from ionics_fits.models.laser_rabi import LaserFlopTimeThermal
+from ionics_fits.models.multi_x import Cone2D, Gaussian2D, Parabola2D
+from ionics_fits.models.sinusoid import Sinusoid
+from ionics_fits.models.transformations.model_2d import Model2D
+from ionics_fits.models.transformations.repeated_model import RepeatedModel
+from ionics_fits.normal import NormalFitter
+from .common import is_close, params_close
 
 
-def gaussian(x, y, a, x0_x, x0_y, sigma_x, sigma_y, z0):
+def gaussian(x, y, a, x0_x0, x0_x1, sigma_x0, sigma_x1, y0):
 
-    A = a / (sigma_x * np.sqrt(2 * np.pi)) / (sigma_y * np.sqrt(2 * np.pi))
+    A = a / (sigma_x0 * np.sqrt(2 * np.pi)) / (sigma_x1 * np.sqrt(2 * np.pi))
 
     return (
         A
         * np.exp(
-            -(((x - x0_x) / (np.sqrt(2) * sigma_x)) ** 2)
-            - (((y - x0_y) / (np.sqrt(2) * sigma_y)) ** 2)
+            -(((x - x0_x0) / (np.sqrt(2) * sigma_x0)) ** 2)
+            - (((y - x0_x1) / (np.sqrt(2) * sigma_x1)) ** 2)
         )
-        + z0
+        + y0
     )
 
 
-def parabola(x, y, k_x, k_y, x0, y0, z0):
-    return k_x * (x - x0) ** 2 + k_y * (y - y0) ** 2 + z0
+def parabola(x, y, k_x0, k_x1, x0_x0, x0_x1, y0):
+    return k_x0 * (x - x0_x0) ** 2 + k_x1 * (y - x0_x1) ** 2 + y0
 
 
-def cone(x, y, x0_x, x0_y, k_x, k_y, y0):
-    return np.sqrt((k_x * (x - x0_x)) ** 2 + (k_y * (y - x0_y)) ** 2) + y0
+def cone(x, y, x0_x0, x0_x1, k_x0, k_x1, y0):
+    return np.sqrt((k_x0 * (x - x0_x0)) ** 2 + (k_x1 * (y - x0_x1)) ** 2) + y0
 
 
 def check_param_values(x_mesh_0, x_mesh_1, test_params, fit, func, plot_failures):
-    if not common.params_close(test_params, fit.values, 1e-3):
+    if not params_close(test_params, fit.values, 1e-3):
         if plot_failures:
 
             fig, axs = plt.subplots(2, 1)
@@ -69,84 +74,142 @@ def test_call_2d(plot_failures):
     """Check that the 2D model call / func methods produce the correct output"""
     params = {
         "a": 5,
-        "x0_x": -2,
-        "x0_y": +0.5,
-        "sigma_x": 2,
-        "sigma_y": 5,
-        "z0": 1.5,
+        "x0_x0": -2,
+        "x0_x1": +0.5,
+        "sigma_x0": 2,
+        "sigma_x1": 5,
+        "y0": 1.5,
     }
 
     x_ax_0 = np.linspace(-20, 20, 30)
     x_ax_1 = np.linspace(-50, 50, 70)
     x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
+    x = np.vstack((x_0, x_1))
 
-    y = gaussian(x_mesh_0, x_mesh_1, **params)
-    model = fits.multi_x.Gaussian2D()
-    y_model = model((x_ax_0, x_ax_1), **params)
+    y = gaussian(x_0, x_1, **params)
 
-    assert common.is_close(y_model.squeeze(), y.T, tol=1e-3)
+    model = Gaussian2D()
+    y_model = model(x, **params)
+
+    assert is_close(y_model, y, tol=1e-9)
+
+
+def test_estimate_params_2d(plot_failures):
+    """Check that the 2D model parameter estimator produces the correct output"""
+    params = {
+        "a": 5,
+        "x0_x0": -2,
+        "x0_x1": +0.5,
+        "sigma_x0": 2,
+        "sigma_x1": 0.5,
+        "y0": 1.5,
+    }
+
+    x_ax_0 = np.linspace(-20, 20, 50)
+    x_ax_1 = np.linspace(-4, 4, 50)
+    x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
+    x = np.vstack((x_0, x_1))
+
+    y = np.atleast_2d(gaussian(x_0, x_1, **params))
+
+    model = Gaussian2D()
+    model.estimate_parameters(x, y)
+    estimates = {
+        param_name: param_data.get_initial_value()
+        for param_name, param_data in model.parameters.items()
+    }
+
+    assert params_close(params, estimates, 0.2)
+
+    derived_values, derived_uncertainties = model.calculate_derived_params(
+        x=x,
+        y=y,
+        fitted_params=params,
+        fit_uncertainties={param_name: 0 for param_name in params.keys()},
+    )
+
+    assert set(derived_values.keys()) == set(derived_uncertainties.keys())
+    assert set(derived_values.keys()) == {
+        "FWHMH_x0",
+        "FWHMH_x1",
+        "w0_x0",
+        "w0_x1",
+        "peak",
+    }
+    assert derived_values["FWHMH_x0"] == 2.35482 * params["sigma_x0"]
+    assert derived_values["w0_x0"] == 4 * params["sigma_x0"]
+    assert derived_values["FWHMH_x1"] == 2.35482 * params["sigma_x1"]
+    assert derived_values["w0_x1"] == 4 * params["sigma_x1"]
+    assert derived_values["peak"] == params["a"] / (
+        params["sigma_x1"] * np.sqrt(2 * np.pi)
+    )
 
 
 def test_gaussian_2d(plot_failures):
     """Test 2D Gaussian fitting"""
     params = {
         "a": 5,
-        "x0_x": -2,
-        "x0_y": +0.5,
-        "sigma_x": 2,
-        "sigma_y": 5,
-        "z0": 1.5,
+        "x0_x0": -2,
+        "x0_x1": +0.5,
+        "sigma_x0": 2,
+        "sigma_x1": 5,
+        "y0": 1.5,
     }
 
     x_ax_0 = np.linspace(-20, 20, 30)
     x_ax_1 = np.linspace(-50, 50, 70)
     x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
+    x = np.vstack((x_0, x_1))
 
-    y = gaussian(x_mesh_0, x_mesh_1, **params)
+    y = np.atleast_2d(gaussian(x_0, x_1, **params))
 
-    fit = fits.multi_x.common.Fitter2D(
-        x=(x_ax_0, x_ax_1), y=y.T, model=fits.multi_x.Gaussian2D()
-    )
+    fit = NormalFitter(x=x, y=y, model=Gaussian2D())
 
+    pprint.pprint(fit.values)
     assert set(fit.values.keys()) == set(params.keys())
     assert set(fit.uncertainties.keys()) == set(params.keys())
     assert set(fit.initial_values.keys()) == set(params.keys())
     assert set(fit.free_parameters) == set(params.keys())
     assert set(fit.derived_values.keys()) == set(
-        ["FWHMH_x", "w0_x", "FWHMH_y", "peak_y", "w0_y"]
+        ["FWHMH_x0", "w0_x0", "FWHMH_x1", "peak", "w0_x1"]
     )
     assert set(fit.derived_uncertainties.keys()) == set(
-        ["FWHMH_x", "w0_x", "FWHMH_y", "peak_y", "w0_y"]
+        ["FWHMH_x0", "w0_x0", "FWHMH_x1", "peak", "w0_x1"]
     )
 
-    _, y_fit = fit.evaluate()
-    assert common.is_close(y_fit.squeeze(), y.T, tol=1e-3)
-
     residuals = fit.residuals()
-    assert common.is_close(residuals.squeeze(), np.zeros_like(y).T, tol=1e-3)
 
-    check_param_values(x_mesh_0, x_mesh_1, params, fit, gaussian, plot_failures)
+    assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
+
+    check_param_values(x_0, x_1, params, fit, gaussian, plot_failures)
 
 
 def test_parabola_2d(plot_failures):
     """Test 2D Parabola fitting"""
     params = {
-        "x0": -2,
-        "y0": +0.5,
-        "k_x": 2,
-        "k_y": 5,
-        "z0": 1.5,
+        "x0_x0": -2,
+        "x0_x1": +0.5,
+        "k_x0": 2,
+        "k_x1": 5,
+        "y0": 1.5,
     }
 
     x_ax_0 = np.linspace(-20, 20, 30)
     x_ax_1 = np.linspace(-50, 50, 70)
     x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
+    x = np.vstack((x_0, x_1))
 
-    y = parabola(x_mesh_0, x_mesh_1, **params)
+    y = np.atleast_2d(parabola(x_0, x_1, **params))
 
-    fit = fits.multi_x.common.Fitter2D(
-        x=(x_ax_0, x_ax_1), y=y.T, model=fits.multi_x.Parabola2D()
-    )
+    fit = NormalFitter(x=x, y=y, model=Parabola2D())
 
     assert set(fit.values.keys()) == set(params.keys())
     assert set(fit.uncertainties.keys()) == set(params.keys())
@@ -154,11 +217,8 @@ def test_parabola_2d(plot_failures):
     assert set(fit.free_parameters) == set(params.keys())
     assert set(fit.derived_values.keys()) == set([])
 
-    _, y_fit = fit.evaluate()
-    assert common.is_close(y_fit.squeeze(), y.T, tol=1e-3)
-
     residuals = fit.residuals()
-    assert common.is_close(residuals.squeeze(), np.zeros_like(y).T, tol=1e-3)
+    assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
 
     check_param_values(x_mesh_0, x_mesh_1, params, fit, parabola, plot_failures)
 
@@ -166,24 +226,26 @@ def test_parabola_2d(plot_failures):
 def test_cone_2d(plot_failures):
     """Test 2D cone fitting"""
     params = {
-        "x0_x": -5,
-        "x0_y": +10,
-        "k_x": 2,
-        "k_y": 5,
+        "x0_x0": -5,
+        "x0_x1": +10,
+        "k_x0": 2,
+        "k_x1": 5,
         "y0": 0,
     }
 
     x_ax_0 = np.linspace(-40, 40, 30)
     x_ax_1 = np.linspace(-50, 50, 70)
     x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
+    x = np.vstack((x_0, x_1))
 
-    y = cone(x_mesh_0, x_mesh_1, **params)
+    y = np.atleast_2d(cone(x_0, x_1, **params))
 
-    fit = fits.multi_x.common.Fitter2D(
-        x=(x_ax_0, x_ax_1),
-        y=y.T,
-        model=fits.multi_x.models.Cone(),
-    )
+    fit = NormalFitter(x=x, y=y, model=Cone2D())
+    pprint.pprint(fit.values)
+    residuals = fit.residuals()
+    assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
 
     check_param_values(x_mesh_0, x_mesh_1, params, fit, cone, plot_failures)
 
@@ -203,36 +265,68 @@ def test_laser_flop_2d(plot_failures):
     time_axis = np.linspace(0, 5 * (t_pi / eta), 75)
     time_mesh, angle_mesh = np.meshgrid(time_axis, angle_axis)
 
-    flop_model = fits.models.LaserFlopTimeThermal(
-        start_excited=False, sideband_index=+1, n_max=1
-    )
+    flop_model = LaserFlopTimeThermal(start_excited=False, sideband_index=+1, n_max=1)
     flop_model.parameters["n_bar"].fixed_to = 0
     flop_model.parameters["delta"].fixed_to = 0
     flop_model.parameters["omega"].fixed_to = omega
     flop_model.parameters["P_readout_e"].fixed_to = 1
     flop_model.parameters["P_readout_g"].fixed_to = 0
 
-    sinusoid_model = fits.models.Sinusoid()
-    sinusoid_model.parameters["omega"].fixed_to = 1
+    sinusoid_model = Sinusoid()
     sinusoid_model.parameters["x0"].fixed_to = -np.pi / 2
-    sinusoid_model.parameters["y0"].fixed_to = 0
-    sinusoid_model.parameters["phi"].offset = 0
 
     # Generate data to fit
     y = np.zeros_like(time_mesh)
     for idx, angle in np.ndenumerate(angle_axis):
-        eta_angle = float(sinusoid_model(x=angle, a=eta, phi=theta_0))
-        y[idx, :] = flop_model(x=time_axis, eta=eta_angle, omega=omega)
+        eta_angle = float(sinusoid_model(x=angle, a=eta, omega=1, y0=0, phi=theta_0))
+        y[idx, :] = flop_model(x=time_axis, eta=eta_angle)
 
-    model = fits.multi_x.Model2D(
+    model = Model2D(
         models=(flop_model, sinusoid_model),
         result_params=("eta",),
     )
 
     params = {"omega_x0": omega, "x0_x1": -np.pi / 2}
-    fit = fits.multi_x.common.Fitter2D(x=(time_axis, angle_axis), y=y.T, model=model)
+    x = np.vstack((time_mesh.ravel(), angle_mesh.ravel()))
+
+    fit = NormalFitter(x=x, y=y.ravel(), model=model)
 
     def func(x, y, **kwargs):
         return model.__call__((x, y), **kwargs)
 
+    residuals = fit.residuals()
+    assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
+
     check_param_values(time_mesh, angle_mesh, params, fit, func, plot_failures)
+
+
+def test_repeated_model_2d(plot_failures):
+    """Test an instance of a repeated model2d"""
+    model = Gaussian2D()
+    model = RepeatedModel(
+        model=model, num_repetitions=2, common_params=list(model.parameters.keys())
+    )
+
+    params = {
+        "a": 5,
+        "x0_x0": -2,
+        "x0_x1": +0.5,
+        "sigma_x0": 2,
+        "sigma_x1": 0.5,
+        "y0": 1.5,
+    }
+
+    x_ax_0 = np.linspace(-20, 20, 30)
+    x_ax_1 = np.linspace(-50, 50, 70)
+    x_mesh_0, x_mesh_1 = np.meshgrid(x_ax_0, x_ax_1)
+    x_0 = x_mesh_0.ravel()
+    x_1 = x_mesh_1.ravel()
+    x = np.vstack((x_0, x_1))
+
+    y = Gaussian2D()(x, **params)
+    y = np.vstack((y, y))
+
+    fit = NormalFitter(x=x, y=y, model=model)
+
+    residuals = fit.residuals()
+    assert is_close(residuals, np.zeros_like(residuals), tol=1e-3)
