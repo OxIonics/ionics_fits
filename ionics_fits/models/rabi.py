@@ -69,7 +69,7 @@ class RabiFlop(Model):
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: TX,
+        x: Tuple[TX, TX],
         P_readout_e: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
@@ -178,7 +178,7 @@ class RabiFlopFreq(RabiFlop):
         t_pulse = param_values.pop("t_pulse")
         return self._func(
             (t_pulse, x), **param_values
-        )  # pytype: disable=wrong-arg-types
+        )
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)
@@ -284,7 +284,7 @@ class RabiFlopTime(RabiFlop):
         param_values = param_values.copy()
         delta = param_values.pop("delta")
         param_values["w_0"] = 0.0
-        return self._func((x, delta), **param_values)  # pytype: disable=wrong-arg-types
+        return self._func((x, delta), **param_values)
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)
