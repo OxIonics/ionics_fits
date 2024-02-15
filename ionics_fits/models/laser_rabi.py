@@ -121,9 +121,6 @@ class LaserFlop(RabiFlop):
         ), "Distribution parameter names must not match model parameter names"
         self.parameters.update(self.distribution_params)
 
-    def func(self, x: TX, param_values: Dict[str, float]) -> TY:
-        return super().func(x=x, param_values=param_values)
-
     # pytype: disable=invalid-annotation
     def _func(
         self,

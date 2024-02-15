@@ -66,10 +66,24 @@ class RabiFlop(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [False]
 
+    def func(self, x: Tuple[TX, TX], param_values: Dict[str, float]) -> TY:
+        """Evaluates the model at a given set of pulse durations and frequencies and
+        with a given set of parameter values and returns the result.
+
+        To use the model as a function outside of a fit,
+        :meth:`~ionics_fits.common.Model.__call__` generally
+        provides a more convenient interface.
+
+        :param x: Tuple of ``(t_pulse, w)``
+        :param param_values: dictionary of parameter values
+        :returns: array of model values
+        """
+        return self._func(x, **param_values)
+
     # pytype: disable=invalid-annotation
     def _func(
         self,
-        x: TX,
+        x: Tuple[TX, TX],
         P_readout_e: ModelParameter(
             lower_bound=0.0,
             upper_bound=1.0,
@@ -176,9 +190,7 @@ class RabiFlopFreq(RabiFlop):
     def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         param_values = param_values.copy()
         t_pulse = param_values.pop("t_pulse")
-        return self._func(
-            (t_pulse, x), **param_values
-        )  # pytype: disable=wrong-arg-types
+        return self._func((t_pulse, x), **param_values)
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)
@@ -284,7 +296,7 @@ class RabiFlopTime(RabiFlop):
         param_values = param_values.copy()
         delta = param_values.pop("delta")
         param_values["w_0"] = 0.0
-        return self._func((x, delta), **param_values)  # pytype: disable=wrong-arg-types
+        return self._func((x, delta), **param_values)
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)
