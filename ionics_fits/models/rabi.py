@@ -190,9 +190,7 @@ class RabiFlopFreq(RabiFlop):
     def func(self, x: TX, param_values: Dict[str, float]) -> TY:
         param_values = param_values.copy()
         t_pulse = param_values.pop("t_pulse")
-        return self._func(
-            (t_pulse, x), **param_values
-        )
+        return self._func((t_pulse, x), **param_values)
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)
