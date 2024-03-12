@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pprint
 import traceback
-from typing import Callable, Dict, Optional, List, Tuple, Type, TYPE_CHECKING
+from typing import Callable, Dict, Optional, List, Tuple, Type, Union, TYPE_CHECKING
 
 from ionics_fits.common import Fitter, Model
 from ionics_fits.models.heuristics import get_spectrum
@@ -252,7 +252,7 @@ def _plot(
 def check_multiple_param_sets(
     x: ArrayLike[("num_samples",), np.float64],
     model: Model,
-    test_params: Dict[str, List[float]],
+    test_params: Dict[str, Union[float, List[float]]],
     config: Optional[Config] = None,
     fitter_cls: Type[Fitter] = NormalFitter,
     fitter_args: Optional[Dict] = None,

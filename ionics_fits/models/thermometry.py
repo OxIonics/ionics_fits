@@ -62,6 +62,7 @@ class SidebandHeatingRate(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [False] * self.get_num_y_axes()
 
+    # pytype: disable=invalid-annotation
     def _func(
         self,
         x: TX,
@@ -90,6 +91,8 @@ class SidebandHeatingRate(Model):
         P_b = 1 - P_b if self.invert_b else P_b
 
         return np.vstack((P_r, P_b))
+
+    # pytype: enable=invalid-annotation
 
     def estimate_parameters(self, x: TX, y: TY):
         P_r = y[0, :]

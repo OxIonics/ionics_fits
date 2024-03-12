@@ -10,7 +10,7 @@ def test_sideband_heating(plot_failures):
 
     params = {
         "n_bar_0": 0.1,
-        "n_bar_dot": 2,
+        "n_bar_dot": 2.,
     }
 
     model = SidebandHeatingRate(invert_r=False, invert_b=False)
