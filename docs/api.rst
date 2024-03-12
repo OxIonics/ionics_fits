@@ -193,6 +193,15 @@ Sinusoid
     :private-members: _func
     :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale, bound_param_values, bound_param_uncertainties, new_param_values
 
+Thermometry
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: ionics_fits.models.thermometry
+    :members:
+    :private-members: _func
+    :special-members: __init__
+    :exclude-members: estimate_parameters, get_num_x_axes, get_num_y_axes, can_rescale
+
 Triangle
 ++++++++++++++++++++++++++++++++++++++++
 
