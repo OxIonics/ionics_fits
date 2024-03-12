@@ -76,10 +76,12 @@ class SidebandHeatingRate(Model):
         :returns: array of model values
         """
         x = np.atleast_1d(np.squeeze(x))
-        n_vec = np.arange(self.n_max + 1)
-        t, n = np.meshgrid(x, n_vec, indexing="ij")
 
-        n_bar = n_bar_0 + t * n_bar_dot
+        n_vec = np.arange(self.n_max + 1)
+        n_bar_vec = n_bar_0 + x * n_bar_dot
+
+        n_bar, n = np.meshgrid(n_bar_vec, n_vec, indexing="ij")
+
         p_thermal = np.power(n_bar / (1 + n_bar), n) / (1 + n_bar)
 
         omega_eff_r = np.sqrt(n_vec)
