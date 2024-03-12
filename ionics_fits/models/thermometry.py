@@ -26,12 +26,26 @@ class SidebandHeatingRate(Model):
 
     """
 
-    def __init__(self, num_ions: int = 1, n_max: int = 30):
+    def __init__(
+        self,
+        num_ions: int = 1,
+        invert_r: bool = False,
+        invert_b: bool = False,
+        n_max: int = 30,
+    ):
         """
         :param num_ions: number of ions coupled to the motional mode
         :param n_max: maximum Fock state to include in the simulation
+        :param invert_r: if ``True`` we calculate the probability of the ion(s) not
+          undergoing a transition on the red sideband. This is useful when fitting
+          datasets where the un-excited RSB starts with a population of ``1`` not ``0``.
+        :param invert_b: if ``True`` we calculate the probability of the ion(s) not
+          undergoing a transition on the blue sideband. This is useful when fitting
+          datasets where the un-excited BSB starts with a population of ``1`` not ``0``.
         """
         self.num_ions = num_ions
+        self.invert_r = invert_r
+        self.invert_b = invert_b
         self.n_max = n_max
 
         if self.num_ions not in [1, 2]:
@@ -72,11 +86,17 @@ class SidebandHeatingRate(Model):
         P_r = np.sum(0.5 * (1 - np.cos(np.pi * omega_eff_r)) * p_thermal, axis=1)
         P_b = np.sum(0.5 * (1 - np.cos(np.pi * omega_eff_b)) * p_thermal, axis=1)
 
+        P_r = 1 - P_r if self.invert_r else P_r
+        P_b = 1 - P_b if self.invert_b else P_b
+
         return np.vstack((P_r, P_b))
 
     def estimate_parameters(self, x: TX, y: TY):
         P_r = y[0, :]
         P_b = y[1, :]
+
+        P_r = 1 - P_r if self.invert_r else P_r
+        P_b = 1 - P_b if self.invert_b else P_b
 
         R = np.divide(P_r, P_b, out=np.zeros_like(P_r), where=P_b < 1)
         n_bar = np.divide(R, (1 - R), out=np.empty(P_r.shape), where=R < 1)

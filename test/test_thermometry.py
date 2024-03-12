@@ -12,10 +12,19 @@ def test_sideband_heating(plot_failures):
         "n_bar_0": 0.1,
         "n_bar_dot": 2,
     }
-    model = SidebandHeatingRate()
+
+    model = SidebandHeatingRate(invert_r=False, invert_b=False)
     check_multiple_param_sets(
         t_heating,
         model,
         params,
-        Config(plot_failures=plot_failures, heuristic_tol=3e-2),
+        Config(plot_failures=plot_failures, heuristic_tol=1e-2),
+    )
+
+    model = SidebandHeatingRate(invert_r=True, invert_b=True)
+    check_multiple_param_sets(
+        t_heating,
+        model,
+        params,
+        Config(plot_failures=plot_failures, heuristic_tol=1e-2),
     )
