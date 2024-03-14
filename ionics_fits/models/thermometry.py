@@ -20,10 +20,10 @@ class SidebandHeatingRate(Model):
 
     * the sidebands are both driven resonantly (zero detuning)
     * there are no state preparation or measurement errors
-    * the driving field is applied for exactly a pi-pulse
     * the ion(s) start out entirely in the ground spin state
     * dephasing of the motion and spin coherence is negligible
 
+    For two ions, the transition probabilities are ...TODO...
     """
 
     def __init__(
@@ -57,10 +57,10 @@ class SidebandHeatingRate(Model):
         return 1
 
     def get_num_y_axes(self) -> int:
-        return [2, 6][self.num_ions - 1]
+        return 2
 
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
-        return [True], [False] * self.get_num_y_axes()
+        return [True], [False, False]
 
     # pytype: disable=invalid-annotation
     def _func(
@@ -68,11 +68,18 @@ class SidebandHeatingRate(Model):
         x: TX,
         n_bar_0: ModelParameter(lower_bound=0, scale_func=scale_invariant),
         n_bar_dot: ModelParameter(lower_bound=0, scale_func=scale_x()),
+        pulse_area: ModelParameter(
+            lower_bound=0,
+            scale_func=scale_invariant,
+            fixed_to=np.pi,
+        ),
     ) -> TY:
-        """
+        r"""
         :param x: heating time
         :param n_bar_0: initial temperature of the motional mode
-        :param n_bar_dot: heating rate (``quanta / s``)
+        :param n_bar_dot: heating rate (``quanta / s``\)
+        :param pulse_area: pulse area for the red and blue sideband pulses (given by
+          ``eta * Omega * t_pulse``\)
         :returns: array of model values
         """
         x = np.atleast_1d(np.squeeze(x))
@@ -87,8 +94,8 @@ class SidebandHeatingRate(Model):
         omega_eff_r = np.sqrt(n_vec)
         omega_eff_b = np.sqrt(n_vec + 1)
 
-        P_r = np.sum(0.5 * (1 - np.cos(np.pi * omega_eff_r)) * p_thermal, axis=1)
-        P_b = np.sum(0.5 * (1 - np.cos(np.pi * omega_eff_b)) * p_thermal, axis=1)
+        P_r = np.sum(0.5 * (1 - np.cos(pulse_area * omega_eff_r)) * p_thermal, axis=1)
+        P_b = np.sum(0.5 * (1 - np.cos(pulse_area * omega_eff_b)) * p_thermal, axis=1)
 
         P_r = 1 - P_r if self.invert_r else P_r
         P_b = 1 - P_b if self.invert_b else P_b
