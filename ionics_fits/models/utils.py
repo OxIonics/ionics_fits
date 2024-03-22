@@ -1,5 +1,6 @@
 import copy
 import dataclasses
+import numpy as np
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from ..common import ModelParameter, TSCALE_FUN
@@ -32,12 +33,13 @@ def param_like(
 
 @dataclasses.dataclass
 class PeriodicModelParameter(ModelParameter):
-    """Represents a model parameter whose value is periodic.
+    r"""Represents a model parameter whose value is periodic.
 
     Parameter values are clipped to lie within::
 
-        value = value - offset
-        value (value % period) + offset
+        ((value - offset) % period) + offset
+
+    ``PeriodicModelParameter``s do not support bounds.
 
     Attributes:
         period: the period (default = 1)
@@ -47,15 +49,17 @@ class PeriodicModelParameter(ModelParameter):
     scale_func: TSCALE_FUN
     period: float = 1
     offset: float = 0
-    lower_bound: float = dataclasses.field(init=False)
-    upper_bound: float = dataclasses.field(init=False)
+    lower_bound: float = dataclasses.field(init=False, default=-np.inf)
+    upper_bound: float = dataclasses.field(init=False, default=+np.inf)
 
     def __post_init__(self):
         super().__post_init__()
         self._metadata_attrs += ["period", "offset"]
 
-        self.lower_bound = 1.5 * self.offset
-        self.upper_bound = 1.5 * (self.offset + self.period)
+    def __setattr__(self, name, value):
+        if name in ["lower_bound", "upper_bound"]:
+            raise ValueError("PeriodicModelParameter does not support bounds")
+        super().__setattr__(name, value)
 
     def _format_metadata(self) -> List[str]:
         metadata = super()._format_metadata()
@@ -76,5 +80,4 @@ class PeriodicModelParameter(ModelParameter):
 
     def clip(self, value: float):
         """Clip value to lie between lower and upper bounds."""
-        value = value - self.offset
-        return (value % self.period) + self.offset
+        return ((value - self.offset) % self.period) + self.offset
