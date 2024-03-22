@@ -39,7 +39,7 @@ class PeriodicModelParameter(ModelParameter):
 
         ((value - offset) % period) + offset
 
-    ``PeriodicModelParameter``s do not support bounds.
+    ``PeriodicModelParameter``\s do not support bounds.
 
     Attributes:
         period: the period (default = 1)
