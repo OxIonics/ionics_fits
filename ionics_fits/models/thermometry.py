@@ -8,7 +8,7 @@ from ..utils import scale_invariant, scale_x
 
 
 class SidebandHeatingRate(Model):
-    """Heating rate measured using sideband thermometry.
+    r"""Heating rate measured using sideband thermometry.
 
     This model calculates transition probabilities on the first red and blue motional
     sidebands of one or more ion(s) coupled to a single motional mode, whose mean
@@ -24,6 +24,12 @@ class SidebandHeatingRate(Model):
     * the ion(s) start out entirely in the ground spin state
     * dephasing of the motion and spin coherence is negligible
 
+    For a single-ion the model's y-axis dimensions correspond to the red and blue
+    sideband transition probabilities.
+
+    For two ions they correspond to: ``(P_0_r, P_1_r, P_2_r, P_0_b, P_1_b, P_2_b)``
+    where `P_n_{r, b}` is the probability of a ``n``\-ion spin flip on the red / blue
+    sideband.
     """
 
     def __init__(
