@@ -47,11 +47,12 @@ class MLEFitter(Fitter):
             parameter bounds are provided, they are used to scale the step size
             appropriately for each parameter.
         :param minimizer_args: optional dictionary of keyword arguments to be passed
-            into ``scipy.optimize.minimize``.
+            into ``scipy.optimize.minimize``. By default we set ``maxls`` to 100.
         """
-        self.minimizer_args = {"options": {"maxls": 100}}
         if minimizer_args is not None:
-            self.minimizer_args.update(minimizer_args)
+            self.minimizer_args = dict(minimizer_args)
+        else:
+            self.minimizer_args = {"options": {"maxls": 100}}
 
         self.step_size = step_size
 
