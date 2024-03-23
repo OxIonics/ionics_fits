@@ -45,6 +45,8 @@ TY = Union[
     Array[("num_samples"), np.float64],
     Array[("num_y_axes", "num_samples"), np.float64],
 ]
+TJACOBIAN = Array[("num_params", "num_y_axes", "num_samples"), np.float64]
+THESSIAN = Array[("num_params", "num_params", "num_y_axes", "num_samples"), np.float64]
 
 
 @dataclasses.dataclass
@@ -468,7 +470,7 @@ class Model:
         x: TX,
         param_values: Dict[str, float],
         included_params: Optional[List[str]] = None,
-    ) -> Array[("num_params", "num_x_axes", "num_samples"), np.float64]:
+    ) -> TJACOBIAN:
         r"""Calculates the Jacobian of the model function.
 
         The Jacobian is represented the array::
@@ -495,7 +497,7 @@ class Model:
         if included_params is None:
             included_params = self.parameters.keys()
 
-        jac = np.zeros((len(included_params),) + x.shape)
+        jac = np.zeros((len(included_params), self.get_num_y_axes(), x.shape[1]))
 
         for param_idx, param_name in enumerate(included_params):
             jac[param_idx, :, :] = num_diff(
@@ -512,7 +514,7 @@ class Model:
         x: TX,
         param_values: Dict[str, float],
         included_params: Optional[List[str]] = None,
-    ) -> Array[("num_params", "num_params", "num_x_axes", "num_samples"), np.float64]:
+    ) -> THESSIAN:
         r"""Calculates the Hessian of the model function.
 
         The Hessian is represented the matrix::
@@ -540,7 +542,7 @@ class Model:
             included_params = self.parameters.keys()
 
         num_params = len(included_params)
-        hessian = np.zeros((num_params, num_params) + x.shape)
+        hessian = np.zeros((num_params, num_params, self.get_num_y_axes(), x.shape[1]))
 
         for param_idx, param_name in enumerate(included_params):
             lower_values, upper_values, step = step_param(
