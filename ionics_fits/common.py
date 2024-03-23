@@ -550,10 +550,10 @@ class Model:
             )
 
             jac_lower = self.jacobian(
-                x=x, param_values=lower_values, diff_params=included_params
+                x=x, param_values=lower_values, included_params=included_params
             )
             jac_upper = self.jacobian(
-                x=x, param_values=upper_values, diff_params=included_params
+                x=x, param_values=upper_values, included_params=included_params
             )
 
         for param_idx, param_name in enumerate(included_params):
