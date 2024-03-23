@@ -5,7 +5,7 @@ import pprint
 from scipy import optimize
 from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
-from .common import Fitter, Model, ModelParameter, TX, TY
+from .common import Fitter, Model, ModelParameter, TJACOBIAN, TX, TY
 from .utils import Array
 
 if TYPE_CHECKING:
@@ -71,20 +71,50 @@ class MLEFitter(Fitter):
 
         super().__init__(x=x, y=y, model=model)
 
-    def log_likelihood(
+    def cost_func(
         self,
         free_param_values: Array[("num_free_params",), np.float64],
         x: TX,
         y: TY,
         free_func: Callable[..., TY],
-    ) -> float:
-        """Returns the negative log-likelihood of a given dataset
+        jacobian_func: Callable[List[int], TJACOBIAN],
+    ) -> (float, Array[("num_free_params",), np.float64]):
+        """Cost function used during fitting.
+
+        The cost function is based on the negative log-likelihood of the dataset given
+        a set of values for the model parameters. It can deviate from the exact
+        log-likelihood function (for example to make it faster to calculate /
+        numerically more stable) so long as whenever the cost is minimized the
+        log-likelihood is maximised.
+
+        This function must be overridden by specialisations of
+            :class:`~ionics_fits.MLE.MLEFitter`.
 
         :param free_param_values: array of floated parameter values
         :param x: x-axis data
         :param y: y-axis data
         :param free_func: convenience wrapper for the model function, taking only values
             for the fit's free parameters
+        :param jacobian_func: convenience wrapper for the model's Jacobian function,
+            including only the fit's free parameters
+        :returns: tuple giving the values of the cost function and its Jacobian
+        """
+        raise NotImplementedError
+
+    def hessian(
+        self, x: TX, y: TY, param_values: Dict[str, float], free_params: List[int]
+    ) -> (float, Array[("num_free_params", "num_free_params"), np.float64]):
+        """Hessian of the cost function, used to calculate the parameter covariance
+        matrix.
+
+        This function must be overridden by specialisations of
+            :class:`~ionics_fits.MLE.MLEFitter`.
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :param param_values: dictionary of fitted model parameter values
+        :param free_params: list of free parameters for the fit
+        :returns: the Hessian matrix
         """
         raise NotImplementedError
 
@@ -149,7 +179,7 @@ class MLEFitter(Fitter):
 
         # maxls setting helps with ABNORMAL_TERMINATION_IN_LNSRCH
         res = optimize.minimize(
-            fun=self.log_likelihood,
+            fun=self.cost_func,
             jac=True,
             args=(x, y, free_func, model_jac_func),
             x0=p0,
