@@ -214,7 +214,7 @@ def step_param(
 
 def num_diff(
     model: "Model",
-    diff_param: str,
+    differentiated_param: str,
     x: "TX",
     param_values: Dict[str, float],
     step_size: float = 1e-4,
@@ -227,8 +227,8 @@ def num_diff(
         d(fun)/d(param)[x, param_values]
 
     :param model: the model function to differentiate
-    :param diff_param: name of the parameter to differentiate the model function with
-        respect to
+    :param differentiated_param: name of the parameter to differentiate the model
+        function with respect to
     :param x: x-axis point to evaluate the derivative at
     :param param_values: dictionary of parameter values to evaluate the derivative at.
     :param step_size: base step size. As a rule of thumb this should not be larger than
@@ -240,7 +240,7 @@ def num_diff(
     """
     lower_values, upper_values, param_step = step_param(
         model=model,
-        stepped_param=diff_param,
+        stepped_param=differentiated_param,
         param_values=param_values,
         step_size=step_size,
     )
