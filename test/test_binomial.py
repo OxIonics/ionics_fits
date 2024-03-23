@@ -61,11 +61,8 @@ def test_binomial_synthetic(plot_failures):
     model.parameters["min"].upper_bound = 0.5
     model.parameters["max"].lower_bound = 0.5
     model.parameters["max"].upper_bound = 1
-
     model.parameters["omega"].lower_bound = 0
     model.parameters["omega"].upper_bound = 10
-    model.parameters["phi"].lower_bound = 0
-    model.parameters["phi"].upper_bound = 2
     model.parameters["x0"].lower_bound = 0
     model.parameters["x0"].upper_bound = 1
 
