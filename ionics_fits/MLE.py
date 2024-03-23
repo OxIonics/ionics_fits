@@ -107,11 +107,17 @@ class MLEFitter(Fitter):
         :returns: tuple of dictionaries mapping model parameter names to their fitted
             values and uncertainties.
         """
+        fixed_params = {
+            param_name: param_data.fixed_to
+            for param_name, param_data in parameters.items()
+            if param_data.fixed_to is not None
+        }
         free_parameters = [
             param_name
             for param_name, param_data in parameters.items()
             if param_data.fixed_to is None
         ]
+
         num_free_params = len(free_parameters)
 
         p0 = [parameters[param].get_initial_value() for param in free_parameters]
@@ -126,10 +132,26 @@ class MLEFitter(Fitter):
             f"{pprint.pformat(p0_dict)}"
         )
 
+        def model_jac_func(free_param_values):
+            param_values = dict(fixed_params)
+            param_values.update(
+                {
+                    free_parameters[idx]: free_param_values[idx]
+                    for idx in range(num_free_params)
+                }
+            )
+            model_jac = self.model.jacobian(
+                x=x,
+                param_values=param_values,
+                included_params=free_parameters,
+            )
+            return model_jac
+
         # maxls setting helps with ABNORMAL_TERMINATION_IN_LNSRCH
         res = optimize.minimize(
             fun=self.log_likelihood,
-            args=(x, y, free_func),
+            jac=True,
+            args=(x, y, free_func, model_jac_func),
             x0=p0,
             bounds=zip(lower, upper),
             **self.minimizer_args,
@@ -138,67 +160,19 @@ class MLEFitter(Fitter):
         if not res.success:
             raise RuntimeError(f"{self.TYPE} fit failed: {res.message}")
 
-        # Compute parameter covariance matrix
-        #
-        # The covariance matrix is given by the inverse of the Hessian at the optimum.
-        #
-        # While scipy.minimize provides an approximate value for the inverse
-        # Hessian, it's not accurate enough to be used for error estimation.
-        # we perform our own calculation based on finite differences using the
-        # specified step size, rescaled by the parameter bounds where possible.
-        lower = [bound if bound is not None else -np.inf for bound in lower]
-        upper = [bound if bound is not None else +np.inf for bound in upper]
+        p = {param: value for param, value in zip(free_parameters, res.x)}
 
-        def diff(param_idx, fun):
-            if np.isfinite(lower[param_idx]) and np.isfinite(upper[param_idx]):
-                param_range = upper[param_idx] - lower[param_idx]
-                step_size = self.step_size * param_range
-            else:
-                step_size = self.step_size
+        # Compute parameter covariance matrix from the inverse of the Hessian at the
+        # optimum.
+        param_values = dict(p)
+        param_values.update(fixed_params)
 
-            def _fun(free_param_values):
-                param_value = free_param_values[param_idx]
-                param_upper = np.clip(
-                    param_value + 0.5 * step_size,
-                    a_min=lower[param_idx],
-                    a_max=upper[param_idx],
-                )
-                param_lower = np.clip(
-                    param_value - 0.5 * step_size,
-                    a_min=lower[param_idx],
-                    a_max=upper[param_idx],
-                )
-                delta = param_upper - param_lower
-
-                param_upper_values = np.copy(free_param_values)
-                param_lower_values = np.copy(free_param_values)
-                param_upper_values[param_idx] = param_upper
-                param_lower_values[param_idx] = param_lower
-
-                f_upper = fun(param_upper_values)
-                f_lower = fun(param_lower_values)
-
-                return (f_upper - f_lower) / delta
-
-            return _fun
-
-        def log_likelihood(free_param_values):
-            return self.log_likelihood(
-                free_param_values=free_param_values, x=x, y=y, free_func=free_func
-            )
-
-        hessian = np.zeros((num_free_params, num_free_params))
-
-        for i_idx in range(num_free_params):
-            for j_idx in range(num_free_params):
-                first_diff = diff(i_idx, log_likelihood)
-                second_diff = diff(j_idx, first_diff)
-                hessian[i_idx, j_idx] = second_diff(res.x)
-
+        hessian = self.hessian(
+            x=x, y=y, param_values=param_values, free_params=free_parameters
+        )
         p_cov = np.linalg.inv(hessian)
         p_err = np.sqrt(np.diag(p_cov))
 
-        p = {param: value for param, value in zip(free_parameters, res.x)}
         p_err = {param: value for param, value in zip(free_parameters, p_err)}
 
         return p, p_err
