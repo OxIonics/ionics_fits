@@ -77,7 +77,7 @@ class MLEFitter(Fitter):
         x: TX,
         y: TY,
         free_func: Callable[..., TY],
-        jacobian_func: Callable[List[int], TJACOBIAN],
+        jacobian_func: Callable[[List[int]], TJACOBIAN],
     ) -> (float, Array[("num_free_params",), np.float64]):
         """Cost function used during fitting.
 
@@ -103,7 +103,7 @@ class MLEFitter(Fitter):
 
     def hessian(
         self, x: TX, y: TY, param_values: Dict[str, float], free_params: List[int]
-    ) -> (float, Array[("num_free_params", "num_free_params"), np.float64]):
+    ) -> Array[("num_free_params", "num_free_params"), np.float64]:
         """Hessian of the cost function, used to calculate the parameter covariance
         matrix.
 
