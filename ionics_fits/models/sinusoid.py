@@ -153,7 +153,6 @@ class Sinusoid(Model):
         a = param_values["a"]
         omega = param_values["omega"]
         phi = param_values["phi"]
-        y0 = param_values["y0"]
         x0 = param_values["x0"]
         tau = param_values["tau"]
 
@@ -236,7 +235,6 @@ class SineMinMax(ReparametrizedModel):
         jac = np.zeros((len(included_params), self.get_num_y_axes(), x.shape[1]))
 
         a = 0.5 * (param_values["max"] - param_values["min"])
-        y0 = 0.5 * (param_values["max"] + param_values["min"])
         omega = param_values["omega"]
         phi = param_values["phi"]
         x0 = param_values["x0"]
