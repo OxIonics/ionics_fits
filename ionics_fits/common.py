@@ -5,6 +5,7 @@ import dataclasses
 import inspect
 import logging
 import numpy as np
+import pprint
 from typing import Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 from .utils import (
@@ -928,18 +929,49 @@ class Fitter:
         if self.free_parameters == []:
             raise ValueError("Attempt to fit with no free parameters.")
 
+        log_calls = logging.DEBUG >= logger.level
+        previous_point: Optional[Array[("num_params",), np.float64]] = None
+        evaluation = 1
+
         def free_func(x: TX, *free_param_values: float) -> TY:
             """Call the model function with the values of the free parameters."""
+            free_param_values = list(free_param_values)
             params = {
                 param: value
-                for param, value in zip(self.free_parameters, list(free_param_values))
+                for param, value in zip(self.free_parameters, free_param_values)
             }
+
+            if log_calls:
+                nonlocal previous_point
+                nonlocal evaluation
+                msg = f"Evaluating function (evaluation {evaluation}):\n"
+                msg += "Parameter values: " + pprint.pformat(params)
+
+                if previous_point is not None:
+                    free_param_values = np.array(free_param_values)
+                    step = free_param_values - previous_point
+
+                    step = {
+                        param: value
+                        for param, value in zip(self.free_parameters, step)
+                        if value != 0.0
+                    }
+
+                    msg += "\nStep: " + pprint.pformat(step)
+
+                previous_point = free_param_values
+                evaluation = evaluation + 1
+                logging.debug(msg)
+
             params.update(self.fixed_parameters)
             return self.model.func(x, params)
 
         fitted_params, uncertainties = self._fit(
             x_scaled, y_scaled, self.model.parameters, free_func
         )
+
+        logger.debug(f"Fit completed after {evaluation} function evaluations")
+
         fitted_params.update(
             {param: value for param, value in self.fixed_parameters.items()}
         )
