@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 from statsmodels.stats import proportion
@@ -63,9 +63,9 @@ class BinomialFitter(MLEFitter):
         x: TX,
         y: TY,
         free_func: Callable[..., TY],
-        jacobian_func: Callable[[List[int]], TJACOBIAN],
-    ) -> (float, Array[("num_free_params",), np.float64]):
-        p = free_func(x, *free_param_values.tolist())
+        jacobian_func: Callable[..., TJACOBIAN],
+    ) -> Tuple[float, Array[("num_free_params",), np.float64]]:
+        p = np.atleast_2d(free_func(x, *free_param_values.tolist()))
 
         # avoid divide by zero issues when p is exactly 0 or 1
         eps = 1e-12
@@ -103,7 +103,7 @@ class BinomialFitter(MLEFitter):
         return (C, jac)
 
     def hessian(
-        self, x: TX, y: TY, param_values: Dict[str, float], free_params: List[int]
+        self, x: TX, y: TY, param_values: Dict[str, float], free_params: List[str]
     ) -> Array[("num_free_params", "num_free_params"), np.float64]:
         # dC/d(param) = sum(dp/d(param) * ((n-k) / (1 - p) - k / p))
         #
@@ -122,7 +122,7 @@ class BinomialFitter(MLEFitter):
         #  B = (k/p^2 + (n-k) / (1-p)^2)
 
         x = np.atleast_2d(x)
-        p = self.model.func(x, param_values)
+        p = np.atleast_2d(self.model.func(x, param_values))
         n = self.num_trials
         k = y * n
 
@@ -140,7 +140,6 @@ class BinomialFitter(MLEFitter):
         model_hessian = self.model.hessian(
             x=x, param_values=param_values, included_params=free_params
         )
-
         num_free_params = len(free_params)
         hessian = np.zeros((num_free_params, num_free_params) + x.shape)
 
