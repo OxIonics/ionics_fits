@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class MLEFitter(Fitter):
     """Base class for maximum Likelihood Parameter Estimation fitters.
 
-    Implementations should override the :meth:`log_likelihood` and
+    Implementations should override the :meth:`cost_func`, :meth:`hessian` and
     :meth:`~ionics_fits.common.Fitter.calc_sigma` methods.
 
     See :class:`~ionics_fits.common.Fitter` for further details.
