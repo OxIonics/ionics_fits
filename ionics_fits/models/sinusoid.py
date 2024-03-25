@@ -279,11 +279,11 @@ class Sine2(Sinusoid):
         # bounds across
         if (
             self.parameters["y0"].has_user_initial_value()
-            and self.parameters["a"].has_user_initial_value()
+            and sine.parameters["a"].has_user_initial_value()
         ):
-            a = self.parameters["a"].get_initial_value()
+            a_pr = sine.parameters["a"].get_initial_value()
             y0 = self.parameters["y0"].get_initial_value()
-            y0_pr = y0 + a
+            y0_pr = y0 + a_pr
             sine.parameters["y0"].user_estimate = y0_pr
 
         sine.estimate_parameters(x, y)
