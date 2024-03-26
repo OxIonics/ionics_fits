@@ -268,6 +268,8 @@ class Sine2(Sinusoid):
             setattr(sine.parameters["omega"], attr_name, attr_value_pr)
 
         for attr_name in attrs:
+            if attr_name in ["lower_bound", "upper_bound"]:
+                continue
             attr_value = getattr(self.parameters["phi"], attr_name)
             if attr_value is None:
                 attr_value_pr = None

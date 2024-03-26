@@ -835,6 +835,14 @@ class Fitter:
         )
         uncertainties.update({param: 0 for param in self.fixed_parameters.keys()})
 
+        # Make sure final values lie within parameter bounds
+        # e.g. for periodic parameters we want to make sure the final value lies within
+        # the specified range
+        fitted_params = {
+            param: self.model.parameters[param].clip(value)
+            for param, value in fitted_params.items()
+        }
+
         self.values = {
             param: value * self.model.parameters[param].scale_factor
             for param, value in fitted_params.items()
