@@ -245,8 +245,10 @@ class Sine2(Sinusoid):
 
         sine = Sinusoid()
 
-        attrs = ["lower_bound", "upper_bound", "fixed_to", "user_estimate"]
-        for param in ["x0", "tau"]:
+        phi_attrs = ("fixed_to", "user_estimate")
+        attrs = (*phi_attrs, "lower_bound", "upper_bound")
+
+        for param in ("x0", "tau"):
             for attr_name in attrs:
                 attr_value = getattr(self.parameters[param], attr_name)
                 setattr(sine.parameters[param], attr_name, attr_value)
@@ -267,9 +269,7 @@ class Sine2(Sinusoid):
                 attr_value_pr = 2 * attr_value
             setattr(sine.parameters["omega"], attr_name, attr_value_pr)
 
-        for attr_name in attrs:
-            if attr_name in ["lower_bound", "upper_bound"]:
-                continue
+        for attr_name in phi_attrs:
             attr_value = getattr(self.parameters["phi"], attr_name)
             if attr_value is None:
                 attr_value_pr = None
