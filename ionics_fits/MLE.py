@@ -5,7 +5,7 @@ import pprint
 from scipy import optimize
 from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
-from .common import Fitter, Model, ModelParameter, TX, TY
+from .common import Fitter, Model, ModelParameter, TJACOBIAN, TX, TY
 from .utils import Array
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class MLEFitter(Fitter):
     """Base class for maximum Likelihood Parameter Estimation fitters.
 
-    Implementations should override the :meth:`log_likelihood` and
+    Implementations should override the :meth:`cost_func`, :meth:`hessian` and
     :meth:`~ionics_fits.common.Fitter.calc_sigma` methods.
 
     See :class:`~ionics_fits.common.Fitter` for further details.
@@ -71,20 +71,50 @@ class MLEFitter(Fitter):
 
         super().__init__(x=x, y=y, model=model)
 
-    def log_likelihood(
+    def cost_func(
         self,
         free_param_values: Array[("num_free_params",), np.float64],
         x: TX,
         y: TY,
         free_func: Callable[..., TY],
-    ) -> float:
-        """Returns the negative log-likelihood of a given dataset
+        jacobian_func: Callable[..., TJACOBIAN],
+    ) -> Tuple[float, Array[("num_free_params",), np.float64]]:
+        """Cost function used during fitting.
+
+        The cost function is based on the negative log-likelihood of the dataset given
+        a set of values for the model parameters. It can deviate from the exact
+        log-likelihood function (for example to make it faster to calculate /
+        numerically more stable) so long as whenever the cost is minimized the
+        log-likelihood is maximised.
+
+        This function must be overridden by specialisations of
+            :class:`~ionics_fits.MLE.MLEFitter`.
 
         :param free_param_values: array of floated parameter values
         :param x: x-axis data
         :param y: y-axis data
         :param free_func: convenience wrapper for the model function, taking only values
             for the fit's free parameters
+        :param jacobian_func: convenience wrapper for the model's Jacobian function,
+            including only the fit's free parameters
+        :returns: tuple giving the values of the cost function and its Jacobian
+        """
+        raise NotImplementedError
+
+    def hessian(
+        self, x: TX, y: TY, param_values: Dict[str, float], free_params: List[str]
+    ) -> Array[("num_free_params", "num_free_params"), np.float64]:
+        """Hessian of the cost function, used to calculate the parameter covariance
+        matrix.
+
+        This function must be overridden by specialisations of
+            :class:`~ionics_fits.MLE.MLEFitter`.
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :param param_values: dictionary of fitted model parameter values
+        :param free_params: list of free parameters for the fit
+        :returns: the Hessian matrix
         """
         raise NotImplementedError
 
@@ -107,11 +137,17 @@ class MLEFitter(Fitter):
         :returns: tuple of dictionaries mapping model parameter names to their fitted
             values and uncertainties.
         """
+        fixed_params = {
+            param_name: param_data.fixed_to
+            for param_name, param_data in parameters.items()
+            if param_data.fixed_to is not None
+        }
         free_parameters = [
             param_name
             for param_name, param_data in parameters.items()
             if param_data.fixed_to is None
         ]
+
         num_free_params = len(free_parameters)
 
         p0 = [parameters[param].get_initial_value() for param in free_parameters]
@@ -126,10 +162,26 @@ class MLEFitter(Fitter):
             f"{pprint.pformat(p0_dict)}"
         )
 
+        def model_jac_func(free_param_values):
+            param_values = dict(fixed_params)
+            param_values.update(
+                {
+                    free_parameters[idx]: free_param_values[idx]
+                    for idx in range(num_free_params)
+                }
+            )
+            model_jac = self.model.jacobian(
+                x=x,
+                param_values=param_values,
+                included_params=free_parameters,
+            )
+            return model_jac
+
         # maxls setting helps with ABNORMAL_TERMINATION_IN_LNSRCH
         res = optimize.minimize(
-            fun=self.log_likelihood,
-            args=(x, y, free_func),
+            fun=self.cost_func,
+            jac=True,
+            args=(x, y, free_func, model_jac_func),
             x0=p0,
             bounds=zip(lower, upper),
             **self.minimizer_args,
@@ -138,67 +190,19 @@ class MLEFitter(Fitter):
         if not res.success:
             raise RuntimeError(f"{self.TYPE} fit failed: {res.message}")
 
-        # Compute parameter covariance matrix
-        #
-        # The covariance matrix is given by the inverse of the Hessian at the optimum.
-        #
-        # While scipy.minimize provides an approximate value for the inverse
-        # Hessian, it's not accurate enough to be used for error estimation.
-        # we perform our own calculation based on finite differences using the
-        # specified step size, rescaled by the parameter bounds where possible.
-        lower = [bound if bound is not None else -np.inf for bound in lower]
-        upper = [bound if bound is not None else +np.inf for bound in upper]
+        p = {param: value for param, value in zip(free_parameters, res.x)}
 
-        def diff(param_idx, fun):
-            if np.isfinite(lower[param_idx]) and np.isfinite(upper[param_idx]):
-                param_range = upper[param_idx] - lower[param_idx]
-                step_size = self.step_size * param_range
-            else:
-                step_size = self.step_size
+        # Compute parameter covariance matrix from the inverse of the Hessian at the
+        # optimum.
+        param_values = dict(p)
+        param_values.update(fixed_params)
 
-            def _fun(free_param_values):
-                param_value = free_param_values[param_idx]
-                param_upper = np.clip(
-                    param_value + 0.5 * step_size,
-                    a_min=lower[param_idx],
-                    a_max=upper[param_idx],
-                )
-                param_lower = np.clip(
-                    param_value - 0.5 * step_size,
-                    a_min=lower[param_idx],
-                    a_max=upper[param_idx],
-                )
-                delta = param_upper - param_lower
-
-                param_upper_values = np.copy(free_param_values)
-                param_lower_values = np.copy(free_param_values)
-                param_upper_values[param_idx] = param_upper
-                param_lower_values[param_idx] = param_lower
-
-                f_upper = fun(param_upper_values)
-                f_lower = fun(param_lower_values)
-
-                return (f_upper - f_lower) / delta
-
-            return _fun
-
-        def log_likelihood(free_param_values):
-            return self.log_likelihood(
-                free_param_values=free_param_values, x=x, y=y, free_func=free_func
-            )
-
-        hessian = np.zeros((num_free_params, num_free_params))
-
-        for i_idx in range(num_free_params):
-            for j_idx in range(num_free_params):
-                first_diff = diff(i_idx, log_likelihood)
-                second_diff = diff(j_idx, first_diff)
-                hessian[i_idx, j_idx] = second_diff(res.x)
-
+        hessian = self.hessian(
+            x=x, y=y, param_values=param_values, free_params=free_parameters
+        )
         p_cov = np.linalg.inv(hessian)
         p_err = np.sqrt(np.diag(p_cov))
 
-        p = {param: value for param, value in zip(free_parameters, res.x)}
         p_err = {param: value for param, value in zip(free_parameters, p_err)}
 
         return p, p_err
