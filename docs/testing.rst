@@ -12,6 +12,8 @@ Unit Tests
 * to run a subset of tests use the ``-k`` flag e.g. ``poe test -k "rabi"`` to only run
   tests with the word "rabi" in their name. For more information about configuring
   pytest see the `documentation <https://docs.pytest.org/en/7.1.x/>`_
+* to print the log output during tests - for example to see what parameter values the
+  model function is being evaluated at - use the ``--log-cli-level=DEBUG`` flag
 * all tests must pass before a PR can be merged into master as well as static analysis
   based on `pytype`, run using ``poe types`` (Linux only)
 * PRs to add new models will only be merged once they have full test coverage

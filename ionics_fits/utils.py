@@ -1,8 +1,10 @@
 import numpy as np
-from typing import Callable, List, Union, TYPE_CHECKING
+from typing import Callable, Dict, List, Tuple, Union, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
+    from .common import Model, TX
+
     num_x_axes = float
     num_y_axes = float
 
@@ -154,3 +156,96 @@ def scale_no_rescale(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
         )
 
     return 1.0
+
+
+def step_param(
+    model: "Model",
+    stepped_param: str,
+    param_values: Dict[str, float],
+    step_size: float = 1e-4,
+) -> Tuple[Dict[str, float], Dict[str, float], float]:
+    """Generates parameter value dictionaries with one parameter stepped. Used by
+    numerical differentiation routines.
+
+    :param model: :class:`~ionics_fits.common.Model` whose parameters we are varying
+    :param stepped_param: name of the stepped parameter
+    :param param_values: dictionary of parameter values
+    :param step_size: base step size. As a rule of thumb this should not be larger than
+        ``~1e-5``. See section 5.7 of `Numerical Recipes` (third edition) for discussion
+        of numerical differentiation. If the stepped parameter has lower and upper
+        bounds set, we use ``(upper_bound - lower_bound) * step_size`` as the step size,
+        otherwise we use ``step_size`` directly.
+    :returns: tuple of ``(lower_values, upper_values, step)`` where: ``lower_values`` is
+        a modified ``param_values`` dictionary with ``stepped_param`` decreased by half
+        of the step size (clipped to its lower bound); ``upper_values`` is a modified
+        ``param_values`` dictionary with ``stepped_param`` stepped upwards; and,
+        ``step`` is the size of the step taking clipping into account.
+    """
+    param_data = model.parameters[stepped_param]
+    lower_bound = param_data.lower_bound
+    upper_bound = param_data.upper_bound
+    stepped_param_value = param_values[stepped_param]
+
+    if np.isfinite(lower_bound) and np.isfinite(upper_bound):
+        step_size = step_size * (upper_bound - lower_bound)
+    else:
+        step_size = step_size
+
+    param_lower = np.clip(
+        stepped_param_value - 0.5 * step_size,
+        a_min=lower_bound,
+        a_max=upper_bound,
+    )
+    param_upper = np.clip(
+        stepped_param_value + 0.5 * step_size,
+        a_min=lower_bound,
+        a_max=upper_bound,
+    )
+
+    step = param_upper - param_lower
+
+    lower_values = dict(param_values)
+    upper_values = dict(param_values)
+    lower_values[stepped_param] = param_lower
+    upper_values[stepped_param] = param_upper
+
+    return lower_values, upper_values, step
+
+
+def num_diff(
+    model: "Model",
+    differentiated_param: str,
+    x: "TX",
+    param_values: Dict[str, float],
+    step_size: float = 1e-4,
+) -> float:
+    """Returns the numerical derivative of a model function with respect to one of its
+    parameter.
+
+    This function calculates the derivative::
+
+        d(fun)/d(param)[x, param_values]
+
+    :param model: the model function to differentiate
+    :param differentiated_param: name of the parameter to differentiate the model
+        function with respect to
+    :param x: x-axis point to evaluate the derivative at
+    :param param_values: dictionary of parameter values to evaluate the derivative at.
+    :param step_size: base step size. As a rule of thumb this should not be larger than
+        ``~1e-5``. See section 5.7 of `Numerical Recipes` (third edition) for discussion
+        of numerical differentiation. If the stepped parameter has lower and upper
+        bounds set, we use ``(upper_bound - lower_bound) * step_size`` as the step size,
+        otherwise we use ``step_size`` directly.
+    :returns: the model function's derivative with respect to the selected parameter
+    """
+    lower_values, upper_values, param_step = step_param(
+        model=model,
+        stepped_param=differentiated_param,
+        param_values=param_values,
+        step_size=step_size,
+    )
+
+    f_lower = model.func(x, lower_values)
+    f_upper = model.func(x, upper_values)
+
+    return (f_upper - f_lower) / param_step

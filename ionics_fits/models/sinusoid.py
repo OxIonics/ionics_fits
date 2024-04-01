@@ -141,6 +141,42 @@ class Sinusoid(Model):
 
         return derived_params, derived_uncertainties
 
+    def jacobian(
+        self,
+        x: TX,
+        param_values: Dict[str, float],
+        included_params=None,
+    ):
+        x = np.atleast_2d(x)
+        jac = np.zeros((len(included_params), self.get_num_y_axes(), x.shape[1]))
+
+        a = param_values["a"]
+        omega = param_values["omega"]
+        phi = param_values["phi"]
+        x0 = param_values["x0"]
+        tau = param_values["tau"]
+
+        Gamma = np.exp(-x / tau)
+        alpha = np.sin(omega * (x - x0) + phi)
+        beta = np.cos(omega * (x - x0) + phi)
+
+        # y = Gamma * a * np.sin(omega * (x - x0) + phi) + y0
+
+        if "a" in included_params:
+            jac[included_params.index("a"), :, :] = Gamma * alpha
+        if "omega" in included_params:
+            jac[included_params.index("omega"), :, :] = Gamma * a * beta * (x - x0)
+        if "phi" in included_params:
+            jac[included_params.index("phi"), :, :] = Gamma * a * beta
+        if "y0" in included_params:
+            jac[included_params.index("y0"), :, :] = 1
+        if "x0" in included_params:
+            jac[included_params.index("x0"), :, :] = Gamma * a * beta * omega
+        if "tau" in included_params:
+            jac[included_params.index("tau"), :, :] = -Gamma * a * alpha / tau
+
+        return jac
+
 
 class SineMinMax(ReparametrizedModel):
     """Sinusoid parametrised by minimum / maximum values instead of offset / amplitude::
@@ -188,6 +224,40 @@ class SineMinMax(ReparametrizedModel):
             "max": (model_param_values["y0"] + model_param_values["a"]),
             "min": (model_param_values["y0"] - model_param_values["a"]),
         }
+
+    def jacobian(
+        self,
+        x: TX,
+        param_values: Dict[str, float],
+        included_params=None,
+    ):
+        x = np.atleast_2d(x)
+        jac = np.zeros((len(included_params), self.get_num_y_axes(), x.shape[1]))
+
+        a = 0.5 * (param_values["max"] - param_values["min"])
+        omega = param_values["omega"]
+        phi = param_values["phi"]
+        x0 = param_values["x0"]
+        tau = param_values["tau"]
+
+        Gamma = np.exp(-x / tau)
+        alpha = np.sin(omega * (x - x0) + phi)
+        beta = np.cos(omega * (x - x0) + phi)
+
+        if "max" in included_params:
+            jac[included_params.index("max"), :, :] = 0.5 * (1 + Gamma * alpha)
+        if "min" in included_params:
+            jac[included_params.index("min"), :, :] = 0.5 * (1 - Gamma * alpha)
+        if "omega" in included_params:
+            jac[included_params.index("omega"), :, :] = Gamma * a * beta * (x - x0)
+        if "phi" in included_params:
+            jac[included_params.index("phi"), :, :] = Gamma * a * beta
+        if "x0" in included_params:
+            jac[included_params.index("x0"), :, :] = Gamma * a * beta * omega
+        if "tau" in included_params:
+            jac[included_params.index("tau"), :, :] = -Gamma * a * alpha / tau
+
+        return jac
 
 
 class Sine2(Sinusoid):
