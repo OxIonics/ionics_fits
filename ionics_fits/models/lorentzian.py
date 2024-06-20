@@ -10,7 +10,7 @@ from ..utils import scale_x, scale_y
 class Lorentzian(Model):
     """Lorentzian model according to::
 
-        y = a * fwhmh^2 / ((x - x0)^2 + fwhmh^2) + y0
+        y = a * (0.5 * fwhmh)^2 / ((x - x0)^2 + (0. 5 * fwhmh)^2) + y0
 
     See :meth:`_func` for parameter details.
     """
