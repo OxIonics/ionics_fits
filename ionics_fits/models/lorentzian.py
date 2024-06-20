@@ -10,7 +10,7 @@ from ..utils import scale_x, scale_y
 class Lorentzian(Model):
     """Lorentzian model according to::
 
-        y = a * fwhmh^2 / ((x - x0)^2 + fwhmh^2) + y0
+        y = a * (0.5 * fwhmh)^2 / ((x - x0)^2 + (0. 5 * fwhmh)^2) + y0
 
     See :meth:`_func` for parameter details.
     """
@@ -39,7 +39,7 @@ class Lorentzian(Model):
         :param a: peak value of the function above ``y0``
         :param fwhmh: full width at half maximum height of the function
         """
-        y = a * fwhmh**2 / ((x - x0) ** 2 + fwhmh**2) + y0
+        y = a * (0.5 * fwhmh) ** 2 / ((x - x0) ** 2 + (0.5 * fwhmh) ** 2) + y0
         return y
 
     # pytype: enable=invalid-annotation
@@ -49,8 +49,8 @@ class Lorentzian(Model):
         y = np.squeeze(y)
 
         # Fourier transform:
-        #  f(y) = a * fwhmh^2 / ((x - x0)^2 + fwhmh^2) + y0
-        #  f(k) = a * fwhmh * pi * exp(-2*pi*i*k*x0) * exp(-2*pi*fwhmh*|k|)
+        #  f(y) = a * (0.5 * fwhmh)^2 / ((x - x0)^2 + (0.5 * fwhmh)^2) + y0
+        #  f(k) = a * 0.5 * fwhmh * pi * exp(-2*pi*i*k*x0) * exp(-2*pi*0.5*fwhmh*|k|)
         omega, spectrum = get_spectrum(x, y, trim_dc=True)
         abs_spectrum = np.abs(spectrum)
         k = omega / (2 * np.pi)
@@ -77,8 +77,8 @@ class Lorentzian(Model):
             df = abs_spectrum[idx_1_e] - W
             tau = k[idx_1_e] - df / df_dk
 
-        fwhmh = 1 / (2 * np.pi * tau)
-        a = peak / (np.pi * fwhmh)
+        fwhmh = 1 / (np.pi * tau)
+        a = 2 * peak / (np.pi * fwhmh)
 
         self.parameters["y0"].heuristic = np.mean([y[0], y[-1]])
         y0 = self.parameters["y0"].get_initial_value()
