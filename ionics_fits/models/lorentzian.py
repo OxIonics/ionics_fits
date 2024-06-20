@@ -39,7 +39,7 @@ class Lorentzian(Model):
         :param a: peak value of the function above ``y0``
         :param fwhmh: full width at half maximum height of the function
         """
-        y = a * (0.5 * fwhmh)**2 / ((x - x0) ** 2 + (0.5 * fwhmh)**2) + y0
+        y = a * (0.5 * fwhmh) ** 2 / ((x - x0) ** 2 + (0.5 * fwhmh) ** 2) + y0
         return y
 
     # pytype: enable=invalid-annotation
