@@ -10,6 +10,11 @@ Changes are divided into four categories:
 * Other - small changes, such as tweaks to internals, which most users will not need to be aware of
 * New models
 
+## 1.3.0.11
+
+### Bug fixes
+* Fix ``Lorentzian`` model.
+
 ## 1.3.0.9
 
 ### Bug fixes
