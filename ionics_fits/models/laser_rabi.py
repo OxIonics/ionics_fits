@@ -36,7 +36,11 @@ class LaserFlop(RabiFlop):
     Subclasses must inherit from this class and a suitable
     :class:`~ionics_fits.models.rabi.RabiFlop` subclass, such as
     :class:`~ionics_fits.models.rabi.RabiFlopFreq` or
-    :class:`~ionics_fits.models.rabi.RabiFlopTime`.
+    :class:`~ionics_fits.models.rabi.RabiFlopTime`. And use :func:`.coherent`,
+    :func`.thermal` or :func:`.squeezed` to control the initial motional degree
+    of freedom state. e.g.
+
+        LaserFlopFreq.coherent(False, 1)
 
     The model requires that the spin state of the system starts out entirely in one
     of the ground or excited states, specified using :meth:`__init__`\'s
@@ -61,6 +65,51 @@ class LaserFlop(RabiFlop):
 
     See also :class:`~ionics_fits.models.rabi.RabiFlop`.
     """
+
+    @classmethod
+    def coherent(
+        cls,
+        start_excited: bool,
+        sideband_index: int,
+        n_max: int = 30,
+    ):
+        """Start the motional degree of freedom in a coherent state."""
+        return cls(
+            distribution_fun=coherent_state_probs,
+            start_excited=start_excited,
+            sideband_index=sideband_index,
+            n_max=n_max,
+        )
+
+    @classmethod
+    def thermal(
+        cls,
+        start_excited: bool,
+        sideband_index: int,
+        n_max: int = 30,
+    ):
+        """Start the motional degree of freedom in a thermal state."""
+        return cls(
+            distribution_fun=thermal_state_probs,
+            start_excited=start_excited,
+            sideband_index=sideband_index,
+            n_max=n_max,
+        )
+
+    @classmethod
+    def squeezed(
+        cls,
+        start_excited: bool,
+        sideband_index: int,
+        n_max: int = 30,
+    ):
+        """Start the motional degree of freedom in a squeezed state."""
+        return cls(
+            distribution_fun=squeezed_state_probs,
+            start_excited=start_excited,
+            sideband_index=sideband_index,
+            n_max=n_max,
+        )
 
     def __init__(
         self,
@@ -268,115 +317,15 @@ class LaserFlop(RabiFlop):
         )
 
 
-class LaserFlopFreqCoherent(LaserFlop, RabiFlopFreq):
-    """Fit model for Rabi flopping pulse detuning scans when the motional degree of
-    freedom starts in a coherent state.
-    """
+class LaserFlopFreq(LaserFlop, RabiFlopFreq):
+    """Fit model for Rabi flopping pulse detuning scans"""
 
-    def __init__(
-        self,
-        start_excited: bool,
-        sideband_index: int,
-        n_max: int = 30,
-    ):
-        super().__init__(
-            distribution_fun=coherent_state_probs,
-            start_excited=start_excited,
-            sideband_index=sideband_index,
-            n_max=n_max,
-        )
+    pass
 
 
-class LaserFlopFreqThermal(LaserFlop, RabiFlopFreq):
-    """Fit model for Rabi flopping pulse detuning scans when the motional degree of
-    freedom starts in a thermal state.
-    """
-
-    def __init__(
-        self,
-        start_excited: bool,
-        sideband_index: int,
-        n_max: int = 30,
-    ):
-        super().__init__(
-            distribution_fun=thermal_state_probs,
-            start_excited=start_excited,
-            sideband_index=sideband_index,
-            n_max=n_max,
-        )
-
-
-class LaserFlopFreqSqueezed(LaserFlop, RabiFlopFreq):
-    """Fit model for Rabi flopping pulse detuning scans when the motional degree of
-    freedom starts in a squeezed state.
-    """
-
-    def __init__(
-        self,
-        start_excited: bool,
-        sideband_index: int,
-        n_max: int = 30,
-    ):
-        super().__init__(
-            distribution_fun=squeezed_state_probs,
-            start_excited=start_excited,
-            sideband_index=sideband_index,
-            n_max=n_max,
-        )
-
-
-class LaserFlopTimeCoherent(LaserFlop, RabiFlopTime):
+class LaserFlopTime(LaserFlop, RabiFlopTime):
     """Fit model for Rabi flopping pulse duration scans when the motional degree of
     freedom starts in a coherent state.
     """
 
-    def __init__(
-        self,
-        start_excited: bool,
-        sideband_index: int,
-        n_max: int = 30,
-    ):
-        super().__init__(
-            distribution_fun=coherent_state_probs,
-            start_excited=start_excited,
-            sideband_index=sideband_index,
-            n_max=n_max,
-        )
-
-
-class LaserFlopTimeThermal(LaserFlop, RabiFlopTime):
-    """Fit model for Rabi flopping pulse duration scans when the motional degree of
-    freedom starts in a thermal state.
-    """
-
-    def __init__(
-        self,
-        start_excited: bool,
-        sideband_index: int,
-        n_max: int = 30,
-    ):
-        super().__init__(
-            distribution_fun=thermal_state_probs,
-            start_excited=start_excited,
-            sideband_index=sideband_index,
-            n_max=n_max,
-        )
-
-
-class LaserFlopTimeSqueezed(LaserFlop, RabiFlopTime):
-    """Fit model for Rabi flopping pulse duration scans when the motional degree of
-    freedom starts in a squeezed state.
-    """
-
-    def __init__(
-        self,
-        start_excited: bool,
-        sideband_index: int,
-        n_max: int = 30,
-    ):
-        super().__init__(
-            distribution_fun=squeezed_state_probs,
-            start_excited=start_excited,
-            sideband_index=sideband_index,
-            n_max=n_max,
-        )
+    pass
