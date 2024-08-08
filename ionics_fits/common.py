@@ -5,12 +5,23 @@ import dataclasses
 import inspect
 import logging
 import numpy as np
+import pprint
 from typing import Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
-from .utils import Array, ArrayLike, scale_undefined, TSCALE_FUN, TX_SCALE, TY_SCALE
+from .utils import (
+    Array,
+    ArrayLike,
+    num_diff,
+    scale_undefined,
+    step_param,
+    TSCALE_FUN,
+    TX_SCALE,
+    TY_SCALE,
+)
 
 
 if TYPE_CHECKING:
+    num_params = float
     num_samples = float
     num_x_axes = float
     num_y_axes = float
@@ -35,6 +46,8 @@ TY = Union[
     Array[("num_samples"), np.float64],
     Array[("num_y_axes", "num_samples"), np.float64],
 ]
+TJACOBIAN = Array[("num_params", "num_y_axes", "num_samples"), np.float64]
+THESSIAN = Array[("num_params", "num_params", "num_y_axes", "num_samples"), np.float64]
 
 
 @dataclasses.dataclass
@@ -453,6 +466,104 @@ class Model:
         """
         return {}, {}
 
+    def jacobian(
+        self,
+        x: TX,
+        param_values: Dict[str, float],
+        included_params: Optional[List[str]] = None,
+    ) -> TJACOBIAN:
+        r"""Calculates the Jacobian of the model function.
+
+        The Jacobian is represented the array::
+
+          J_i = d(model.func)/d(param_i)[x, param_values]
+
+        Where the ordering of elements matches the ordering of elements in
+        included_params.
+
+        The default implementation calculates the model function's derivatives
+        numerically (see :func:`~ionics_fits.utils.num_diff`); where possible, this
+        method should be overridden to provide more accurate (typically analytical)
+        calculations of the derivatives.
+
+        :param x: x-axis point to evaluate the Jacobian at
+        :param param_values: dictionary of parameter values to evaluate the Jacobian at
+        :param included_params: optional list of parameters to include in the Jacobian
+           output. If ``None`` we differentiate with respect to all parameters in the
+           model's parameter dictionary.
+        :returns: array containing the Jacobian
+        """
+        x = np.atleast_2d(x)
+
+        if included_params is None:
+            included_params = self.parameters.keys()
+
+        jac = np.zeros((len(included_params), self.get_num_y_axes(), x.shape[1]))
+
+        for param_idx, param_name in enumerate(included_params):
+            jac[param_idx, :, :] = num_diff(
+                model=self,
+                differentiated_param=param_name,
+                x=x,
+                param_values=param_values,
+            )
+
+        return jac
+
+    def hessian(
+        self,
+        x: TX,
+        param_values: Dict[str, float],
+        included_params: Optional[List[str]] = None,
+    ) -> THESSIAN:
+        r"""Calculates the Hessian of the model function.
+
+        The Hessian is represented the matrix::
+
+          J_ij = d2(model.func)/d(param_i)d(param_j)[x, param_values]
+
+        Where the ordering of elements matches the ordering of elements in
+        included_params.
+
+        The default implementation numerically differentiates the Hessian (see
+        :func:`~ionics_fits.utils.num_diff`); overridden to provide more accurate
+        (typically analytical) calculations.
+
+        :param x: x-axis point to evaluate the Hessian at
+        :param param_values: dictionary of parameter values to evaluate the Hessian at
+        :param included_params: optional list of parameters to include in the Hessian
+           output. If ``None`` we differentiate with respect to all parameters in the
+           model's parameter dictionary.
+        :returns: array containing the Hessian
+        """
+
+        x = np.atleast_2d(x)
+
+        if included_params is None:
+            included_params = self.parameters.keys()
+
+        num_params = len(included_params)
+        hessian = np.zeros((num_params, num_params, self.get_num_y_axes(), x.shape[1]))
+
+        for param_idx, param_name in enumerate(included_params):
+            lower_values, upper_values, step = step_param(
+                model=self,
+                stepped_param=param_name,
+                param_values=param_values,
+            )
+
+            jac_lower = self.jacobian(
+                x=x, param_values=lower_values, included_params=included_params
+            )
+            jac_upper = self.jacobian(
+                x=x, param_values=upper_values, included_params=included_params
+            )
+
+        for param_idx, param_name in enumerate(included_params):
+            hessian[param_idx, :, :, :] = (jac_upper - jac_lower) / step
+
+        return hessian
+
 
 class Fitter:
     r"""Base class for fitters.
@@ -818,18 +929,49 @@ class Fitter:
         if self.free_parameters == []:
             raise ValueError("Attempt to fit with no free parameters.")
 
+        log_calls = logging.DEBUG >= logger.level
+        previous_point: Optional[Array[("num_params",), np.float64]] = None
+        evaluation = 1
+
         def free_func(x: TX, *free_param_values: float) -> TY:
             """Call the model function with the values of the free parameters."""
+            free_param_values = list(free_param_values)
             params = {
                 param: value
-                for param, value in zip(self.free_parameters, list(free_param_values))
+                for param, value in zip(self.free_parameters, free_param_values)
             }
+
+            if log_calls:
+                nonlocal previous_point
+                nonlocal evaluation
+                msg = f"Evaluating function (evaluation {evaluation}):\n"
+                msg += "Parameter values: " + pprint.pformat(params)
+
+                if previous_point is not None:
+                    free_param_values = np.array(free_param_values)
+                    step = free_param_values - previous_point
+
+                    step = {
+                        param: value
+                        for param, value in zip(self.free_parameters, step)
+                        if value != 0.0
+                    }
+
+                    msg += "\nStep: " + pprint.pformat(step)
+
+                previous_point = free_param_values
+                evaluation = evaluation + 1
+                logging.debug(msg)
+
             params.update(self.fixed_parameters)
             return self.model.func(x, params)
 
         fitted_params, uncertainties = self._fit(
             x_scaled, y_scaled, self.model.parameters, free_func
         )
+
+        logger.debug(f"Fit completed after {evaluation} function evaluations")
+
         fitted_params.update(
             {param: value for param, value in self.fixed_parameters.items()}
         )
