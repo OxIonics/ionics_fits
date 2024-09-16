@@ -135,4 +135,4 @@ def displaced_thermal_state_probs(
             * np.exp(-n_bar_alpha / (n_bar + 1))
             * special.eval_laguerre(n, -n_bar_alpha / (n_bar * (n_bar + 1)))
         )
-    return P_n
+    return np.nan_to_num(P_n, 0.0)
