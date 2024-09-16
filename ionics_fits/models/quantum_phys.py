@@ -123,15 +123,16 @@ def displaced_thermal_state_probs(
     n_bar_alpha = np.abs(alpha) ** 2
 
     n = np.arange(n_max + 1, dtype=int)
-    if n_bar == 0:
+    if n_bar == 0 and alpha == 0:
         P_n = np.zeros_like(n)
         P_n[0] = 1
+    elif n_bar == 0 and alpha != 0:
+        P_n = coherent_state_probs(n_max, alpha=alpha)
     else:
-        lag_poly = np.array(
-            [special.laguerre(n)(-n_bar_alpha / (n_bar * (n_bar + 1))) for n in n]
-        )
+        lag_poly = special.eval_laguerre(n, -n_bar_alpha / (n_bar * (n_bar + 1)))
         P_n = (
-            (n_bar**n / (n_bar + 1) ** (n + 1))
+            ((n_bar / (n_bar + 1)) ** n)
+            / (n_bar + 1)
             * np.exp(-n_bar_alpha / (n_bar + 1))
             * lag_poly
         )
