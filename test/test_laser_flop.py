@@ -4,11 +4,14 @@ from ionics_fits.models.laser_rabi import (
     LaserFlopFreqCoherent,
     LaserFlopFreqSqueezed,
     LaserFlopFreqThermal,
+    LaserFlopFreqDisplacedThermal,
     LaserFlopTimeCoherent,
     LaserFlopTimeThermal,
     LaserFlopTimeSqueezed,
+    LaserFlopTimeDisplacedThermal,
 )
 from .common import check_multiple_param_sets, Config
+from typing import Optional, List
 
 
 def _test_laser_flop_freq(
@@ -17,6 +20,7 @@ def _test_laser_flop_freq(
     sideband_index: int,
     flop_class,
     dist_params,
+    user_estimates: Optional[List[str]] = None,
 ):
     t_pi = 5e-6
     params = {
@@ -35,7 +39,7 @@ def _test_laser_flop_freq(
     w = np.linspace(-2e6, 2e6, 200) * 2 * np.pi
     w *= params["eta"] ** abs(sideband_index)
 
-    model = flop_class(start_excited=True, sideband_index=sideband_index, n_max=100)
+    model = flop_class(start_excited=True, sideband_index=sideband_index, n_max=30)
     model.parameters["P_readout_e"].fixed_to = params["P_readout_e"]
     model.parameters["P_readout_g"].fixed_to = params["P_readout_g"]
     model.parameters["eta"].fixed_to = params["eta"]
@@ -51,6 +55,7 @@ def _test_laser_flop_freq(
         model,
         params,
         Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
+        user_estimates=user_estimates,
     )
 
 
@@ -91,6 +96,14 @@ def test_laser_flop_freq(plot_failures: bool):
         flop_class=LaserFlopFreqSqueezed,
         dist_params={"zeta": 1.0},
     )
+    _test_laser_flop_freq(
+        plot_failures=plot_failures,
+        P_readout_e=1.0,
+        sideband_index=-1,
+        flop_class=LaserFlopFreqDisplacedThermal,
+        dist_params={"n_bar": [0, 0, 1, 0.1], "alpha": [0, np.sqrt(4), 0, np.sqrt(2)]},
+        user_estimates=["n_bar", "alpha"],
+    )
 
 
 def _test_laser_flop_time(
@@ -99,6 +112,7 @@ def _test_laser_flop_time(
     sideband_index: int,
     flop_class,
     dist_params,
+    user_estimates: Optional[List[str]] = None,
 ):
     t_pi = 5e-6
     params = {
@@ -115,7 +129,7 @@ def _test_laser_flop_time(
     t_pulse = np.linspace(0, 5 * t_pi, 100)
     t_pulse /= params["eta"] ** abs(sideband_index)
 
-    model = flop_class(start_excited=True, sideband_index=sideband_index, n_max=100)
+    model = flop_class(start_excited=True, sideband_index=sideband_index, n_max=30)
     model.parameters["P_readout_e"].fixed_to = params["P_readout_e"]
     model.parameters["P_readout_g"].fixed_to = params["P_readout_g"]
     model.parameters["eta"].fixed_to = params["eta"]
@@ -130,6 +144,7 @@ def _test_laser_flop_time(
         model,
         params,
         Config(plot_failures=plot_failures, param_tol=None, residual_tol=1e-4),
+        user_estimates=user_estimates,
     )
 
 
@@ -169,4 +184,12 @@ def test_laser_flop_time(plot_failures: bool):
         sideband_index=+1,
         flop_class=LaserFlopTimeSqueezed,
         dist_params={"zeta": 1.0},
+    )
+    _test_laser_flop_time(
+        plot_failures=plot_failures,
+        P_readout_e=1.0,
+        sideband_index=-1,
+        flop_class=LaserFlopTimeDisplacedThermal,
+        dist_params={"n_bar": [0, 0, 1, 0.1], "alpha": [0, np.sqrt(4), 0, np.sqrt(2)]},
+        user_estimates=["n_bar", "alpha"],
     )
