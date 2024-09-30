@@ -7,6 +7,7 @@ from scipy import special
 
 from .quantum_phys import (
     coherent_state_probs,
+    displaced_thermal_state_probs,
     squeezed_state_probs,
     thermal_state_probs,
 )
@@ -325,6 +326,25 @@ class LaserFlopFreqSqueezed(LaserFlop, RabiFlopFreq):
         )
 
 
+class LaserFlopFreqDisplacedThermal(LaserFlop, RabiFlopFreq):
+    """Fit model for Rabi flopping pulse detuning scans when the motional degree of
+    freedom starts in a displaced thermal state.
+    """
+
+    def __init__(
+        self,
+        start_excited: bool,
+        sideband_index: int,
+        n_max: int = 30,
+    ):
+        super().__init__(
+            distribution_fun=displaced_thermal_state_probs,
+            start_excited=start_excited,
+            sideband_index=sideband_index,
+            n_max=n_max,
+        )
+
+
 class LaserFlopTimeCoherent(LaserFlop, RabiFlopTime):
     """Fit model for Rabi flopping pulse duration scans when the motional degree of
     freedom starts in a coherent state.
@@ -376,6 +396,25 @@ class LaserFlopTimeSqueezed(LaserFlop, RabiFlopTime):
     ):
         super().__init__(
             distribution_fun=squeezed_state_probs,
+            start_excited=start_excited,
+            sideband_index=sideband_index,
+            n_max=n_max,
+        )
+
+
+class LaserFlopTimeDisplacedThermal(LaserFlop, RabiFlopTime):
+    """Fit model for Rabi flopping pulse duration scans when the motional degree of
+    freedom starts in a displaced thermal state.
+    """
+
+    def __init__(
+        self,
+        start_excited: bool,
+        sideband_index: int,
+        n_max: int = 30,
+    ):
+        super().__init__(
+            distribution_fun=displaced_thermal_state_probs,
             start_excited=start_excited,
             sideband_index=sideband_index,
             n_max=n_max,

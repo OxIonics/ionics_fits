@@ -98,4 +98,41 @@ def squeezed_state_probs(
     return P_n
 
 
-# pytype: enable=invalid-annotation
+def displaced_thermal_state_probs(
+    n_max: int,
+    n_bar: ModelParameter(lower_bound=0, scale_func=scale_invariant),
+    alpha: ModelParameter(lower_bound=0, scale_func=scale_invariant),
+) -> Array[("num_fock_states",), np.float64]:
+    """Displaced thermal probability distribution.
+
+    For an ion initially in a thermal distribution characterised by an average phonon
+    number n_bar, we calculate the new probability distribution after applying a
+    displacement operator D(α).
+
+    Formula taken from equation (7) of
+    Ramm, M., Pruttivarasin, T. and Häffner, H., 2014. Energy transport in trapped ion
+    chains. New Journal of Physics, 16(6), p.063062.
+    https://iopscience.iop.org/article/10.1088/1367-2630/16/6/063062/pdf
+
+    :param n_max: the distribution is truncated at a maximum Fock state of ``|n_max>``
+    :param n_bar: the mean thermal Fock state occupation before displacement
+    :param alpha: Complex displacement parameter
+    :returns: array of Fock state occupation probabilities
+    """
+
+    n_bar_alpha = np.abs(alpha) ** 2
+    n = np.arange(n_max + 1, dtype=int)
+
+    if n_bar == 0 and alpha == 0:
+        P_n = np.zeros_like(n)
+        P_n[0] = 1
+    elif n_bar == 0 and alpha != 0:
+        P_n = coherent_state_probs(n_max, alpha=alpha)
+    else:
+        P_n = (
+            ((n_bar / (n_bar + 1)) ** n)
+            / (n_bar + 1)
+            * np.exp(-n_bar_alpha / (n_bar + 1))
+            * special.eval_laguerre(n, -n_bar_alpha / (n_bar * (n_bar + 1)))
+        )
+    return np.nan_to_num(P_n, 0.0)
