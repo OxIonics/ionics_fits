@@ -11,7 +11,7 @@ from .utils import Array, ArrayLike, scale_undefined, TSCALE_FUN, TX_SCALE, TY_S
 
 
 if TYPE_CHECKING:
-    num_floated_params = float
+    num_free_params = float
     num_samples = float
     num_x_axes = float
     num_y_axes = float
@@ -686,7 +686,7 @@ class Fitter:
     derived_uncertainties: Dict[str, float]
     initial_values: Dict[str, float]
     model: Model
-    covariances: Array[("num_floated_params", "num_floated_params"), np.float64]
+    covariances: Array[("num_free_params", "num_free_params"), np.float64]
     free_parameters: List[str]
     x_scales: TX_SCALE
     y_scales: TY_SCALE
@@ -891,7 +891,7 @@ class Fitter:
     ) -> Tuple[
         Dict[str, float],
         Dict[str, float],
-        Array[("num_floated_params", "num_floated_params"), np.float64],
+        Array[("num_free_params", "num_free_params"), np.float64],
     ]:
         """Implementation of the parameter estimation.
 

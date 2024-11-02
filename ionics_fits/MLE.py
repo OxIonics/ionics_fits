@@ -94,7 +94,11 @@ class MLEFitter(Fitter):
         y: TY,
         parameters: Dict[str, ModelParameter],
         free_func: Callable[..., TY],
-    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+    ) -> Tuple[
+        Dict[str, float],
+        Dict[str, float],
+        Array[("num_free_params", "num_free_params"), np.float64],
+    ]:
         """Performs maximum likelihood parameter estimation and calculates standard
         errors in each parameter.
 

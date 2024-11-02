@@ -8,6 +8,7 @@ from .common import Fitter, Model, ModelParameter, TX, TY
 from .utils import Array
 
 if TYPE_CHECKING:
+    num_free_params = float
     num_samples = float
     num_samples_flattened = float
     num_x_axes = float
@@ -62,7 +63,11 @@ class NormalFitter(Fitter):
         y: TY,
         parameters: Dict[str, ModelParameter],
         free_func: Callable[..., TY],
-    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+    ) -> Tuple[
+        Dict[str, float],
+        Dict[str, float],
+        Array[("num_free_params", "num_free_params"), np.float64],
+    ]:
         sigma = None if self.sigma is None else self.sigma / self.y_scales[:, None]
 
         free_parameters = [
