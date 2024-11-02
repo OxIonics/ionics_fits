@@ -115,7 +115,7 @@ class NormalFitter(Fitter):
         p = {param: value for param, value in zip(free_parameters, p)}
         p_err = {param: value for param, value in zip(free_parameters, p_err)}
 
-        return p, p_err
+        return p, p_err, p_cov
 
     def calc_sigma(self) -> Optional[TX]:
         """Returns an array of standard error values for each y-axis data point

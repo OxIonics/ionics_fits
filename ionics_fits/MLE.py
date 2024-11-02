@@ -201,4 +201,4 @@ class MLEFitter(Fitter):
         p = {param: value for param, value in zip(free_parameters, res.x)}
         p_err = {param: value for param, value in zip(free_parameters, p_err)}
 
-        return p, p_err
+        return p, p_err, p_cov
