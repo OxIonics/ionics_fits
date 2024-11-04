@@ -11,6 +11,7 @@ from .utils import Array, ArrayLike, scale_undefined, TSCALE_FUN, TX_SCALE, TY_S
 
 
 if TYPE_CHECKING:
+    num_free_params = float
     num_samples = float
     num_x_axes = float
     num_y_axes = float
@@ -657,7 +658,8 @@ class Fitter:
             uncertainties. For sufficiently large datasets, well-formed problems and
             ignoring covariances these are the 1-sigma confidence intervals (roughly:
             there is a 1/3 chance that the true parameter values differ from their
-            fitted values by more than this much)
+            fitted values by more than this much). These uncertainties are generally
+            only useful when the ``covariances`` are small.
         derived_values: dictionary mapping names of derived parameters (parameters which
             are not part of the fit, but are calculated by the model from the fitted
             parameter values) to their values
@@ -666,6 +668,10 @@ class Fitter:
         initial_values: dictionary mapping model parameter names to the initial values
             used to seed the fit.
         model: the fit model
+        covariances: matrix of covariances between the floated parameters. The ordering
+            of parameters in the covariance matrix matches ``free_parameters``. The
+            fit uncertainties are calculated as the square root of the diagonals of
+            the covariance matrix.
         free_parameters: list of names of the model parameters floated during the fit
         x_scales: the applied x-axis scale factors
         y_scales: the applied y-axis scale factors
@@ -680,6 +686,7 @@ class Fitter:
     derived_uncertainties: Dict[str, float]
     initial_values: Dict[str, float]
     model: Model
+    covariances: Array[("num_free_params", "num_free_params"), np.float64]
     free_parameters: List[str]
     x_scales: TX_SCALE
     y_scales: TY_SCALE
@@ -827,7 +834,7 @@ class Fitter:
             params.update(self.fixed_parameters)
             return self.model.func(x, params)
 
-        fitted_params, uncertainties = self._fit(
+        fitted_params, uncertainties, covariances = self._fit(
             x_scaled, y_scaled, self.model.parameters, free_func
         )
         fitted_params.update(
@@ -852,6 +859,17 @@ class Fitter:
             for param, value in uncertainties.items()
         }
 
+        # rescale the covariance matrix
+        free_param_scales = np.array(
+            [
+                self.model.parameters[param].scale_factor
+                for param in self.free_parameters
+            ]
+        )
+        covariance_scales = np.tile(free_param_scales, (len(self.free_parameters), 1))
+        covariance_scales = np.multiply(covariance_scales, covariance_scales.T)
+        self.covariances = np.multiply(covariances, covariance_scales)
+
         self.model.unscale()
 
         derived = self.model.calculate_derived_params(
@@ -870,7 +888,11 @@ class Fitter:
         y: TY,
         parameters: Dict[str, ModelParameter],
         free_func: Callable[..., TY],
-    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+    ) -> Tuple[
+        Dict[str, float],
+        Dict[str, float],
+        Array[("num_free_params", "num_free_params"), np.float64],
+    ]:
         """Implementation of the parameter estimation.
 
         ``Fitter`` implementations must override this method to provide a fit with
