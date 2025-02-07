@@ -345,7 +345,7 @@ def get_pgram(
     df = f_sample / n
 
     omega_list = 2 * np.pi * np.linspace(df, f_max, n)
-    pgram = signal.lombscargle(x, y, omega_list, precenter=True)
+    pgram = signal.lombscargle(x, y - y.mean(), omega_list)
     pgram = np.sqrt(np.abs(pgram) * 4 / len(y))
 
     return omega_list, pgram
