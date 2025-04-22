@@ -7,9 +7,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.8, <3.11"
-numpy = "^1.21.2"
+numpy = ">=1.21.2, <3.0"
 scipy = "^1.7.1"
-statsmodels = "^0.13.2"
+statsmodels = "^0.14.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
