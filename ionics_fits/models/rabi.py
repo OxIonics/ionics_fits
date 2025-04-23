@@ -80,7 +80,7 @@ class RabiFlop(Model):
         """
         return self._func(x, **param_values)
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: Tuple[TX, TX],
@@ -127,7 +127,7 @@ class RabiFlop(Model):
 
         return P_readout_g + (P_readout_e - P_readout_g) * P_e
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def calculate_derived_params(
         self,
@@ -303,7 +303,7 @@ class RabiFlopTime(RabiFlop):
         y = np.squeeze(y)
 
         self.parameters["t_dead"].heuristic = 0.0
-        self.parameters["tau"].heuristic = 10 * x.ptp()
+        self.parameters["tau"].heuristic = 10 * np.ptp(x)
 
         if self.start_excited:
             self.parameters["P_readout_e"].heuristic = y[0]
@@ -360,7 +360,7 @@ class RabiFlopTime(RabiFlop):
         # step size in frequency space. Once the uncertainty in the Rabi frequency
         # estimate becomes such that we don't know if we've done n or (n + 1) flops
         # before t_0 the fits will start failing.
-        d_omega = 2 * np.pi / x.ptp()  # approx uncertainty in Rabi freq from FFT
+        d_omega = 2 * np.pi / np.ptp(x)  # approx uncertainty in Rabi freq from FFT
         t_pi = np.pi / self.parameters["omega"].get_initial_value()
         d_t_pi = np.pi / d_omega
         n_pi = min(x) / t_pi

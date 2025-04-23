@@ -34,7 +34,7 @@ class Rectangle(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -51,7 +51,7 @@ class Rectangle(Model):
         """
         return np.where(np.logical_and(x_r > x, x > x_l), y0 + a, y0)
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)

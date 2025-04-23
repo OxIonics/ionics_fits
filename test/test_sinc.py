@@ -85,7 +85,7 @@ def test_sinc2_heuristic(plot_failures: bool):
 
 
 def sinc_param_generator(
-    fuzzed_params: Dict[str, Tuple[float, float]]
+    fuzzed_params: Dict[str, Tuple[float, float]],
 ) -> Dict[str, float]:
     values = generate_param_set(fuzzed_params)
     if random.choice([True, False]):

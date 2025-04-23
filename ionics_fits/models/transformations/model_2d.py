@@ -4,7 +4,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import numpy as np
 
 from ...common import Model, TX, TY
-from ...utils import TX_SCALE, TY_SCALE
+from ...utils import to_float, TX_SCALE, TY_SCALE
 
 
 class Model2D(Model):
@@ -217,7 +217,7 @@ class Model2D(Model):
             x_0_ax = x[0, x_0_mask]
             model_0_values.update(
                 {
-                    param_name: float(result_param_values[param_idx, x_1_idx])
+                    param_name: to_float(result_param_values[param_idx, x_1_idx])
                     for param_idx, param_name in enumerate(self.result_params)
                 }
             )

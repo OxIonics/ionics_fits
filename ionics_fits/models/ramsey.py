@@ -39,7 +39,7 @@ class Ramsey(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [False]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -104,7 +104,7 @@ class Ramsey(Model):
         P_e = 1 - P_trans if self.start_excited else P_trans
         return P_readout_g + (P_readout_e - P_readout_g) * P_e
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)

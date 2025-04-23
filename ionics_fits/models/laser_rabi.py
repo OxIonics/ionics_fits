@@ -169,9 +169,7 @@ class LaserFlop(RabiFlop):
             * np.exp(-0.5 * eta**2)
             * eta ** np.abs(self.sideband_index)
             * self.fact
-            * special.eval_genlaguerre(
-                self._n_min, np.abs(self.sideband_index), eta**2
-            )
+            * special.eval_genlaguerre(self._n_min, np.abs(self.sideband_index), eta**2)
         )
 
         t_vec = np.clip(x[0] - t_dead, a_min=0, a_max=None)

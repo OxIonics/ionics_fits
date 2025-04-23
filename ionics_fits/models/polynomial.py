@@ -11,6 +11,7 @@ from ..utils import (
     scale_undefined,
     scale_x,
     scale_y,
+    to_float,
     TX_SCALE,
     TY_SCALE,
 )
@@ -47,8 +48,8 @@ class Power(Model):
     def rescale(self, x_scales: TX_SCALE, y_scales: TY_SCALE):
         def scale_func(x_scales, y_scales) -> float:
             # NB the common scale functions do not support float powers
-            x_scale = float(x_scales)
-            y_scale = float(y_scales)
+            x_scale = to_float(x_scales)
+            y_scale = to_float(y_scales)
             if x_scales == 1.0:
                 return y_scale
             return y_scale / np.float_power(x_scale, self.parameters["n"].fixed_to)
@@ -56,7 +57,7 @@ class Power(Model):
         self.parameters["a"].scale_func = scale_func
         super().rescale(x_scales=x_scales, y_scales=y_scales)
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -74,7 +75,7 @@ class Power(Model):
         assert np.all(x - x0 >= 0), "`x - x0` must be > 0"
         return a * np.float_power(x - x0, n) + y0
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)

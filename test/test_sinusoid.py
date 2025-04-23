@@ -123,9 +123,9 @@ def fuzz_sinusoid(
 ) -> float:
     x = np.linspace(-2, 4, 1000)
 
-    dx = x.ptp() / x.size
+    dx = np.ptp(x) / x.size
     w_nyquist = 0.5 * (1 / dx) * 2 * np.pi
-    w_min = 1 / x.ptp() * 2 * np.pi
+    w_min = 1 / np.ptp(x) * 2 * np.pi
 
     static_params = {"tau": np.inf, "x0": 0}
     fuzzed_params = {

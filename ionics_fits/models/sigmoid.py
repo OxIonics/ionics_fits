@@ -22,7 +22,7 @@ class LogisticFunction(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -39,7 +39,7 @@ class LogisticFunction(Model):
         """
         return a / (1 + np.exp(-k * (x - x0))) + y0
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)
@@ -49,7 +49,7 @@ class LogisticFunction(Model):
         y0 = self.parameters["y0"].get_initial_value(y[0])
         self.parameters["y0"].heuristic = y0
 
-        a = self.parameters["a"].get_initial_value(sgn * y.ptp())
+        a = self.parameters["a"].get_initial_value(sgn * np.ptp(y))
         self.parameters["a"].heuristic = a
 
         y_centre = y0 + a / 2
@@ -58,7 +58,7 @@ class LogisticFunction(Model):
 
         FWHMH_pts = np.abs(y - y_centre) < np.abs(a / 4)
         x_FWHMH = x[FWHMH_pts]
-        FWHMH = x_FWHMH.ptp()
+        FWHMH = np.ptp(x_FWHMH)
 
         k = self.parameters["k"].get_initial_value(1.098 / (FWHMH / 2))
         self.parameters["k"].heuristic = k

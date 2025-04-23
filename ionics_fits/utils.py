@@ -154,3 +154,7 @@ def scale_no_rescale(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
         )
 
     return 1.0
+
+
+def to_float(x) -> float:
+    return float(x.item() if isinstance(x, np.ndarray) else x)

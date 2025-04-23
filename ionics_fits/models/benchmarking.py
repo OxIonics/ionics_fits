@@ -33,7 +33,7 @@ class Benchmarking(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [False], [False]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -62,7 +62,7 @@ class Benchmarking(Model):
         y = (y0 - y_inf) * p**x + y_inf
         return y
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def estimate_parameters(self, x: TX, y: TY):
         y = np.squeeze(y)

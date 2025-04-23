@@ -24,7 +24,7 @@ class Lorentzian(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -42,7 +42,7 @@ class Lorentzian(Model):
         y = a * (0.5 * fwhmh) ** 2 / ((x - x0) ** 2 + (0.5 * fwhmh) ** 2) + y0
         return y
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)

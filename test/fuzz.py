@@ -1,4 +1,5 @@
-""" Randomized testing of fitting code. run with: poe fuzz """
+"""Randomized testing of fitting code. run with: poe fuzz"""
+
 import argparse
 import logging
 import matplotlib
@@ -26,7 +27,6 @@ logger = logging.getLogger(__name__)
 
 
 if __name__ == "__main__":
-
     targets = {
         "benchmarking": test_benchmarking.fuzz_benchmarking,
         "exponential": test_exponential.fuzz_exponential,

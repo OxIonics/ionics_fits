@@ -8,11 +8,11 @@ from ionics_fits.models.sinusoid import Sinusoid
 from ionics_fits.models.transformations.model_2d import Model2D
 from ionics_fits.models.transformations.repeated_model import RepeatedModel
 from ionics_fits.normal import NormalFitter
+from ionics_fits.utils import to_float
 from .common import is_close, params_close
 
 
 def gaussian(x, y, a, x0_x0, x0_x1, sigma_x0, sigma_x1, y0):
-
     A = a / (sigma_x0 * np.sqrt(2 * np.pi)) / (sigma_x1 * np.sqrt(2 * np.pi))
 
     return (
@@ -36,7 +36,6 @@ def cone(x, y, x0_x0, x0_x1, k_x0, k_x1, y0):
 def check_param_values(x_mesh_0, x_mesh_1, test_params, fit, func, plot_failures):
     if not params_close(test_params, fit.values, 1e-3):
         if plot_failures:
-
             fig, axs = plt.subplots(2, 1)
 
             plt.axes(axs[0])
@@ -278,7 +277,7 @@ def test_laser_flop_2d(plot_failures):
     # Generate data to fit
     y = np.zeros_like(time_mesh)
     for idx, angle in np.ndenumerate(angle_axis):
-        eta_angle = float(sinusoid_model(x=angle, a=eta, omega=1, y0=0, phi=theta_0))
+        eta_angle = to_float(sinusoid_model(x=angle, a=eta, omega=1, y0=0, phi=theta_0))
         y[idx, :] = flop_model(x=time_axis, eta=eta_angle)
 
     model = Model2D(

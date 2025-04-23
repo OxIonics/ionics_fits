@@ -2,6 +2,7 @@
 Models with more than one x-axis degree of freedom, which have been created from 1D
 models using :class:`~ionics_fits.models.transformations.model_2d.Model2D`.
 """
+
 import numpy as np
 
 from .cone import ConeSlice
@@ -11,7 +12,7 @@ from .transformations.mapped_model import MappedModel
 from .transformations.model_2d import Model2D
 from .triangle import Triangle
 
-from ..utils import TX_SCALE, TY_SCALE
+from ..utils import to_float, TX_SCALE, TY_SCALE
 
 
 class Gaussian2D(MappedModel):
@@ -52,7 +53,7 @@ class Gaussian2D(MappedModel):
                 super().wrap_scale_funcs()
 
                 def scale_power(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
-                    return np.prod(x_scales) * float(y_scales)
+                    return np.prod(x_scales) * to_float(y_scales)
 
                 self.parameters["a_x1"].scale_func = scale_power
 

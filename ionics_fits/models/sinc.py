@@ -26,7 +26,7 @@ class Sinc(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -45,7 +45,8 @@ class Sinc(Model):
         y = a * np.sinc(x) + y0
         return y
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
+
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)
         y = np.squeeze(y)
@@ -99,7 +100,7 @@ class Sinc2(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -118,7 +119,8 @@ class Sinc2(Model):
         y = a * (np.sinc(x) ** 2) + y0
         return y
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
+
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)
         y = np.squeeze(y)

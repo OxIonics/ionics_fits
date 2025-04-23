@@ -25,6 +25,7 @@ def thermal_state_probs(
 
 # pytype: enable=invalid-annotation
 
+
 # pytype: disable=invalid-annotation
 def coherent_state_probs(
     n_max: int, alpha: ModelParameter(lower_bound=0, scale_func=scale_invariant)
@@ -98,6 +99,10 @@ def squeezed_state_probs(
     return P_n
 
 
+# pytype: enable=invalid-annotation
+
+
+# pytype: disable=invalid-annotation
 def displaced_thermal_state_probs(
     n_max: int,
     n_bar: ModelParameter(lower_bound=0, scale_func=scale_invariant),
@@ -136,3 +141,6 @@ def displaced_thermal_state_probs(
             * special.eval_laguerre(n, -n_bar_alpha / (n_bar * (n_bar + 1)))
         )
     return np.nan_to_num(P_n, 0.0)
+
+
+# pytype: enable=invalid-annotation

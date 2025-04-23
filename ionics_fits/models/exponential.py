@@ -23,7 +23,7 @@ class Exponential(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -46,7 +46,7 @@ class Exponential(Model):
         y = np.where(x >= x_dead, y, y0)
         return y
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def estimate_parameters(self, x: TX, y: TY):
         # Ensure that y is a 1D array
@@ -57,7 +57,7 @@ class Exponential(Model):
         self.parameters["x_dead"].heuristic = 0
         self.parameters["y0"].heuristic = y[0]
         self.parameters["y_inf"].heuristic = y[-1]
-        self.parameters["tau"].heuristic = x.ptp()
+        self.parameters["tau"].heuristic = np.ptp(x)
 
     def calculate_derived_params(
         self,

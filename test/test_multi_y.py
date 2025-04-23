@@ -1,4 +1,5 @@
-""" Tests for fitting models with multiple y-axis dimensions """
+"""Tests for fitting models with multiple y-axis dimensions"""
+
 import numpy as np
 
 from ionics_fits.models.rabi import RabiFlopFreq
