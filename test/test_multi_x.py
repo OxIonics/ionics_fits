@@ -1,6 +1,7 @@
-from matplotlib import pyplot as plt
-import numpy as np
 import pprint
+
+import numpy as np
+from matplotlib import pyplot as plt
 
 from ionics_fits.models.laser_rabi import LaserFlopTimeThermal
 from ionics_fits.models.multi_x import Cone2D, Gaussian2D, Parabola2D
@@ -9,6 +10,7 @@ from ionics_fits.models.transformations.model_2d import Model2D
 from ionics_fits.models.transformations.repeated_model import RepeatedModel
 from ionics_fits.normal import NormalFitter
 from ionics_fits.utils import to_float
+
 from .common import is_close, params_close
 
 

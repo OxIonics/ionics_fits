@@ -1,7 +1,8 @@
 import numpy as np
 
 from ionics_fits.models.exponential import Exponential
-from .common import check_multiple_param_sets, fuzz, Config
+
+from .common import Config, check_multiple_param_sets, fuzz
 
 
 def test_exponential(plot_failures):

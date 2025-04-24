@@ -1,8 +1,8 @@
 import numpy as np
 
 from ionics_fits.models.molmer_sorensen import MolmerSorensenFreq, MolmerSorensenTime
-from .common import check_multiple_param_sets, Config
 
+from .common import Config, check_multiple_param_sets
 
 # Currently we don't fuzz this model. The tests are pretty comprehensive and
 # should catch most issues. There are enough different heuristic code paths

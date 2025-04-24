@@ -1,12 +1,11 @@
 import logging
-from typing import Callable, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, Optional
 
 import numpy as np
 from scipy import stats
 from statsmodels.stats import proportion
 
-
-from .common import Model, TX, TY
+from .common import TX, TY, Model
 from .MLE import MLEFitter
 from .utils import Array
 

@@ -1,11 +1,12 @@
 import copy
 import logging
-import numpy as np
 import pprint
-from scipy import optimize
-from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
 
-from .common import Fitter, Model, ModelParameter, TX, TY
+import numpy as np
+from scipy import optimize
+
+from .common import TX, TY, Fitter, Model, ModelParameter
 from .utils import Array
 
 if TYPE_CHECKING:

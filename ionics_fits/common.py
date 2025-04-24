@@ -4,11 +4,11 @@ import copy
 import dataclasses
 import inspect
 import logging
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
-from typing import Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
-from .utils import Array, ArrayLike, scale_undefined, TSCALE_FUN, TX_SCALE, TY_SCALE
-
+from .utils import TSCALE_FUN, TX_SCALE, TY_SCALE, Array, ArrayLike, scale_undefined
 
 if TYPE_CHECKING:
     num_free_params = float

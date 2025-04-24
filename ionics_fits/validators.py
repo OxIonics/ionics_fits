@@ -17,8 +17,8 @@ flexible and extensible framework for using statistical tests to validate fits.
 """
 
 from typing import Tuple
-import numpy as np
 
+import numpy as np
 
 from .common import Fitter
 

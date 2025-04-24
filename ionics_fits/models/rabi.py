@@ -2,13 +2,13 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from . import heuristics
-from .sinc import Sinc2
-from .sinusoid import Sinusoid
-from .heuristics import get_spectrum
-from ..common import Model, ModelParameter, TX, TY
+from ..common import TX, TY, Model, ModelParameter
 from ..normal import NormalFitter
 from ..utils import scale_undefined, scale_x, scale_x_inv, scale_y
+from . import heuristics
+from .heuristics import get_spectrum
+from .sinc import Sinc2
+from .sinusoid import Sinusoid
 
 
 class RabiFlop(Model):

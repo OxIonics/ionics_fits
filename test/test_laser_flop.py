@@ -1,17 +1,19 @@
+from typing import List, Optional
+
 import numpy as np
 
 from ionics_fits.models.laser_rabi import (
     LaserFlopFreqCoherent,
+    LaserFlopFreqDisplacedThermal,
     LaserFlopFreqSqueezed,
     LaserFlopFreqThermal,
-    LaserFlopFreqDisplacedThermal,
     LaserFlopTimeCoherent,
-    LaserFlopTimeThermal,
-    LaserFlopTimeSqueezed,
     LaserFlopTimeDisplacedThermal,
+    LaserFlopTimeSqueezed,
+    LaserFlopTimeThermal,
 )
-from .common import check_multiple_param_sets, Config
-from typing import Optional, List
+
+from .common import Config, check_multiple_param_sets
 
 
 def _test_laser_flop_freq(

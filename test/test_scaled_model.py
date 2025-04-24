@@ -3,7 +3,7 @@ import numpy as np
 from ionics_fits.models.sinusoid import Sinusoid
 from ionics_fits.models.transformations.scaled_model import ScaledModel
 
-from .common import is_close, check_single_param_set, Config
+from .common import Config, check_single_param_set, is_close
 
 
 def test_scaled_model(plot_failures):

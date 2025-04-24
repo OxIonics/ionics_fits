@@ -1,9 +1,10 @@
 import numpy as np
 
-from ionics_fits.models.sinc import Sinc2
 from ionics_fits.models.rabi import RabiFlopFreq, RabiFlopTime
+from ionics_fits.models.sinc import Sinc2
 from ionics_fits.normal import NormalFitter
-from .common import check_multiple_param_sets, check_single_param_set, fuzz, Config
+
+from .common import Config, check_multiple_param_sets, check_single_param_set, fuzz
 
 
 def test_155(plot_failures):

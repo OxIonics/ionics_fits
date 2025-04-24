@@ -1,7 +1,8 @@
 import numpy as np
 
 from ionics_fits.models.sigmoid import LogisticFunction
-from .common import check_multiple_param_sets, Config
+
+from .common import Config, check_multiple_param_sets
 
 
 def test_logistic_function(plot_failures):

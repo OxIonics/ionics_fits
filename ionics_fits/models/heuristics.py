@@ -1,12 +1,12 @@
 """Helper functions for writing robust heuristics."""
 
-from typing import cast, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Optional, Tuple, cast
+
 import numpy as np
 from scipy import fft, signal
 
-from ..common import Model, TX, TY
+from ..common import TX, TY, Model
 from ..utils import Array, ArrayLike
-
 
 if TYPE_CHECKING:
     num_values = float

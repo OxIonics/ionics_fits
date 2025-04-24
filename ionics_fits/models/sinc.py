@@ -1,12 +1,13 @@
 from typing import List, Tuple
+
 import numpy as np
 
+from ..common import TX, TY, Model, ModelParameter
+from ..normal import NormalFitter
+from ..utils import scale_x, scale_x_inv, scale_y
 from . import heuristics
 from .rectangle import Rectangle
 from .triangle import Triangle
-from ..common import Model, ModelParameter, TX, TY
-from ..normal import NormalFitter
-from ..utils import scale_x, scale_x_inv, scale_y
 
 
 class Sinc(Model):

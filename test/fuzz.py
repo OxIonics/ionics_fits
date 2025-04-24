@@ -2,9 +2,10 @@
 
 import argparse
 import logging
-import matplotlib
 import time
 import traceback
+
+import matplotlib
 
 from . import (
     common,
@@ -19,9 +20,7 @@ from . import (
     test_sinusoid,
     test_triangle,
 )
-
 from .common import Config
-
 
 logger = logging.getLogger(__name__)
 

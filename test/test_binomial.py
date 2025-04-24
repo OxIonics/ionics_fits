@@ -4,9 +4,10 @@ from scipy import stats
 
 from ionics_fits.binomial import BinomialFitter
 from ionics_fits.models.gaussian import Gaussian
-from ionics_fits.models.sinusoid import Sinusoid, SineMinMax
+from ionics_fits.models.sinusoid import SineMinMax, Sinusoid
 from ionics_fits.normal import NormalFitter
-from .common import check_single_param_set, Config
+
+from .common import Config, check_single_param_set
 
 
 def test_binomial(plot_failures):

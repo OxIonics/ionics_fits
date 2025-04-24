@@ -1,11 +1,12 @@
 from typing import List, Tuple
+
 import numpy as np
 
-from . import heuristics
-from .triangle import Triangle
-from ..common import Model, ModelParameter, TX, TY
+from ..common import TX, TY, Model, ModelParameter
 from ..normal import NormalFitter
 from ..utils import scale_no_rescale
+from . import heuristics
+from .triangle import Triangle
 
 
 class ConeSlice(Model):

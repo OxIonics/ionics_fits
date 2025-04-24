@@ -1,10 +1,12 @@
 import copy
 import inspect
-from typing import Callable, Dict, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, Tuple
 
 import numpy as np
 from scipy import special
 
+from ..common import TX, TY, ModelParameter
+from ..utils import Array, scale_invariant, scale_undefined, scale_y
 from .quantum_phys import (
     coherent_state_probs,
     displaced_thermal_state_probs,
@@ -13,8 +15,6 @@ from .quantum_phys import (
 )
 from .rabi import RabiFlop, RabiFlopFreq, RabiFlopTime
 from .utils import param_like
-from ..common import ModelParameter, TX, TY
-from ..utils import Array, scale_invariant, scale_y, scale_undefined
 
 if TYPE_CHECKING:
     num_fock_states = float

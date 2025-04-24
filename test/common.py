@@ -1,10 +1,11 @@
 import dataclasses
 import logging
-from matplotlib import pyplot as plt
-import numpy as np
 import pprint
 import traceback
-from typing import Callable, Dict, Optional, List, Tuple, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type
+
+import numpy as np
+from matplotlib import pyplot as plt
 
 from ionics_fits.common import Fitter, Model
 from ionics_fits.models.heuristics import get_spectrum

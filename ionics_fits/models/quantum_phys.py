@@ -1,6 +1,7 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 from scipy import special
-from typing import TYPE_CHECKING
 
 from ..common import Array, ModelParameter
 from ..utils import scale_invariant

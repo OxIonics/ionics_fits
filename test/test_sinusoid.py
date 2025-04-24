@@ -1,7 +1,8 @@
 import numpy as np
 
-from ionics_fits.models.sinusoid import Sinusoid, SineMinMax, Sine2
-from .common import check_multiple_param_sets, check_single_param_set, fuzz, Config
+from ionics_fits.models.sinusoid import Sine2, SineMinMax, Sinusoid
+
+from .common import Config, check_multiple_param_sets, check_single_param_set, fuzz
 
 
 def test_sinusoid(plot_failures: bool):

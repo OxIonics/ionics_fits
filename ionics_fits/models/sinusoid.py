@@ -1,11 +1,11 @@
-import numpy as np
 from typing import Dict, List, Tuple
 
-from . import heuristics
-from ..common import Model, ModelParameter, TX, TY
+import numpy as np
+
+from ..common import TX, TY, Model, ModelParameter
+from ..utils import scale_invariant, scale_x, scale_x_inv, scale_y
+from . import heuristics, utils
 from .transformations.reparametrized_model import ReparametrizedModel
-from ..utils import scale_x, scale_x_inv, scale_invariant, scale_y
-from . import utils
 
 
 class Sinusoid(Model):

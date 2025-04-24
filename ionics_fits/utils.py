@@ -1,6 +1,6 @@
-import numpy as np
-from typing import Callable, List, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, List, Union
 
+import numpy as np
 
 if TYPE_CHECKING:
     num_x_axes = float
@@ -47,8 +47,8 @@ def scale_invariant(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
 
 
 def scale_x(x_axis: int = 0) -> TSCALE_FUN:
-    r"""Returns a scale function for :class:`~ionics_fits.common.ModelParameter`\ s whose
-    value scales linearly with one x-axis dimension.
+    r"""Returns a scale function for :class:`~ionics_fits.common.ModelParameter`\ s
+    whose value scales linearly with one x-axis dimension.
 
     :param x_axis: index of the x-axis dimension the parameter scales with
     :returns: scale function
@@ -62,8 +62,8 @@ def scale_x(x_axis: int = 0) -> TSCALE_FUN:
 
 
 def scale_x_inv(x_axis: int = 0) -> TSCALE_FUN:
-    r"""Returns a scale function for :class:`~ionics_fits.common.ModelParameter`\ s whose
-    value scales inversely with one x-axis dimension.
+    r"""Returns a scale function for :class:`~ionics_fits.common.ModelParameter`\ s
+    whose value scales inversely with one x-axis dimension.
 
     :param x_axis: index of the x-axis dimension the parameter scales with
     :returns: scale function
@@ -77,8 +77,8 @@ def scale_x_inv(x_axis: int = 0) -> TSCALE_FUN:
 
 
 def scale_y(y_axis: int = 0) -> TSCALE_FUN:
-    r"""Returns a scale function for :class:`~ionics_fits.common.ModelParameter`\ s whose
-    value scales linearly with one y-axis dimension.
+    r"""Returns a scale function for :class:`~ionics_fits.common.ModelParameter`\ s
+    whose value scales linearly with one y-axis dimension.
 
     :param y_axis: index of the y-axis dimension the parameter scales with
     :returns: scale function
@@ -94,8 +94,8 @@ def scale_y(y_axis: int = 0) -> TSCALE_FUN:
 def scale_power(
     x_power: int, y_power: int, x_axis: int = 0, y_axis: int = 0
 ) -> TSCALE_FUN:
-    r"""Returns a scale function for :class:`~ionics_fits.common.ModelParameter`\ s whose
-    value scales as a function of one x-axis and one y-axis dimension.
+    r"""Returns a scale function for :class:`~ionics_fits.common.ModelParameter`\ s
+    whose value scales as a function of one x-axis and one y-axis dimension.
 
     The parameter scale factor is calculated as::
 
@@ -132,8 +132,8 @@ def scale_undefined(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
 
 
 def scale_no_rescale(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
-    r"""Scale function for :class:`~ionics_fits.common.ModelParameter`\ s which cannot be
-    rescaled.
+    r"""Scale function for :class:`~ionics_fits.common.ModelParameter`\ s which cannot
+    be rescaled.
 
     Raises a ``RuntimeError`` if any of the x-axis or y-axis scale factors are not equal
     to ``1``.

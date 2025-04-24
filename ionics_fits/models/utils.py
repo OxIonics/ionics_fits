@@ -1,10 +1,10 @@
 import copy
 import dataclasses
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
 import numpy as np
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from ..common import ModelParameter, TSCALE_FUN
-
+from ..common import TSCALE_FUN, ModelParameter
 
 if TYPE_CHECKING:
     num_samples = float

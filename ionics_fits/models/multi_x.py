@@ -5,14 +5,13 @@ models using :class:`~ionics_fits.models.transformations.model_2d.Model2D`.
 
 import numpy as np
 
+from ..utils import TX_SCALE, TY_SCALE, to_float
 from .cone import ConeSlice
 from .gaussian import Gaussian
 from .polynomial import Parabola
 from .transformations.mapped_model import MappedModel
 from .transformations.model_2d import Model2D
 from .triangle import Triangle
-
-from ..utils import to_float, TX_SCALE, TY_SCALE
 
 
 class Gaussian2D(MappedModel):

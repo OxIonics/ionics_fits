@@ -1,10 +1,11 @@
-from typing import Tuple, List
+from typing import List, Tuple
+
 import numpy as np
 
+from ..common import TX, TY, Model, ModelParameter
+from ..utils import scale_x, scale_y
 from . import heuristics
 from .heuristics import get_spectrum
-from ..common import Model, ModelParameter, TX, TY
-from ..utils import scale_x, scale_y
 
 
 class Lorentzian(Model):

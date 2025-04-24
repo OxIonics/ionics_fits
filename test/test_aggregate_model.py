@@ -1,12 +1,12 @@
-from matplotlib import pyplot as plt
-
 import numpy as np
+from matplotlib import pyplot as plt
 
 from ionics_fits.models.laser_rabi import LaserFlopTimeThermal
 from ionics_fits.models.polynomial import Line
-from ionics_fits.models.triangle import Triangle
 from ionics_fits.models.transformations.aggregate_model import AggregateModel
-from .common import check_multiple_param_sets, Config
+from ionics_fits.models.triangle import Triangle
+
+from .common import Config, check_multiple_param_sets
 
 
 def test_aggregate_model_common_params(plot_failures):

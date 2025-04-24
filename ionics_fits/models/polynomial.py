@@ -2,19 +2,19 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from . import heuristics
-from .transformations.mapped_model import MappedModel
-from ..common import Model, ModelParameter, TX, TY
+from ..common import TX, TY, Model, ModelParameter
 from ..utils import (
+    TX_SCALE,
+    TY_SCALE,
     scale_invariant,
     scale_power,
     scale_undefined,
     scale_x,
     scale_y,
     to_float,
-    TX_SCALE,
-    TY_SCALE,
 )
+from . import heuristics
+from .transformations.mapped_model import MappedModel
 
 
 class Power(Model):

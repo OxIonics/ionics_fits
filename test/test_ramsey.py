@@ -1,7 +1,8 @@
 import numpy as np
 
 from ionics_fits.models.ramsey import Ramsey
-from .common import check_multiple_param_sets, Config
+
+from .common import Config, check_multiple_param_sets
 
 
 def test_ramsey_w0_phi_only(plot_failures: bool):

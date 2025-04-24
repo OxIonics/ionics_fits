@@ -1,11 +1,12 @@
 from typing import Dict, List, Tuple
+
 import numpy as np
 from scipy.optimize import curve_fit
 
+from ..common import TX, TY, Model, ModelParameter
+from ..utils import scale_power, scale_x, scale_y
 from . import heuristics
 from .heuristics import get_spectrum
-from ..common import Model, ModelParameter, TX, TY
-from ..utils import scale_power, scale_x, scale_y
 
 
 class Gaussian(Model):

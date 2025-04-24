@@ -1,7 +1,8 @@
 import numpy as np
 
 from ionics_fits.models.polynomial import Line, Parabola, Polynomial, Power
-from .common import check_multiple_param_sets, check_single_param_set, fuzz, Config
+
+from .common import Config, check_multiple_param_sets, check_single_param_set, fuzz
 
 
 def test_line(plot_failures: bool):

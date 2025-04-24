@@ -2,7 +2,8 @@ import numpy as np
 
 from ionics_fits.models.gaussian import Gaussian
 from ionics_fits.normal import NormalFitter
-from .common import check_multiple_param_sets, fuzz, Config
+
+from .common import Config, check_multiple_param_sets, fuzz
 
 
 def test_gaussian(plot_failures):

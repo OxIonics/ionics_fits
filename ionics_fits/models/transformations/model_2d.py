@@ -3,8 +3,8 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from ...common import Model, TX, TY
-from ...utils import to_float, TX_SCALE, TY_SCALE
+from ...common import TX, TY, Model
+from ...utils import TX_SCALE, TY_SCALE, to_float
 
 
 class Model2D(Model):

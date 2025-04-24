@@ -1,14 +1,16 @@
 import random
 from typing import Dict, Optional, Tuple
+
 import numpy as np
 
 from ionics_fits.models.sinc import Sinc, Sinc2
+
 from .common import (
+    Config,
     check_multiple_param_sets,
     check_single_param_set,
     fuzz,
     generate_param_set,
-    Config,
 )
 
 

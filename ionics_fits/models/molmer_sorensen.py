@@ -2,9 +2,9 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from . import heuristics
-from ..common import Model, ModelParameter, TX, TY
+from ..common import TX, TY, Model, ModelParameter
 from ..utils import scale_invariant, scale_undefined, scale_x, scale_x_inv
+from . import heuristics
 
 
 class MolmerSorensen(Model):

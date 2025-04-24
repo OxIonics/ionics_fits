@@ -1,6 +1,6 @@
 from typing import Dict, List, Tuple
 
-from ...common import Model, ModelParameter, TX, TY
+from ...common import TX, TY, Model, ModelParameter
 
 
 class ReparametrizedModel(Model):
