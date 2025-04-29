@@ -1,10 +1,11 @@
-from typing import Tuple, List
+from typing import List, Tuple
+
 import numpy as np
 
+from ..common import TX, TY, Model, ModelParameter
+from ..utils import scale_x, scale_y
 from . import heuristics
 from .heuristics import get_spectrum
-from ..common import Model, ModelParameter, TX, TY
-from ..utils import scale_x, scale_y
 
 
 class Lorentzian(Model):
@@ -24,7 +25,7 @@ class Lorentzian(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -42,7 +43,7 @@ class Lorentzian(Model):
         y = a * (0.5 * fwhmh) ** 2 / ((x - x0) ** 2 + (0.5 * fwhmh) ** 2) + y0
         return y
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)

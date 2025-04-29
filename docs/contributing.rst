@@ -10,7 +10,7 @@ please:
   situation to make sense to include here. If in doubt, open an issue and ask!
 * Make sure all changes are covered by a test (see :ref:`testing`).
 * Check formatting: ``poe fmt``
-* Run lints: ``poe flake``
+* Run lints: ``poe lint``
 * Check type annotations (Linux only): ``poe types``
 * Run test suite: ``poe test``
 * Update the documentation and :ref:`changes`

@@ -1,8 +1,8 @@
 import numpy as np
 
 from ionics_fits.models.cone import ConeSlice
-from .common import check_multiple_param_sets, Config
 
+from .common import Config, check_multiple_param_sets
 
 x = np.linspace(-2, 2, 100)
 params = {

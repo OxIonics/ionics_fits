@@ -1,9 +1,11 @@
-""" Tests for fitting models with multiple y-axis dimensions """
+"""Tests for fitting models with multiple y-axis dimensions"""
+
 import numpy as np
 
 from ionics_fits.models.rabi import RabiFlopFreq
 from ionics_fits.models.transformations.repeated_model import RepeatedModel
-from .common import check_multiple_param_sets, Config
+
+from .common import Config, check_multiple_param_sets
 
 
 class DoubleRabiFreq(RepeatedModel):

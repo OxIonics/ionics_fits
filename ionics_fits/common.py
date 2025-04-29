@@ -4,11 +4,11 @@ import copy
 import dataclasses
 import inspect
 import logging
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
-from typing import Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
-from .utils import Array, ArrayLike, scale_undefined, TSCALE_FUN, TX_SCALE, TY_SCALE
-
+from .utils import TSCALE_FUN, TX_SCALE, TY_SCALE, Array, ArrayLike, scale_undefined
 
 if TYPE_CHECKING:
     num_free_params = float
@@ -635,13 +635,13 @@ class Fitter:
 
     .. testoutput::
 
-        {'P_readout_e': 0.9999999999,
-         'P_readout_g': 1e-10,
-         'delta': 0.0,
-         'omega_0': 6.283185307179586,
-         'omega_1': 12.566370614362235,
-         't_dead': 0.0,
-         'tau': inf}
+        {'P_readout_e': np.float64(0.9999999999),
+         'P_readout_g': np.float64(1e-10),
+         'delta': np.float64(0.0),
+         'omega_0': np.float64(6.283185307179586),
+         'omega_1': np.float64(12.56637061436225),
+         't_dead': np.float64(0.0),
+         'tau': np.float64(inf)}
 
     Class Attributes
     ================

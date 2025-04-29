@@ -2,6 +2,7 @@ import numpy as np
 
 from ionics_fits.models.polynomial import Line
 from ionics_fits.normal import NormalFitter
+
 from .common import is_close
 
 

@@ -1,12 +1,12 @@
 """Helper functions for writing robust heuristics."""
 
-from typing import cast, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Optional, Tuple, cast
+
 import numpy as np
 from scipy import fft, signal
 
-from ..common import Model, TX, TY
+from ..common import TX, TY, Model
 from ..utils import Array, ArrayLike
-
 
 if TYPE_CHECKING:
     num_values = float
@@ -102,7 +102,7 @@ def get_sym_x(x: TX, y: TY) -> float:
     :returns: the value of ``x`` about which ``y`` is maximally symmetric
     """
     y = np.atleast_2d(y)
-    x_span = x.ptp()
+    x_span = np.ptp(x)
     num_samples = x.size
     window_min = min(x) + 0.125 * x_span
     window_max = max(x) - 0.125 * x_span
@@ -180,7 +180,7 @@ def find_x_offset_fft(
     p = np.polyfit(omega, phi, deg=1)
 
     x0 = min(x) - p[0]
-    x0 = x0 if x0 > min(x) else x0 + x.ptp()
+    x0 = x0 if x0 > min(x) else x0 + np.ptp(x)
     return x0
 
 
@@ -300,7 +300,7 @@ def get_spectrum(
         )
 
     n = x.size
-    dx = x.ptp() / n
+    dx = np.ptp(x) / n
     omega = np.fft.fftfreq(n, dx) * (2 * np.pi)
     y_f = fft.rfft(y) * dx
 
@@ -339,7 +339,7 @@ def get_pgram(
         )
 
     dx = np.min(np.diff(x))
-    n = int(x.ptp() / dx)
+    n = int(np.ptp(x) / dx)
     f_sample = 1 / dx
     f_max = (0.5 - 1 / n) * f_sample
     df = f_sample / n

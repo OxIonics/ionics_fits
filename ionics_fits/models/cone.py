@@ -1,11 +1,12 @@
 from typing import List, Tuple
+
 import numpy as np
 
-from . import heuristics
-from .triangle import Triangle
-from ..common import Model, ModelParameter, TX, TY
+from ..common import TX, TY, Model, ModelParameter
 from ..normal import NormalFitter
 from ..utils import scale_no_rescale
+from . import heuristics
+from .triangle import Triangle
 
 
 class ConeSlice(Model):
@@ -37,7 +38,7 @@ class ConeSlice(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [False], [False]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -54,7 +55,7 @@ class ConeSlice(Model):
         """
         return np.sign(k) * np.sqrt((k * (x - x0)) ** 2 + alpha**2) + z0
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)

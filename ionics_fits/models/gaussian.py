@@ -1,11 +1,12 @@
 from typing import Dict, List, Tuple
+
 import numpy as np
 from scipy.optimize import curve_fit
 
+from ..common import TX, TY, Model, ModelParameter
+from ..utils import scale_power, scale_x, scale_y
 from . import heuristics
 from .heuristics import get_spectrum
-from ..common import Model, ModelParameter, TX, TY
-from ..utils import scale_power, scale_x, scale_y
 
 
 class Gaussian(Model):
@@ -25,7 +26,7 @@ class Gaussian(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -48,7 +49,7 @@ class Gaussian(Model):
         )
         return y
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def estimate_parameters(self, x: TX, y: TX):
         x = np.squeeze(x)
@@ -77,7 +78,7 @@ class Gaussian(Model):
         # small for the better heuristics)
         x0 = self.parameters["x0"].get_initial_value(np.mean(x))
         y0 = self.parameters["y0"].get_initial_value(0.5 * (y[0] + y[-1]))
-        sigma = self.parameters["sigma"].get_initial_value(x.ptp() / 2)
+        sigma = self.parameters["sigma"].get_initial_value(np.ptp(x) / 2)
 
         x0_ind = np.argmin(np.abs(x - x0))
         peak = y[x0_ind] - y0
@@ -96,7 +97,7 @@ class Gaussian(Model):
 
         peak = y[x0_ind] - y0
         inside = np.abs(y - y[x0_ind]) <= np.abs(peak * (1 - np.exp(-1)))
-        full_width_1_e = x[inside].ptp()
+        full_width_1_e = np.ptp(x[inside])
 
         sigma = full_width_1_e / (2 * np.sqrt(2))
         sigma = self.parameters["sigma"].get_initial_value(sigma)
@@ -180,9 +181,7 @@ class Gaussian(Model):
         derived_uncertainties["FWHMH"] = 2.35482 * fit_uncertainties["sigma"]
         derived_uncertainties["peak"] = (
             fit_uncertainties["a"] / (sigma * np.sqrt(2 * np.pi))
-        ) ** 2 + (
-            fit_uncertainties["sigma"] * a / (sigma**2 * np.sqrt(2 * np.pi))
-        ) ** 2
+        ) ** 2 + (fit_uncertainties["sigma"] * a / (sigma**2 * np.sqrt(2 * np.pi))) ** 2
         derived_uncertainties["w0"] = 4 * fit_uncertainties["sigma"]
 
         return derived_params, derived_uncertainties

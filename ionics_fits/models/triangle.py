@@ -1,7 +1,8 @@
 from typing import Dict, List, Tuple
+
 import numpy as np
 
-from ..common import Model, ModelParameter, TX, TY
+from ..common import TX, TY, Model, ModelParameter
 from ..utils import scale_invariant, scale_power, scale_x, scale_y
 
 
@@ -27,7 +28,7 @@ class Triangle(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -59,7 +60,8 @@ class Triangle(Model):
 
         return y
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
+
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)
         y = np.squeeze(y)

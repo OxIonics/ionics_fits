@@ -1,11 +1,11 @@
-import numpy as np
 from typing import Dict, List, Tuple
 
-from . import heuristics
-from ..common import Model, ModelParameter, TX, TY
+import numpy as np
+
+from ..common import TX, TY, Model, ModelParameter
+from ..utils import scale_invariant, scale_x, scale_x_inv, scale_y
+from . import heuristics, utils
 from .transformations.reparametrized_model import ReparametrizedModel
-from ..utils import scale_x, scale_x_inv, scale_invariant, scale_y
-from . import utils
 
 
 class Sinusoid(Model):
@@ -31,7 +31,7 @@ class Sinusoid(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -61,7 +61,7 @@ class Sinusoid(Model):
         Gamma = np.exp(-x / tau)
         return Gamma * a * np.sin(omega * (x - x0) + phi) + y0
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
 
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)

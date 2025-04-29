@@ -1,10 +1,11 @@
 import dataclasses
 import logging
-from matplotlib import pyplot as plt
-import numpy as np
 import pprint
 import traceback
-from typing import Callable, Dict, Optional, List, Tuple, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type
+
+import numpy as np
+from matplotlib import pyplot as plt
 
 from ionics_fits.common import Fitter, Model
 from ionics_fits.models.heuristics import get_spectrum
@@ -189,7 +190,6 @@ def _plot(
     fit: Fitter,
     y_model: Array[("num_samples",), np.float64],
 ):
-
     y_model = y_model
     y_fit = fit.model.func(fit.x, fit.values)
     y_heuristic = fit.model.func(fit.x, fit.initial_values)
@@ -200,7 +200,6 @@ def _plot(
 
     _, ax = plt.subplots(fit.model.get_num_y_axes(), 2)
     for ch in range(fit.model.get_num_y_axes()):
-
         x = fit.x.squeeze()
         if x.ndim != 1:
             raise ValueError(
@@ -401,7 +400,7 @@ def fuzz(
 
 
 def generate_param_set(
-    fuzzed_params: Dict[str, Tuple[float, float]]
+    fuzzed_params: Dict[str, Tuple[float, float]],
 ) -> Dict[str, float]:
     return {
         param: np.random.uniform(*bounds) for param, bounds in fuzzed_params.items()

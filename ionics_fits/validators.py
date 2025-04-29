@@ -1,4 +1,4 @@
-r""" It's not enough to just fit data, we want to know whether we can trust the fit
+r"""It's not enough to just fit data, we want to know whether we can trust the fit
 results. This is where validators come in.
 
 There are two distinct aspects to the validation problem:
@@ -17,8 +17,8 @@ flexible and extensible framework for using statistical tests to validate fits.
 """
 
 from typing import Tuple
-import numpy as np
 
+import numpy as np
 
 from .common import Fitter
 

@@ -1,7 +1,8 @@
 import numpy as np
 
 from ionics_fits.models.lorentzian import Lorentzian
-from .common import check_multiple_param_sets, check_single_param_set, fuzz, Config
+
+from .common import Config, check_multiple_param_sets, check_single_param_set, fuzz
 
 
 def test_lorentzian(plot_failures):

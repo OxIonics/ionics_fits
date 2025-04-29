@@ -2,9 +2,9 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from . import heuristics
-from ..common import Model, ModelParameter, TX, TY
+from ..common import TX, TY, Model, ModelParameter
 from ..utils import scale_invariant, scale_undefined, scale_x, scale_x_inv
+from . import heuristics
 
 
 class MolmerSorensen(Model):
@@ -69,7 +69,7 @@ class MolmerSorensen(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [False] * self.get_num_y_axes()
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -180,6 +180,8 @@ class MolmerSorensen(Model):
 
         return np.vstack([P_gg, P_1, P_ee])
 
+    # pytype: enable=invalid-annotation,signature-mismatch
+
     def calculate_derived_params(
         self,
         x: TX,
@@ -199,8 +201,6 @@ class MolmerSorensen(Model):
         derived_uncertainties["f_0"] = fit_uncertainties[w_0_param] / (2 * np.pi)
 
         return derived_params, derived_uncertainties
-
-    # pytype: enable=invalid-annotation
 
 
 class MolmerSorensenTime(MolmerSorensen):

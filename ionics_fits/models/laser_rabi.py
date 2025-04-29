@@ -1,10 +1,12 @@
 import copy
 import inspect
-from typing import Callable, Dict, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, Tuple
 
 import numpy as np
 from scipy import special
 
+from ..common import TX, TY, ModelParameter
+from ..utils import Array, scale_invariant, scale_undefined, scale_y
 from .quantum_phys import (
     coherent_state_probs,
     displaced_thermal_state_probs,
@@ -13,8 +15,6 @@ from .quantum_phys import (
 )
 from .rabi import RabiFlop, RabiFlopFreq, RabiFlopTime
 from .utils import param_like
-from ..common import ModelParameter, TX, TY
-from ..utils import Array, scale_invariant, scale_y, scale_undefined
 
 if TYPE_CHECKING:
     num_fock_states = float
@@ -169,9 +169,7 @@ class LaserFlop(RabiFlop):
             * np.exp(-0.5 * eta**2)
             * eta ** np.abs(self.sideband_index)
             * self.fact
-            * special.eval_genlaguerre(
-                self._n_min, np.abs(self.sideband_index), eta**2
-            )
+            * special.eval_genlaguerre(self._n_min, np.abs(self.sideband_index), eta**2)
         )
 
         t_vec = np.clip(x[0] - t_dead, a_min=0, a_max=None)

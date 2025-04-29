@@ -1,6 +1,6 @@
 from typing import Dict, List, Tuple
 
-from ...common import Model, ModelParameter, TX, TY
+from ...common import TX, TY, Model, ModelParameter
 
 
 class ReparametrizedModel(Model):
@@ -206,7 +206,6 @@ class ReparametrizedModel(Model):
         fitted_params: Dict[str, float],
         fit_uncertainties: Dict[str, float],
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
-
         bound_values = self.bound_param_values(fitted_params)
         bound_uncertainties = self.bound_param_uncertainties(
             fitted_params, fit_uncertainties

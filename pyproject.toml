@@ -6,20 +6,20 @@ authors = ["hartytp <thomas.peter.harty@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.8, <3.11"
+python = "^3.10"
 numpy = ">=1.21.2, <3.0"
 scipy = "^1.7.1"
 statsmodels = "^0.14.0"
 
 [tool.poetry.dev-dependencies]
-pytest = "^6.2.5"
-poethepoet = "^0.12.1"
-flake8 = "^4.0.1"
-black = "^22.6.0"
+pytest = "^8.2.2"
+poethepoet = "^0.24.4"
+ruff = "^0.7.3"
 pyqt5 = "^5.15.9"
 pyqt5-qt5 = "^5.15.2, <5.15.11" # no windows wheels for 5.15.11 as of 24/10/2023
 matplotlib = "^3.5.3"
-pytype = {version = "^2022.4.15", markers = "os_name == 'posix'"}
+# pytype behaviour is not stable between versions. Pin to a specific version.
+pytype = { version = "2024.10.11", markers = "os_name == 'posix'" }
 sphinx = "^6.0"
 sphinx-rtd-theme = "^1.2.0"
 sphinx-mdinclude = "^0.5.3"
@@ -39,10 +39,29 @@ filterwarnings = ["error"]
 
 [tool.poe.tasks]
 test = "pytest"
-fmt-test = "black --check ."
-fmt = "black ."
-flake = "flake8 ."
+fmt-test = "ruff format --check ."
+fmt = "ruff format"
+lint = "ruff check"
 fuzz = "python -m test.fuzz"
 types = { script = "run_pytype:main" }
 docs = { cwd = "./docs", cmd = "make html doctest" }
 docs-clean = { cwd = "./docs", cmd = "make clean" }
+
+[tool.ruff]
+exclude = ["scratch", ".git", "__pycache__", ".venv"]
+
+indent-width = 4
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint.per-file-ignores]
+# Allow unused imports in __init__ files for re-exporting
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint]
+extend-select = [
+  # isort
+  "I",
+  # line-too-long
+  "E501",
+]

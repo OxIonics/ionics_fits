@@ -1,11 +1,11 @@
 import numpy as np
 
-from .common import check_multiple_param_sets, Config
-
 from ionics_fits.models.gaussian import Gaussian
 from ionics_fits.models.rabi import RabiFlopFreq
 from ionics_fits.models.transformations.repeated_model import RepeatedModel
 from ionics_fits.normal import NormalFitter
+
+from .common import Config, check_multiple_param_sets
 
 
 class DoubleRabiFreq(RepeatedModel):

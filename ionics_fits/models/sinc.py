@@ -1,12 +1,13 @@
 from typing import List, Tuple
+
 import numpy as np
 
+from ..common import TX, TY, Model, ModelParameter
+from ..normal import NormalFitter
+from ..utils import scale_x, scale_x_inv, scale_y
 from . import heuristics
 from .rectangle import Rectangle
 from .triangle import Triangle
-from ..common import Model, ModelParameter, TX, TY
-from ..normal import NormalFitter
-from ..utils import scale_x, scale_x_inv, scale_y
 
 
 class Sinc(Model):
@@ -26,7 +27,7 @@ class Sinc(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -45,7 +46,8 @@ class Sinc(Model):
         y = a * np.sinc(x) + y0
         return y
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
+
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)
         y = np.squeeze(y)
@@ -99,7 +101,7 @@ class Sinc2(Model):
     def can_rescale(self) -> Tuple[List[bool], List[bool]]:
         return [True], [True]
 
-    # pytype: disable=invalid-annotation
+    # pytype: disable=invalid-annotation,signature-mismatch
     def _func(
         self,
         x: TX,
@@ -118,7 +120,8 @@ class Sinc2(Model):
         y = a * (np.sinc(x) ** 2) + y0
         return y
 
-    # pytype: enable=invalid-annotation
+    # pytype: enable=invalid-annotation,signature-mismatch
+
     def estimate_parameters(self, x: TX, y: TY):
         x = np.squeeze(x)
         y = np.squeeze(y)

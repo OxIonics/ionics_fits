@@ -3,8 +3,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from ...common import TX, TY, Model, ModelParameter
 from ..utils import param_like
-from ...common import Model, ModelParameter, TX, TY
 
 
 class AggregateModel(Model):
