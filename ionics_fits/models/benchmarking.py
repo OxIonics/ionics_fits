@@ -9,9 +9,10 @@ from ..utils import scale_no_rescale
 class Benchmarking(Model):
     """Benchmarking success probability decay model according to::
 
-        y = (y0 - y_inf)*p^x + y_inf
+        y = (y0 - y_inf)*p^(x+1) + y_inf
 
-    where ``x`` is the sequence length (number of Clifford operations).
+    where ``x`` is the sequence length (number of Clifford operations without
+    including the inverting Clifford).
 
     See :meth:`_func` for parameter details.
     """
@@ -60,7 +61,7 @@ class Benchmarking(Model):
         :param y_inf: depolarisation offset (y-axis asymptote) (fixed to ``1/2^n`` by
           default)
         """
-        y = (y0 - y_inf) * p**x + y_inf
+        y = (y0 - y_inf) * p ** (x + 1) + y_inf
         return y
 
     # pytype: enable=invalid-annotation,signature-mismatch
