@@ -29,4 +29,4 @@ def binomial(k: Real | float, N: Real | float) -> tuple[float, float]:
         0.0 if isnan(lower) else float(lower)
     )
 
-    return float(k) / float(N), width / 2.0
+    return kf / nf, width / 2.0
