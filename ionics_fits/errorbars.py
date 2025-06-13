@@ -7,7 +7,7 @@ ONE_SIGMA = 0.682689492
 ALPHA_2 = (1.0 - ONE_SIGMA) / 2.0
 
 
-def binomial(k: Real, N: Real) -> tuple[float, float]:
+def binomial(k: Real | float, N: Real | float) -> tuple[float, float]:
     """Calculate the estimated source probability from measuring `k` successes
     out of `N` attempts, and its error (half width of the Clopper-Pearson
     interval)
