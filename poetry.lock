@@ -915,7 +915,7 @@ version = "0.9.3"
 description = "Building blocks for precise & flexible type hints"
 optional = false
 python-versions = ">=3.10"
-groups = ["main"]
+groups = ["dev"]
 markers = "python_version == \"3.10\""
 files = [
     {file = "optype-0.9.3-py3-none-any.whl", hash = "sha256:2935c033265938d66cc4198b0aca865572e635094e60e6e79522852f029d9e8d"},
@@ -934,7 +934,7 @@ version = "0.10.0"
 description = "Building blocks for precise & flexible type hints"
 optional = false
 python-versions = ">=3.11"
-groups = ["main"]
+groups = ["dev"]
 markers = "python_version >= \"3.11\""
 files = [
     {file = "optype-0.10.0-py3-none-any.whl", hash = "sha256:7e9ccc329fb65c326c6bd62c30c2ba03b694c28c378a96c2bcdd18a084f2c96b"},
@@ -1610,7 +1610,7 @@ version = "1.15.3.0"
 description = "Type annotations for SciPy"
 optional = false
 python-versions = ">=3.10"
-groups = ["main"]
+groups = ["dev"]
 files = [
     {file = "scipy_stubs-1.15.3.0-py3-none-any.whl", hash = "sha256:a251254cf4fd6e7fb87c55c1feee92d32ddbc1f542ecdf6a0159cdb81c2fb62d"},
     {file = "scipy_stubs-1.15.3.0.tar.gz", hash = "sha256:e8f76c9887461cf9424c1e2ad78ea5dac71dd4cbb383dc85f91adfe8f74d1e17"},
@@ -1965,12 +1965,12 @@ version = "4.13.2"
 description = "Backported and Experimental Type Hints for Python 3.8+"
 optional = false
 python-versions = ">=3.8"
-groups = ["main", "dev"]
+groups = ["dev"]
+markers = "os_name == \"posix\" or python_version < \"3.13\""
 files = [
     {file = "typing_extensions-4.13.2-py3-none-any.whl", hash = "sha256:a439e7c04b49fec3e5d3e2beaa21755cadbbdc391694e28ccdd36ca4a1408f8c"},
     {file = "typing_extensions-4.13.2.tar.gz", hash = "sha256:e6c81219bd689f51865d9e372991c540bda33a0379d5573cddb9a3a23f7caaef"},
 ]
-markers = {main = "python_version < \"3.13\"", dev = "os_name == \"posix\""}
 
 [[package]]
 name = "tzdata"
@@ -2005,4 +2005,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "f0806655aca1e66e5128901010ebab0b807294029043b4254fa273f7022436aa"
+content-hash = "13eda6ddd8baafb768f9458d23d3c39bdde9763fd090981fd480a32a270e5832"
