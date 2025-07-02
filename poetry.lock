@@ -1820,15 +1820,15 @@ scipy = ["scipy (>=1.15.3,<1.16)"]
 
 [[package]]
 name = "scipy-stubs"
-version = "1.16.0.1"
+version = "1.16.0.2"
 description = "Type annotations for SciPy"
 optional = false
 python-versions = ">=3.11"
 groups = ["dev"]
 markers = "python_version >= \"3.11\""
 files = [
-    {file = "scipy_stubs-1.16.0.1-py3-none-any.whl", hash = "sha256:f756c680c82ebb4491460bdd368bb9e151adc33c4f6776664c99e937b7b90cef"},
-    {file = "scipy_stubs-1.16.0.1.tar.gz", hash = "sha256:ac5e6659c268c448028b2161e11ca7edb7b6814110e0e77e45bd07378c342451"},
+    {file = "scipy_stubs-1.16.0.2-py3-none-any.whl", hash = "sha256:dc364d24a3accd1663e7576480bdb720533f94de8a05590354ff6d4a83d765c7"},
+    {file = "scipy_stubs-1.16.0.2.tar.gz", hash = "sha256:f83aacaf2e899d044de6483e6112bf7a1942d683304077bc9e78cf6f21353acd"},
 ]
 
 [package.dependencies]
