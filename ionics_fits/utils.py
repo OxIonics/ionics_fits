@@ -1,3 +1,4 @@
+import functools
 from typing import TYPE_CHECKING, Callable, List, Union
 
 import numpy as np
@@ -46,6 +47,10 @@ def scale_invariant(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
     return 1
 
 
+def _scale_x_worker(x_axis: int, x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
+    return x_scales[x_axis]
+
+
 def scale_x(x_axis: int = 0) -> TSCALE_FUN:
     r"""Returns a scale function for :class:`~ionics_fits.common.ModelParameter`\ s
     whose value scales linearly with one x-axis dimension.
@@ -54,11 +59,13 @@ def scale_x(x_axis: int = 0) -> TSCALE_FUN:
     :returns: scale function
     """
 
-    def fun(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
-        return x_scales[x_axis]
-
+    fun = functools.partial(_scale_x_worker, x_axis)
     fun.__name__ = "scale_x"
     return fun
+
+
+def _scale_x_inv_worker(x_axis: int, x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
+    return 1 / x_scales[x_axis]
 
 
 def scale_x_inv(x_axis: int = 0) -> TSCALE_FUN:
@@ -69,11 +76,13 @@ def scale_x_inv(x_axis: int = 0) -> TSCALE_FUN:
     :returns: scale function
     """
 
-    def fun(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
-        return 1 / x_scales[x_axis]
-
+    fun = functools.partial(_scale_x_inv_worker, x_axis)
     fun.__name__ = "scale_x_inv"
     return fun
+
+
+def _scale_y_worker(y_axis: int, x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
+    return y_scales[y_axis]
 
 
 def scale_y(y_axis: int = 0) -> TSCALE_FUN:
@@ -84,11 +93,21 @@ def scale_y(y_axis: int = 0) -> TSCALE_FUN:
     :returns: scale function
     """
 
-    def fun(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
-        return y_scales[y_axis]
-
+    fun = functools.partial(_scale_y_worker, y_axis)
     fun.__name__ = "scale_y"
     return fun
+
+
+def _scale_power_worker(
+    x_scales: TX_SCALE,
+    y_scales: TY_SCALE,
+    *,
+    x_power: int,
+    y_power: int,
+    x_axis: int = 0,
+    y_axis: int = 0,
+) -> float:
+    return (x_scales[x_axis] ** x_power) * (y_scales[y_axis] ** y_power)
 
 
 def scale_power(
@@ -108,9 +127,13 @@ def scale_power(
     :returns: scale function
     """
 
-    def fun(x_scales: TX_SCALE, y_scales: TY_SCALE) -> float:
-        return (x_scales[x_axis] ** x_power) * (y_scales[y_axis] ** y_power)
-
+    fun = functools.partial(
+        _scale_power_worker,
+        x_power=x_power,
+        y_power=y_power,
+        x_axis=x_axis,
+        y_axis=y_axis,
+    )
     fun.__name__ = "scale_power"
     return fun
 
