@@ -4,7 +4,15 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from ...common import TX, TY, Model, ModelParameter
+from ...utils import TX_SCALE, TY_SCALE
 from ..utils import param_like
+
+
+def _wrapped_scale_func(
+    model_idx: int, scale_func, x_scales: TX_SCALE, y_scales: TY_SCALE
+):
+    """Make model scale functions use correct y-axis dimension"""
+    return scale_func(x_scales, [y_scales[model_idx]])
 
 
 class AggregateModel(Model):
@@ -114,15 +122,11 @@ class AggregateModel(Model):
         if axes.count(self.num_x_axes) != len(axes):
             raise ValueError("All models must have the same number of x-axes")
 
-        # make model scale functions use correct y-axis dimension
-        def wrapped_scale_func(model_idx, scale_func, x_scales, y_scales):
-            return scale_func(x_scales, [y_scales[model_idx]])
-
         for idx, model in enumerate(self.models.values()):
             model_params = list(model.parameters.values()) + model.internal_parameters
             for parameter in model_params:
                 scale_func = parameter.scale_func
-                wrapped_param_scale_func = partial(wrapped_scale_func, idx, scale_func)
+                wrapped_param_scale_func = partial(_wrapped_scale_func, idx, scale_func)
                 parameter.scale_func = wrapped_param_scale_func
                 parameter.scale_func.__name__ = scale_func.__name__
 

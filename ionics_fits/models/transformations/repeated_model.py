@@ -8,6 +8,12 @@ from ...utils import TX_SCALE, TY_SCALE
 from ..utils import param_like
 
 
+def _wrapped_scale_func(
+    self: "RepeatedModel", scale_func: Callable, x_scales: TX_SCALE, y_scales: TY_SCALE
+) -> float:
+    return scale_func(x_scales, y_scales[0 : self.model.get_num_y_axes()])
+
+
 class RepeatedModel(Model):
     """Model formed by repeating a :class:`~ionics_fits.common.Model` one or more models
     along the y-axis to produce a new model, with greater y-axis dimensionality.
@@ -90,15 +96,10 @@ class RepeatedModel(Model):
             parameters=params, internal_parameters=self.model.internal_parameters
         )
 
-        def wrapped_scale_func(
-            scale_func: Callable, x_scales: TX_SCALE, y_scales: TY_SCALE
-        ) -> float:
-            return scale_func(x_scales, y_scales[0 : self.model.get_num_y_axes()])
-
         parameters = list(self.parameters.values()) + self.internal_parameters
         for parameter in parameters:
             scale_func = parameter.scale_func
-            parameter.scale_func = partial(wrapped_scale_func, scale_func)
+            parameter.scale_func = partial(_wrapped_scale_func, self, scale_func)
             parameter.scale_func.__name__ = scale_func.__name__
 
     def get_num_x_axes(self) -> int:
