@@ -1148,15 +1148,15 @@ numpy = ["numpy (>=1.23.5)"]
 
 [[package]]
 name = "optype"
-version = "0.13.0"
+version = "0.13.1"
 description = "Building blocks for precise & flexible type hints"
 optional = false
 python-versions = ">=3.11"
 groups = ["dev"]
 markers = "python_version >= \"3.11\""
 files = [
-    {file = "optype-0.13.0-py3-none-any.whl", hash = "sha256:f7be2f22bd2f21c790424b5229e462ae951f02e70e45e1132b892dfb4a96f94c"},
-    {file = "optype-0.13.0.tar.gz", hash = "sha256:d17741b3a9d13229227273c3c183c0add8b23faab2099e402ed7ce248b08aa74"},
+    {file = "optype-0.13.1-py3-none-any.whl", hash = "sha256:811c6b4c3d40e10b6602e33a546b30b5e595e9ec7c59e050b5e328332ed2659c"},
+    {file = "optype-0.13.1.tar.gz", hash = "sha256:9b1d590597b0c093faf5253e38238c5a5e1a1f9afb04530836c38ac94fdd5cf6"},
 ]
 
 [package.dependencies]
