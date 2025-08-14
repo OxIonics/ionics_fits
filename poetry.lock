@@ -1176,15 +1176,15 @@ files = [
 
 [[package]]
 name = "numpy-typing-compat"
-version = "2.3.20250730"
+version = "2.3.20250814"
 description = "Static typing compatibility layer for older versions of NumPy"
 optional = false
 python-versions = ">=3.11"
 groups = ["dev"]
 markers = "python_version >= \"3.11\""
 files = [
-    {file = "numpy_typing_compat-2.3.20250730-py3-none-any.whl", hash = "sha256:9ab0cd4bb1b4c31debf0bd745554c735a07a7bb3cc3801dc934b2b5856549612"},
-    {file = "numpy_typing_compat-2.3.20250730.tar.gz", hash = "sha256:eb30717dc7390a038c2247be1a7e8bf1a48b8a4701a01960804830a231631bef"},
+    {file = "numpy_typing_compat-2.3.20250814-py3-none-any.whl", hash = "sha256:e94d188edc728a7720470a60bac9e193d77680998a614517793ca9fd0c19833a"},
+    {file = "numpy_typing_compat-2.3.20250814.tar.gz", hash = "sha256:5b27cda3b05cf95eacb4296443ff9cd640d5adfed59067d4b7cbcfb22898916d"},
 ]
 
 [package.dependencies]
