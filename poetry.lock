@@ -1211,23 +1211,23 @@ numpy = ["numpy (>=1.23.5)"]
 
 [[package]]
 name = "optype"
-version = "0.13.2"
-description = "Building blocks for precise & flexible type hints"
+version = "0.13.3"
+description = "Building Blocks for Precise & Flexible Type Hints"
 optional = false
 python-versions = ">=3.11"
 groups = ["dev"]
 markers = "python_version >= \"3.11\""
 files = [
-    {file = "optype-0.13.2-py3-none-any.whl", hash = "sha256:46dcfbdb9a53e284a8f8928cdaa01809a613d92ffff5642efd9c06cb6ae285b3"},
-    {file = "optype-0.13.2.tar.gz", hash = "sha256:15c633ab6451d98886615c48b54396290c6b78bc5cd6f3f305fef098e279aade"},
+    {file = "optype-0.13.3-py3-none-any.whl", hash = "sha256:0fce3ef95da9f5eefc01b7f06fae363cfe1939027934e108f95fefd169019363"},
+    {file = "optype-0.13.3.tar.gz", hash = "sha256:4cf46601223e7c977e8bc22f4472a59a773877c3ee0b3407d66073cd67326572"},
 ]
 
 [package.dependencies]
-numpy-typing-compat = {version = ">=1.25.20250814", optional = true, markers = "extra == \"numpy\""}
+numpy-typing-compat = {version = ">=1.25.20250814,<3", optional = true, markers = "extra == \"numpy\""}
 typing-extensions = {version = ">=4.10", markers = "python_full_version < \"3.13.0\""}
 
 [package.extras]
-numpy = ["numpy-typing-compat (>=1.25.20250814)"]
+numpy = ["numpy-typing-compat (>=1.25.20250814,<3)"]
 
 [[package]]
 name = "packaging"
