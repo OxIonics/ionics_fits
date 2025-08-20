@@ -1176,15 +1176,15 @@ files = [
 
 [[package]]
 name = "numpy-typing-compat"
-version = "2.3.20250814"
+version = "20250818.2.3"
 description = "Static typing compatibility layer for older versions of NumPy"
 optional = false
 python-versions = ">=3.11"
 groups = ["dev"]
 markers = "python_version >= \"3.11\""
 files = [
-    {file = "numpy_typing_compat-2.3.20250814-py3-none-any.whl", hash = "sha256:e94d188edc728a7720470a60bac9e193d77680998a614517793ca9fd0c19833a"},
-    {file = "numpy_typing_compat-2.3.20250814.tar.gz", hash = "sha256:5b27cda3b05cf95eacb4296443ff9cd640d5adfed59067d4b7cbcfb22898916d"},
+    {file = "numpy_typing_compat-20250818.2.3-py3-none-any.whl", hash = "sha256:930413d34dd9083c0bf418815576222f1c66ea2d68950f447fd27ea1a78b26b0"},
+    {file = "numpy_typing_compat-20250818.2.3.tar.gz", hash = "sha256:72e83d535b635d668ba7315e43ae80be1469a6faea6fc96d312516f39b3d8fa5"},
 ]
 
 [package.dependencies]
@@ -1211,23 +1211,24 @@ numpy = ["numpy (>=1.23.5)"]
 
 [[package]]
 name = "optype"
-version = "0.13.3"
+version = "0.13.4"
 description = "Building Blocks for Precise & Flexible Type Hints"
 optional = false
 python-versions = ">=3.11"
 groups = ["dev"]
 markers = "python_version >= \"3.11\""
 files = [
-    {file = "optype-0.13.3-py3-none-any.whl", hash = "sha256:0fce3ef95da9f5eefc01b7f06fae363cfe1939027934e108f95fefd169019363"},
-    {file = "optype-0.13.3.tar.gz", hash = "sha256:4cf46601223e7c977e8bc22f4472a59a773877c3ee0b3407d66073cd67326572"},
+    {file = "optype-0.13.4-py3-none-any.whl", hash = "sha256:500c89cfac82e2f9448a54ce0a5d5c415b6976b039c2494403cd6395bd531979"},
+    {file = "optype-0.13.4.tar.gz", hash = "sha256:131d8e0f1c12d8095d553e26b54598597133830983233a6a2208886e7a388432"},
 ]
 
 [package.dependencies]
-numpy-typing-compat = {version = ">=1.25.20250814,<3", optional = true, markers = "extra == \"numpy\""}
+numpy = {version = ">=1.25", optional = true, markers = "extra == \"numpy\""}
+numpy-typing-compat = {version = ">=20250818.1.25,<20250819", optional = true, markers = "extra == \"numpy\""}
 typing-extensions = {version = ">=4.10", markers = "python_full_version < \"3.13.0\""}
 
 [package.extras]
-numpy = ["numpy-typing-compat (>=1.25.20250814,<3)"]
+numpy = ["numpy (>=1.25)", "numpy-typing-compat (>=20250818.1.25,<20250819)"]
 
 [[package]]
 name = "packaging"
